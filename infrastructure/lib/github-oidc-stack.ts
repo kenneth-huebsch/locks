@@ -74,6 +74,8 @@ export class LocksGitHubOidcStack extends Stack {
               'cloudfront:UpdateFunction',
               'cloudfront:UpdateOriginAccessControl',
               'cognito-idp:AdminCreateUser',
+              'cognito-idp:AdminDeleteUser',
+              'cognito-idp:AdminGetUser',
               'cognito-idp:CreateUserPool',
               'cognito-idp:CreateUserPoolClient',
               'cognito-idp:CreateUserPoolDomain',

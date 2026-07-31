@@ -42,4 +42,20 @@ describe('LocksGitHubOidcStack', () => {
     expect(JSON.stringify(roles)).not.toContain('"Action":"*"');
     expect(JSON.stringify(roles)).toContain('sts:AssumeRole');
   });
+
+  it('allows CloudFormation to manage the invited Cognito user lifecycle', () => {
+    template.hasResourceProperties('AWS::IAM::ManagedPolicy', {
+      PolicyDocument: {
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Action: Match.arrayWith([
+              'cognito-idp:AdminCreateUser',
+              'cognito-idp:AdminDeleteUser',
+              'cognito-idp:AdminGetUser',
+            ]),
+          }),
+        ]),
+      },
+    });
+  });
 });

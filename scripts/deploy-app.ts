@@ -17,14 +17,11 @@ import {
   getAppStackOutputs,
   requireOutput,
 } from './aws-context.js';
+import { createRuntimeConfig } from './runtime-config.js';
 
 await assertTargetAccount();
 const outputs = await getAppStackOutputs();
-const runtimeConfig = {
-  apiBaseUrl: '/api',
-  authority: requireOutput(outputs, 'Authority'),
-  clientId: requireOutput(outputs, 'UserPoolClientId'),
-};
+const runtimeConfig = createRuntimeConfig(outputs);
 
 await mkdir('public', { recursive: true });
 await writeFile(

@@ -4,13 +4,33 @@ import { AuthProvider, useAuth } from 'react-oidc-context';
 import { App } from './App';
 import { loadCurrentWeek } from './api';
 import './index.css';
-import { loadRuntimeConfig } from './runtime-config';
+import {
+  loadRuntimeConfig,
+  logoutFromCognito,
+  type RuntimeConfig,
+} from './runtime-config';
 
-function AuthenticatedApp({ apiBaseUrl }: { apiBaseUrl: string }) {
+function AuthenticatedApp({ config }: { config: RuntimeConfig }) {
   const auth = useAuth();
   const loadWeek = useCallback(
-    (accessToken: string) => loadCurrentWeek(accessToken, apiBaseUrl),
-    [apiBaseUrl],
+    (accessToken: string) =>
+      loadCurrentWeek(accessToken, config.apiBaseUrl),
+    [config.apiBaseUrl],
+  );
+  const logout = useCallback(
+    () =>
+      logoutFromCognito(
+        auth.removeUser,
+        (url) => window.location.assign(url),
+        config.cognitoDomain,
+        config.clientId,
+        window.location.origin,
+      ),
+    [
+      auth.removeUser,
+      config.clientId,
+      config.cognitoDomain,
+    ],
   );
 
   return (
@@ -21,7 +41,7 @@ function AuthenticatedApp({ apiBaseUrl }: { apiBaseUrl: string }) {
         error: auth.error,
         accessToken: auth.user?.access_token,
         signinRedirect: auth.signinRedirect,
-        signoutRedirect: auth.signoutRedirect,
+        logout,
       }}
       loadCurrentWeek={loadWeek}
     />
@@ -43,12 +63,11 @@ async function render() {
         onSigninCallback={() => {
           window.history.replaceState({}, document.title, window.location.pathname);
         }}
-        post_logout_redirect_uri={window.location.origin}
         redirect_uri={window.location.origin}
         response_type="code"
         scope="openid email"
       >
-        <AuthenticatedApp apiBaseUrl={config.apiBaseUrl} />
+        <AuthenticatedApp config={config} />
       </AuthProvider>
     </StrictMode>,
   );

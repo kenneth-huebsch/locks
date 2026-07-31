@@ -7,7 +7,7 @@ export interface AppAuth {
   error?: Error;
   accessToken?: string;
   signinRedirect: () => void | Promise<void>;
-  signoutRedirect: () => void | Promise<void>;
+  logout: () => void | Promise<void>;
 }
 
 interface AppProps {
@@ -87,7 +87,7 @@ export function App({ auth, loadCurrentWeek }: AppProps) {
           <h1 className="text-2xl font-black tracking-tight">Locks</h1>
           <button
             className="text-sm font-semibold underline underline-offset-4"
-            onClick={() => void auth.signoutRedirect()}
+            onClick={() => void auth.logout()}
             type="button"
           >
             Sign out

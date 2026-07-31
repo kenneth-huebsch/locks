@@ -9,7 +9,7 @@ const unauthenticatedAuth: AppAuth = {
   isAuthenticated: false,
   isLoading: false,
   signinRedirect: vi.fn(),
-  signoutRedirect: vi.fn(),
+  logout: vi.fn(),
 };
 
 describe('App', () => {
@@ -42,5 +42,29 @@ describe('App', () => {
     expect(await screen.findByText(FOUNDATION_GAME.awayTeam)).toBeInTheDocument();
     expect(screen.getByText(FOUNDATION_GAME.homeTeam)).toBeInTheDocument();
     expect(screen.getByText(/week 1/i)).toBeInTheDocument();
+  });
+
+  it('clears the local session and starts Cognito logout', async () => {
+    const user = userEvent.setup();
+    const logout = vi.fn();
+    render(
+      <App
+        auth={{
+          ...unauthenticatedAuth,
+          isAuthenticated: true,
+          accessToken: 'access-token',
+          logout,
+        }}
+        loadCurrentWeek={vi.fn().mockResolvedValue({
+          season: FOUNDATION_WEEK.season,
+          week: FOUNDATION_WEEK.week,
+          games: [],
+        })}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /sign out/i }));
+
+    expect(logout).toHaveBeenCalledOnce();
   });
 });
