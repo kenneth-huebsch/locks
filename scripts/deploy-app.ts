@@ -16,6 +16,10 @@ import {
   getAppStackOutputs,
   requireOutput,
 } from './aws-context.js';
+import {
+  type DeploymentFile,
+  publishInSafeOrder,
+} from './deployment-order.js';
 import { runNpmScript } from './npm-command.js';
 import { createRuntimeConfig } from './runtime-config.js';
 
@@ -35,10 +39,13 @@ const bucketName = requireOutput(outputs, 'SiteBucketName');
 const distributionId = requireOutput(outputs, 'DistributionId');
 const s3 = new S3Client({ region: TARGET_REGION });
 const files = await listFiles(resolve('dist'));
-const localKeys = new Set(
-  files.map((file) => relative(resolve('dist'), file).split(sep).join('/')),
-);
+const deploymentFiles: DeploymentFile[] = files.map((path) => ({
+  key: relative(resolve('dist'), path).split(sep).join('/'),
+  path,
+}));
+const localKeys = new Set(deploymentFiles.map(({ key }) => key));
 
+const staleKeyBatches: string[][] = [];
 let continuationToken: string | undefined;
 do {
   const listed = await s3.send(
@@ -54,34 +61,39 @@ do {
         key !== undefined && !localKeys.has(key),
     );
   if (staleKeys.length > 0) {
-    await s3.send(
-      new DeleteObjectsCommand({
-        Bucket: bucketName,
-        Delete: {
-          Objects: staleKeys.map((Key) => ({ Key })),
-          Quiet: true,
-        },
-      }),
-    );
+    staleKeyBatches.push(staleKeys);
   }
   continuationToken = listed.NextContinuationToken;
 } while (continuationToken);
 
-await Promise.all(
-  files.map(async (file) => {
-    const key = relative(resolve('dist'), file).split(sep).join('/');
+await publishInSafeOrder(
+  deploymentFiles,
+  async ({ key, path }) => {
     await s3.send(
       new PutObjectCommand({
         Bucket: bucketName,
         Key: key,
-        Body: await readFile(file),
-        ContentType: contentType(file),
+        Body: await readFile(path),
+        ContentType: contentType(path),
         CacheControl: key.startsWith('assets/')
           ? 'public,max-age=31536000,immutable'
           : 'no-cache',
       }),
     );
-  }),
+  },
+  async () => {
+    for (const staleKeys of staleKeyBatches) {
+      await s3.send(
+        new DeleteObjectsCommand({
+          Bucket: bucketName,
+          Delete: {
+            Objects: staleKeys.map((Key) => ({ Key })),
+            Quiet: true,
+          },
+        }),
+      );
+    }
+  },
 );
 
 runNpmScript('seed');

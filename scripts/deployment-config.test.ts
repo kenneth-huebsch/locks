@@ -31,4 +31,19 @@ describe('deployment commands', () => {
     expect(readme).toContain('npm run deploy:infrastructure');
     expect(readme).not.toContain('npm run cdk -- deploy');
   });
+
+  it('pins third-party actions to immutable v4 commit SHAs', async () => {
+    const workflow = await readFile('.github/workflows/deploy.yml', 'utf8');
+
+    expect(workflow).toContain(
+      'uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4',
+    );
+    expect(workflow).toContain(
+      'uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4',
+    );
+    expect(workflow).toContain(
+      'uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4',
+    );
+    expect(workflow).not.toMatch(/uses: .+@v4(?:\s|$)/);
+  });
 });

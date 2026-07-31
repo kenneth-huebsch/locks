@@ -48,6 +48,17 @@ export class LocksGitHubOidcStack extends Stack {
           'CloudFormation permissions for the Locks application stack',
         statements: [
           new PolicyStatement({
+            sid: 'CreateNoArn',
+            actions: [
+              'cloudfront:CreateDistribution',
+              'cloudfront:CreateFunction',
+              'cloudfront:CreateOriginAccessControl',
+              'cognito-idp:CreateUserPool',
+            ],
+            resources: ['*'],
+          }),
+          new PolicyStatement({
+            sid: 'Api',
             actions: [
               'apigateway:DELETE',
               'apigateway:GET',
@@ -56,29 +67,60 @@ export class LocksGitHubOidcStack extends Stack {
               'apigateway:PUT',
               'apigateway:TagResource',
               'apigateway:UntagResource',
-              'cloudfront:CreateDistribution',
-              'cloudfront:CreateFunction',
-              'cloudfront:CreateInvalidation',
-              'cloudfront:CreateOriginAccessControl',
-              'cloudfront:DeleteDistribution',
+            ],
+            resources: [
+              `arn:aws:apigateway:${TARGET_REGION}::/apis`,
+              `arn:aws:apigateway:${TARGET_REGION}::/apis/*`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'CfFn',
+            actions: [
               'cloudfront:DeleteFunction',
-              'cloudfront:DeleteOriginAccessControl',
               'cloudfront:DescribeFunction',
-              'cloudfront:GetDistribution',
-              'cloudfront:GetDistributionConfig',
               'cloudfront:GetFunction',
-              'cloudfront:GetOriginAccessControl',
-              'cloudfront:ListTagsForResource',
               'cloudfront:PublishFunction',
               'cloudfront:TagResource',
               'cloudfront:UntagResource',
-              'cloudfront:UpdateDistribution',
               'cloudfront:UpdateFunction',
+            ],
+            resources: [
+              `arn:aws:cloudfront::${TARGET_ACCOUNT}:function/LocksAppStack-*`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'CfDist',
+            actions: [
+              'cloudfront:CreateInvalidation',
+              'cloudfront:DeleteDistribution',
+              'cloudfront:GetDistribution',
+              'cloudfront:GetDistributionConfig',
+              'cloudfront:ListTagsForResource',
+              'cloudfront:TagResource',
+              'cloudfront:UntagResource',
+              'cloudfront:UpdateDistribution',
+            ],
+            resources: [
+              `arn:aws:cloudfront::${TARGET_ACCOUNT}:distribution/*`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'CfOac',
+            actions: [
+              'cloudfront:DeleteOriginAccessControl',
+              'cloudfront:GetOriginAccessControl',
               'cloudfront:UpdateOriginAccessControl',
+            ],
+            resources: [
+              `arn:aws:cloudfront::${TARGET_ACCOUNT}:origin-access-control/*`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'Cognito',
+            actions: [
               'cognito-idp:AdminCreateUser',
               'cognito-idp:AdminDeleteUser',
               'cognito-idp:AdminGetUser',
-              'cognito-idp:CreateUserPool',
               'cognito-idp:CreateUserPoolClient',
               'cognito-idp:CreateUserPoolDomain',
               'cognito-idp:DeleteUserPool',
@@ -91,6 +133,14 @@ export class LocksGitHubOidcStack extends Stack {
               'cognito-idp:UntagResource',
               'cognito-idp:UpdateUserPool',
               'cognito-idp:UpdateUserPoolClient',
+            ],
+            resources: [
+              `arn:aws:cognito-idp:${TARGET_REGION}:${TARGET_ACCOUNT}:userpool/*`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'Ddb',
+            actions: [
               'dynamodb:CreateTable',
               'dynamodb:DeleteTable',
               'dynamodb:DescribeContinuousBackups',
@@ -101,34 +151,82 @@ export class LocksGitHubOidcStack extends Stack {
               'dynamodb:UntagResource',
               'dynamodb:UpdateContinuousBackups',
               'dynamodb:UpdateTable',
+            ],
+            resources: [
+              `arn:aws:dynamodb:${TARGET_REGION}:${TARGET_ACCOUNT}:table/locks`,
+              `arn:aws:dynamodb:${TARGET_REGION}:${TARGET_ACCOUNT}:table/locks/index/*`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'Roles',
+            actions: [
               'iam:AttachRolePolicy',
-              'iam:CreateOpenIDConnectProvider',
-              'iam:CreatePolicy',
-              'iam:CreatePolicyVersion',
               'iam:CreateRole',
-              'iam:DeleteOpenIDConnectProvider',
-              'iam:DeletePolicy',
-              'iam:DeletePolicyVersion',
               'iam:DeleteRole',
               'iam:DeleteRolePolicy',
               'iam:DetachRolePolicy',
               'iam:GetRole',
               'iam:GetRolePolicy',
-              'iam:GetOpenIDConnectProvider',
-              'iam:GetPolicy',
-              'iam:GetPolicyVersion',
               'iam:ListAttachedRolePolicies',
-              'iam:ListPolicyVersions',
-              'iam:PassRole',
               'iam:PutRolePolicy',
-              'iam:SetDefaultPolicyVersion',
-              'iam:TagOpenIDConnectProvider',
-              'iam:TagPolicy',
               'iam:TagRole',
-              'iam:UntagOpenIDConnectProvider',
-              'iam:UntagPolicy',
               'iam:UntagRole',
               'iam:UpdateAssumeRolePolicy',
+            ],
+            resources: [
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksAppStack-*`,
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksGitHubOidcStack-*`,
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksGitHubDeployRole`,
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/cdk-hnb659fds-cfn-exec-role-${TARGET_ACCOUNT}-${TARGET_REGION}`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'PassRoles',
+            actions: ['iam:PassRole'],
+            resources: [
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksAppStack-*`,
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksGitHubOidcStack-*`,
+            ],
+            conditions: {
+              StringEquals: {
+                'iam:PassedToService': 'lambda.amazonaws.com',
+              },
+            },
+          }),
+          new PolicyStatement({
+            sid: 'Policy',
+            actions: [
+              'iam:CreatePolicy',
+              'iam:CreatePolicyVersion',
+              'iam:DeletePolicy',
+              'iam:DeletePolicyVersion',
+              'iam:GetPolicy',
+              'iam:GetPolicyVersion',
+              'iam:ListPolicyVersions',
+              'iam:SetDefaultPolicyVersion',
+              'iam:TagPolicy',
+              'iam:UntagPolicy',
+            ],
+            resources: [
+              `arn:aws:iam::${TARGET_ACCOUNT}:policy/LocksCdkExecutionPolicy`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'Oidc',
+            actions: [
+              'iam:CreateOpenIDConnectProvider',
+              'iam:DeleteOpenIDConnectProvider',
+              'iam:GetOpenIDConnectProvider',
+              'iam:TagOpenIDConnectProvider',
+              'iam:UntagOpenIDConnectProvider',
+            ],
+            resources: [
+              `arn:aws:iam::${TARGET_ACCOUNT}:oidc-provider/token.actions.githubusercontent.com`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'Lambda',
+            actions: [
               'lambda:AddPermission',
               'lambda:CreateFunction',
               'lambda:DeleteFunction',
@@ -140,27 +238,68 @@ export class LocksGitHubOidcStack extends Stack {
               'lambda:UntagResource',
               'lambda:UpdateFunctionCode',
               'lambda:UpdateFunctionConfiguration',
+            ],
+            resources: [
+              `arn:aws:lambda:${TARGET_REGION}:${TARGET_ACCOUNT}:function:LocksAppStack-*`,
+              `arn:aws:lambda:${TARGET_REGION}:${TARGET_ACCOUNT}:function:LocksGitHubOidcStack-*`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'Logs',
+            actions: [
               'logs:CreateLogGroup',
               'logs:DeleteLogGroup',
               'logs:ListTagsForResource',
               'logs:PutRetentionPolicy',
               'logs:TagResource',
               'logs:UntagResource',
+            ],
+            resources: [
+              `arn:aws:logs:${TARGET_REGION}:${TARGET_ACCOUNT}:log-group:/aws/lambda/LocksAppStack-*`,
+              `arn:aws:logs:${TARGET_REGION}:${TARGET_ACCOUNT}:log-group:/aws/lambda/LocksGitHubOidcStack-*`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'SiteBucket',
+            actions: [
               's3:CreateBucket',
               's3:DeleteBucket',
               's3:DeleteBucketPolicy',
-              's3:DeleteObject',
               's3:GetBucketLocation',
               's3:GetBucketPolicy',
               's3:GetBucketTagging',
               's3:GetEncryptionConfiguration',
-              's3:GetObject',
               's3:ListBucket',
               's3:PutBucketPolicy',
               's3:PutBucketPublicAccessBlock',
               's3:PutBucketTagging',
               's3:PutEncryptionConfiguration',
+            ],
+            resources: [
+              `arn:aws:s3:::locks-${TARGET_ACCOUNT}-${TARGET_REGION}-site`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'SiteObjects',
+            actions: [
+              's3:DeleteObject',
+              's3:GetObject',
               's3:PutObject',
+            ],
+            resources: [
+              `arn:aws:s3:::locks-${TARGET_ACCOUNT}-${TARGET_REGION}-site/*`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'CdkAssets',
+            actions: ['s3:GetObject'],
+            resources: [
+              `arn:aws:s3:::cdk-hnb659fds-assets-${TARGET_ACCOUNT}-${TARGET_REGION}/*`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'Scheduler',
+            actions: [
               'scheduler:CreateScheduleGroup',
               'scheduler:DeleteSchedule',
               'scheduler:DeleteScheduleGroup',
@@ -169,15 +308,21 @@ export class LocksGitHubOidcStack extends Stack {
               'scheduler:TagResource',
               'scheduler:UntagResource',
             ],
-            resources: ['*'],
-          }),
-          new PolicyStatement({
-            actions: ['lambda:InvokeFunction'],
             resources: [
-              `arn:aws:lambda:${TARGET_REGION}:${TARGET_ACCOUNT}:function:LocksAppStack-*`,
+              `arn:aws:scheduler:${TARGET_REGION}:${TARGET_ACCOUNT}:schedule-group/locks`,
+              `arn:aws:scheduler:${TARGET_REGION}:${TARGET_ACCOUNT}:schedule/locks/*`,
             ],
           }),
           new PolicyStatement({
+            sid: 'Invoke',
+            actions: ['lambda:InvokeFunction'],
+            resources: [
+              `arn:aws:lambda:${TARGET_REGION}:${TARGET_ACCOUNT}:function:LocksAppStack-*`,
+              `arn:aws:lambda:${TARGET_REGION}:${TARGET_ACCOUNT}:function:LocksGitHubOidcStack-*`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'BootstrapVersion',
             actions: ['ssm:GetParameters'],
             resources: [
               `arn:aws:ssm:${TARGET_REGION}:${TARGET_ACCOUNT}:parameter/cdk-bootstrap/hnb659fds/version`,
