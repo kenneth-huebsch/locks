@@ -93,4 +93,34 @@ describe('LocksGitHubOidcStack', () => {
     expect(JSON.stringify(policies)).not.toContain('"apigateway:*"');
     expect(JSON.stringify(policies)).not.toContain('"scheduler:*"');
   });
+
+  it('invokes only LocksAppStack custom-resource functions', () => {
+    const policies = template.findResources('AWS::IAM::ManagedPolicy');
+    const policy = Object.values(policies)[0] as {
+      Properties: {
+        PolicyDocument: {
+          Statement: Array<{
+            Action: string | string[];
+            Effect: string;
+            Resource: string;
+          }>;
+        };
+      };
+    };
+    const invokeStatements =
+      policy.Properties.PolicyDocument.Statement.filter(({ Action }) =>
+        Array.isArray(Action)
+          ? Action.includes('lambda:InvokeFunction')
+          : Action === 'lambda:InvokeFunction',
+      );
+
+    expect(invokeStatements).toEqual([
+      {
+        Action: 'lambda:InvokeFunction',
+        Effect: 'Allow',
+        Resource:
+          'arn:aws:lambda:us-east-1:580956784928:function:LocksAppStack-*',
+      },
+    ]);
+  });
 });

@@ -172,6 +172,12 @@ export class LocksGitHubOidcStack extends Stack {
             resources: ['*'],
           }),
           new PolicyStatement({
+            actions: ['lambda:InvokeFunction'],
+            resources: [
+              `arn:aws:lambda:${TARGET_REGION}:${TARGET_ACCOUNT}:function:LocksAppStack-*`,
+            ],
+          }),
+          new PolicyStatement({
             actions: ['ssm:GetParameters'],
             resources: [
               `arn:aws:ssm:${TARGET_REGION}:${TARGET_ACCOUNT}:parameter/cdk-bootstrap/hnb659fds/version`,
