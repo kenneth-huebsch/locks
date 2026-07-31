@@ -73,4 +73,24 @@ describe('LocksGitHubOidcStack', () => {
       },
     });
   });
+
+  it('supports API tagging and scheduler rollback without service wildcards', () => {
+    template.hasResourceProperties('AWS::IAM::ManagedPolicy', {
+      PolicyDocument: {
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Action: Match.arrayWith([
+              'apigateway:TagResource',
+              'apigateway:UntagResource',
+              'scheduler:DeleteSchedule',
+            ]),
+          }),
+        ]),
+      },
+    });
+
+    const policies = template.findResources('AWS::IAM::ManagedPolicy');
+    expect(JSON.stringify(policies)).not.toContain('"apigateway:*"');
+    expect(JSON.stringify(policies)).not.toContain('"scheduler:*"');
+  });
 });
