@@ -8,7 +8,6 @@ import {
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
-import { execFileSync } from 'node:child_process';
 import { readFile, readdir, writeFile, mkdir } from 'node:fs/promises';
 import { extname, join, relative, resolve, sep } from 'node:path';
 import {
@@ -17,6 +16,7 @@ import {
   getAppStackOutputs,
   requireOutput,
 } from './aws-context.js';
+import { runNpmScript } from './npm-command.js';
 import { createRuntimeConfig } from './runtime-config.js';
 
 await assertTargetAccount();
@@ -29,9 +29,7 @@ await writeFile(
   `${JSON.stringify(runtimeConfig, null, 2)}\n`,
   'utf8',
 );
-execFileSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'build'], {
-  stdio: 'inherit',
-});
+runNpmScript('build');
 
 const bucketName = requireOutput(outputs, 'SiteBucketName');
 const distributionId = requireOutput(outputs, 'DistributionId');
@@ -86,11 +84,7 @@ await Promise.all(
   }),
 );
 
-execFileSync(
-  process.platform === 'win32' ? 'npm.cmd' : 'npm',
-  ['run', 'seed'],
-  { stdio: 'inherit' },
-);
+runNpmScript('seed');
 await new CloudFrontClient({ region: TARGET_REGION }).send(
   new CreateInvalidationCommand({
     DistributionId: distributionId,
