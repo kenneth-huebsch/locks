@@ -14,6 +14,12 @@ describe('deployment commands', () => {
     expect(packageJson.scripts['deploy:infrastructure']).toBe(
       'cdk --app "npx tsx infrastructure/bin/locks.ts" deploy LocksAppStack --require-approval never',
     );
+    expect(packageJson.scripts['destroy:app']).toBe(
+      'cdk --app "npx tsx infrastructure/bin/locks.ts" destroy LocksAppStack --force',
+    );
+    expect(packageJson.scripts['destroy:oidc']).toBe(
+      'cdk --app "npx tsx infrastructure/bin/locks.ts" destroy LocksGitHubOidcStack --force',
+    );
   });
 
   it('uses the app-only dedicated deployment command in CI', async () => {
@@ -30,21 +36,27 @@ describe('deployment commands', () => {
     expect(readme).toContain('npm run deploy:oidc');
     expect(readme).toContain('npm run deploy:infrastructure');
     expect(readme).not.toContain('npm run cdk -- deploy');
+    expect(readme).toContain('npm run destroy:app');
+    expect(readme).toContain('npm run destroy:oidc');
+    expect(readme).not.toContain('npm run cdk -- destroy');
   });
 
   it('adopts both execution policies with repeated CDK bootstrap flags', async () => {
     const readme = await readFile('README.md', 'utf8');
     const executionPolicyFlag = '--cloudformation-execution-policies';
 
-    expect(readme.match(new RegExp(executionPolicyFlag, 'g'))).toHaveLength(2);
+    expect(readme.match(new RegExp(executionPolicyFlag, 'g'))).toHaveLength(5);
     expect(readme).toContain(
       `${executionPolicyFlag} "arn:aws:iam::580956784928:policy/LocksCdkExecutionPolicy"`,
     );
     expect(readme).toContain(
       `${executionPolicyFlag} "arn:aws:iam::580956784928:policy/LocksCdkIamExecutionPolicy"`,
     );
-    expect(readme.match(/policy\/LocksCdkExecutionPolicy/g)).toHaveLength(2);
-    expect(readme.match(/policy\/LocksCdkIamExecutionPolicy/g)).toHaveLength(2);
+    expect(readme.match(/policy\/LocksCdkExecutionPolicy/g)).toHaveLength(3);
+    expect(readme.match(/policy\/LocksCdkIamExecutionPolicy/g)).toHaveLength(3);
+    expect(readme).toContain(
+      `${executionPolicyFlag} "arn:aws:iam::aws:policy/AdministratorAccess"`,
+    );
   });
 
   it('pins third-party actions to immutable v4 commit SHAs', async () => {

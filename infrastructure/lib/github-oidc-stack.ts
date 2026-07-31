@@ -6,12 +6,15 @@ import {
   type StackProps,
 } from 'aws-cdk-lib';
 import {
+  ArnPrincipal,
+  CompositePrincipal,
   Effect,
   FederatedPrincipal,
   ManagedPolicy,
   OpenIdConnectProvider,
   PolicyStatement,
   Role,
+  ServicePrincipal,
 } from 'aws-cdk-lib/aws-iam';
 import type { Construct } from 'constructs';
 
@@ -24,6 +27,14 @@ export const TARGET_ENV = {
 
 const GITHUB_SUBJECT =
   'repo:kenneth-huebsch/locks:ref:refs/heads/main';
+export const APP_DEPLOY_ROLE_NAME = 'LocksAppDeployRole';
+export const APP_EXECUTION_ROLE_NAME =
+  'LocksAppCloudFormationExecutionRole';
+export const APP_EXECUTION_POLICY_NAME =
+  'LocksAppCloudFormationExecutionPolicy';
+export const APP_IAM_EXECUTION_POLICY_NAME =
+  'LocksAppIamExecutionPolicy';
+export const APP_RUNTIME_BOUNDARY_NAME = 'LocksAppRuntimeBoundary';
 
 export class LocksGitHubOidcStack extends Stack {
   constructor(scope: Construct, id: string, props: StackProps) {
@@ -39,13 +50,79 @@ export class LocksGitHubOidcStack extends Stack {
       'BootstrapExecutionRole',
       `cdk-hnb659fds-cfn-exec-role-${TARGET_ACCOUNT}-${TARGET_REGION}`,
     );
+    const appRuntimeBoundary = new ManagedPolicy(
+      this,
+      'AppRuntimeBoundary',
+      {
+        managedPolicyName: APP_RUNTIME_BOUNDARY_NAME,
+        description:
+          'Maximum permissions for Locks application runtime roles',
+        statements: [
+          new PolicyStatement({
+            sid: 'TableRead',
+            actions: [
+              'dynamodb:BatchGetItem',
+              'dynamodb:ConditionCheckItem',
+              'dynamodb:DescribeTable',
+              'dynamodb:GetItem',
+              'dynamodb:Query',
+              'dynamodb:Scan',
+            ],
+            resources: [
+              `arn:aws:dynamodb:${TARGET_REGION}:${TARGET_ACCOUNT}:table/locks`,
+              `arn:aws:dynamodb:${TARGET_REGION}:${TARGET_ACCOUNT}:table/locks/index/*`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'OddsParameter',
+            actions: ['ssm:GetParameter'],
+            resources: [
+              `arn:aws:ssm:${TARGET_REGION}:${TARGET_ACCOUNT}:parameter/locks/odds-api-key`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'SiteCleanup',
+            actions: [
+              's3:DeleteObject',
+              's3:DeleteObjectVersion',
+              's3:GetBucketPolicy',
+              's3:ListBucket',
+              's3:ListBucketVersions',
+              's3:PutBucketPolicy',
+            ],
+            resources: [
+              `arn:aws:s3:::locks-${TARGET_ACCOUNT}-${TARGET_REGION}-site`,
+              `arn:aws:s3:::locks-${TARGET_ACCOUNT}-${TARGET_REGION}-site/*`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'LambdaLogs',
+            actions: [
+              'logs:CreateLogGroup',
+              'logs:CreateLogStream',
+              'logs:PutLogEvents',
+            ],
+            resources: [
+              `arn:aws:logs:${TARGET_REGION}:${TARGET_ACCOUNT}:log-group:/aws/lambda/LocksAppStack-*`,
+              `arn:aws:logs:${TARGET_REGION}:${TARGET_ACCOUNT}:log-group:/aws/lambda/LocksAppStack-*:*`,
+            ],
+          }),
+        ],
+      },
+    );
+    const appExecutionRole = new Role(this, 'AppExecutionRole', {
+      roleName: APP_EXECUTION_ROLE_NAME,
+      assumedBy: new ServicePrincipal('cloudformation.amazonaws.com'),
+      description:
+        'Executes CloudFormation changes only for LocksAppStack',
+    });
     const executionPolicy = new ManagedPolicy(
       this,
-      'CdkExecutionPolicy',
+      'AppExecutionPolicy',
       {
-        managedPolicyName: 'LocksCdkExecutionPolicy',
+        managedPolicyName: APP_EXECUTION_POLICY_NAME,
         description:
-          'CloudFormation permissions for the Locks application stack',
+          'CloudFormation service permissions for LocksAppStack',
         statements: [
           new PolicyStatement({
             sid: 'CreateNoArn',
@@ -252,10 +329,159 @@ export class LocksGitHubOidcStack extends Stack {
             ],
           }),
         ],
+        roles: [appExecutionRole],
+      },
+    );
+    const appIamExecutionPolicy = new ManagedPolicy(
+      this,
+      'AppIamExecutionPolicy',
+      {
+        managedPolicyName: APP_IAM_EXECUTION_POLICY_NAME,
+        description:
+          'CloudFormation IAM permissions for LocksAppStack runtime roles',
+        statements: [
+          new PolicyStatement({
+            sid: 'CreateRuntimeRole',
+            actions: ['iam:CreateRole'],
+            resources: [
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksAppStack-*`,
+            ],
+            conditions: {
+              StringEquals: {
+                'iam:PermissionsBoundary':
+                  `arn:aws:iam::${TARGET_ACCOUNT}:policy/${APP_RUNTIME_BOUNDARY_NAME}`,
+              },
+            },
+          }),
+          new PolicyStatement({
+            sid: 'RuntimeRoles',
+            actions: [
+              'iam:DeleteRole',
+              'iam:DeleteRolePolicy',
+              'iam:GetRole',
+              'iam:GetRolePolicy',
+              'iam:ListAttachedRolePolicies',
+              'iam:PutRolePolicy',
+              'iam:TagRole',
+              'iam:UntagRole',
+              'iam:UpdateAssumeRolePolicy',
+            ],
+            resources: [
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksAppStack-*`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'EnforceBoundary',
+            actions: ['iam:PutRolePermissionsBoundary'],
+            resources: [
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksAppStack-*`,
+            ],
+            conditions: {
+              StringEquals: {
+                'iam:PermissionsBoundary':
+                  `arn:aws:iam::${TARGET_ACCOUNT}:policy/${APP_RUNTIME_BOUNDARY_NAME}`,
+              },
+            },
+          }),
+          new PolicyStatement({
+            sid: 'RuntimeManagedPolicy',
+            actions: [
+              'iam:AttachRolePolicy',
+              'iam:DetachRolePolicy',
+            ],
+            resources: [
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksAppStack-*`,
+            ],
+            conditions: {
+              StringEquals: {
+                'iam:PolicyARN':
+                  'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole',
+              },
+            },
+          }),
+          new PolicyStatement({
+            sid: 'PassRuntimeRoles',
+            actions: ['iam:PassRole'],
+            resources: [
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksAppStack-*`,
+            ],
+            conditions: {
+              StringEquals: {
+                'iam:PassedToService': 'lambda.amazonaws.com',
+              },
+            },
+          }),
+        ],
+        roles: [appExecutionRole],
+      },
+    );
+    const bootstrapExecutionPolicy = new ManagedPolicy(
+      this,
+      'CdkExecutionPolicy',
+      {
+        managedPolicyName: 'LocksCdkExecutionPolicy',
+        description:
+          'CloudFormation service permissions for Locks foundation resources',
+        statements: [
+          new PolicyStatement({
+            sid: 'OidcLambda',
+            actions: [
+              'lambda:AddPermission',
+              'lambda:CreateFunction',
+              'lambda:DeleteFunction',
+              'lambda:GetFunction',
+              'lambda:GetFunctionConfiguration',
+              'lambda:ListTags',
+              'lambda:RemovePermission',
+              'lambda:TagResource',
+              'lambda:UntagResource',
+              'lambda:UpdateFunctionCode',
+              'lambda:UpdateFunctionConfiguration',
+            ],
+            resources: [
+              `arn:aws:lambda:${TARGET_REGION}:${TARGET_ACCOUNT}:function:LocksGitHubOidcStack-*`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'OidcLogs',
+            actions: [
+              'logs:CreateLogGroup',
+              'logs:DeleteLogGroup',
+              'logs:ListTagsForResource',
+              'logs:PutRetentionPolicy',
+              'logs:TagResource',
+              'logs:UntagResource',
+            ],
+            resources: [
+              `arn:aws:logs:${TARGET_REGION}:${TARGET_ACCOUNT}:log-group:/aws/lambda/LocksGitHubOidcStack-*`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'InvokeOidc',
+            actions: ['lambda:InvokeFunction'],
+            resources: [
+              `arn:aws:lambda:${TARGET_REGION}:${TARGET_ACCOUNT}:function:LocksGitHubOidcStack-*`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'CdkAssets',
+            actions: ['s3:GetObject'],
+            resources: [
+              `arn:aws:s3:::cdk-hnb659fds-assets-${TARGET_ACCOUNT}-${TARGET_REGION}/*`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'BootstrapVersion',
+            actions: ['ssm:GetParameters'],
+            resources: [
+              `arn:aws:ssm:${TARGET_REGION}:${TARGET_ACCOUNT}:parameter/cdk-bootstrap/hnb659fds/version`,
+            ],
+          }),
+        ],
         roles: [bootstrapExecutionRole],
       },
     );
-    executionPolicy.applyRemovalPolicy(RemovalPolicy.RETAIN);
+    bootstrapExecutionPolicy.applyRemovalPolicy(RemovalPolicy.RETAIN);
     const iamExecutionPolicy = new ManagedPolicy(
       this,
       'CdkIamExecutionPolicy',
@@ -267,31 +493,69 @@ export class LocksGitHubOidcStack extends Stack {
           new PolicyStatement({
             sid: 'Roles',
             actions: [
-              'iam:AttachRolePolicy',
               'iam:CreateRole',
               'iam:DeleteRole',
-              'iam:DeleteRolePolicy',
-              'iam:DetachRolePolicy',
               'iam:GetRole',
-              'iam:GetRolePolicy',
               'iam:ListAttachedRolePolicies',
-              'iam:PutRolePolicy',
               'iam:TagRole',
               'iam:UntagRole',
               'iam:UpdateAssumeRolePolicy',
             ],
             resources: [
-              `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksAppStack-*`,
               `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksGitHubOidcStack-*`,
               `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksGitHubDeployRole`,
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/${APP_DEPLOY_ROLE_NAME}`,
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/${APP_EXECUTION_ROLE_NAME}`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'InlineRolePolicies',
+            actions: [
+              'iam:DeleteRolePolicy',
+              'iam:GetRolePolicy',
+              'iam:PutRolePolicy',
+            ],
+            resources: [
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksGitHubOidcStack-*`,
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksGitHubDeployRole`,
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/${APP_DEPLOY_ROLE_NAME}`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'BootstrapRoleRead',
+            actions: [
+              'iam:GetRole',
+              'iam:ListAttachedRolePolicies',
+            ],
+            resources: [
               `arn:aws:iam::${TARGET_ACCOUNT}:role/cdk-hnb659fds-cfn-exec-role-${TARGET_ACCOUNT}-${TARGET_REGION}`,
             ],
+          }),
+          new PolicyStatement({
+            sid: 'AttachFoundationPolicies',
+            actions: [
+              'iam:AttachRolePolicy',
+              'iam:DetachRolePolicy',
+            ],
+            resources: [
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/${APP_EXECUTION_ROLE_NAME}`,
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/cdk-hnb659fds-cfn-exec-role-${TARGET_ACCOUNT}-${TARGET_REGION}`,
+            ],
+            conditions: {
+              StringEquals: {
+                'iam:PolicyARN': [
+                  `arn:aws:iam::${TARGET_ACCOUNT}:policy/${APP_EXECUTION_POLICY_NAME}`,
+                  `arn:aws:iam::${TARGET_ACCOUNT}:policy/${APP_IAM_EXECUTION_POLICY_NAME}`,
+                  `arn:aws:iam::${TARGET_ACCOUNT}:policy/LocksCdkExecutionPolicy`,
+                  `arn:aws:iam::${TARGET_ACCOUNT}:policy/LocksCdkIamExecutionPolicy`,
+                ],
+              },
+            },
           }),
           new PolicyStatement({
             sid: 'PassRoles',
             actions: ['iam:PassRole'],
             resources: [
-              `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksAppStack-*`,
               `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksGitHubOidcStack-*`,
             ],
             conditions: {
@@ -317,6 +581,9 @@ export class LocksGitHubOidcStack extends Stack {
             resources: [
               `arn:aws:iam::${TARGET_ACCOUNT}:policy/LocksCdkExecutionPolicy`,
               `arn:aws:iam::${TARGET_ACCOUNT}:policy/LocksCdkIamExecutionPolicy`,
+              `arn:aws:iam::${TARGET_ACCOUNT}:policy/${APP_EXECUTION_POLICY_NAME}`,
+              `arn:aws:iam::${TARGET_ACCOUNT}:policy/${APP_IAM_EXECUTION_POLICY_NAME}`,
+              `arn:aws:iam::${TARGET_ACCOUNT}:policy/${APP_RUNTIME_BOUNDARY_NAME}`,
             ],
           }),
           new PolicyStatement({
@@ -332,58 +599,133 @@ export class LocksGitHubOidcStack extends Stack {
               `arn:aws:iam::${TARGET_ACCOUNT}:oidc-provider/token.actions.githubusercontent.com`,
             ],
           }),
-          new PolicyStatement({
-            sid: 'Lambda',
-            actions: [
-              'lambda:AddPermission',
-              'lambda:CreateFunction',
-              'lambda:DeleteFunction',
-              'lambda:GetFunction',
-              'lambda:GetFunctionConfiguration',
-              'lambda:ListTags',
-              'lambda:RemovePermission',
-              'lambda:TagResource',
-              'lambda:UntagResource',
-              'lambda:UpdateFunctionCode',
-              'lambda:UpdateFunctionConfiguration',
-            ],
-            resources: [
-              `arn:aws:lambda:${TARGET_REGION}:${TARGET_ACCOUNT}:function:LocksGitHubOidcStack-*`,
-            ],
-          }),
-          new PolicyStatement({
-            sid: 'Logs',
-            actions: [
-              'logs:CreateLogGroup',
-              'logs:DeleteLogGroup',
-              'logs:ListTagsForResource',
-              'logs:PutRetentionPolicy',
-              'logs:TagResource',
-              'logs:UntagResource',
-            ],
-            resources: [
-              `arn:aws:logs:${TARGET_REGION}:${TARGET_ACCOUNT}:log-group:/aws/lambda/LocksGitHubOidcStack-*`,
-            ],
-          }),
-          new PolicyStatement({
-            sid: 'Invoke',
-            actions: ['lambda:InvokeFunction'],
-            resources: [
-              `arn:aws:lambda:${TARGET_REGION}:${TARGET_ACCOUNT}:function:LocksGitHubOidcStack-*`,
-            ],
-          }),
-          new PolicyStatement({
-            sid: 'BootstrapVersion',
-            actions: ['ssm:GetParameters'],
-            resources: [
-              `arn:aws:ssm:${TARGET_REGION}:${TARGET_ACCOUNT}:parameter/cdk-bootstrap/hnb659fds/version`,
-            ],
-          }),
         ],
         roles: [bootstrapExecutionRole],
       },
     );
     iamExecutionPolicy.applyRemovalPolicy(RemovalPolicy.RETAIN);
+
+    const appDeployRole = new Role(this, 'AppDeployRole', {
+      roleName: APP_DEPLOY_ROLE_NAME,
+      assumedBy: new CompositePrincipal(
+        new ArnPrincipal(
+          `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksGitHubDeployRole`,
+        ),
+        new ArnPrincipal(
+          `arn:aws:iam::${TARGET_ACCOUNT}:user/coding-agent`,
+        ),
+      ),
+      description:
+        'Initiates CloudFormation deployments only for LocksAppStack',
+      maxSessionDuration: Duration.hours(1),
+    });
+    appDeployRole.addToPolicy(
+      new PolicyStatement({
+        sid: 'DeployAppStack',
+        actions: [
+          'cloudformation:ContinueUpdateRollback',
+          'cloudformation:DeleteStack',
+          'cloudformation:DescribeStackEvents',
+          'cloudformation:DescribeStackResources',
+          'cloudformation:DescribeStacks',
+          'cloudformation:GetTemplate',
+          'cloudformation:GetTemplateSummary',
+          'cloudformation:RollbackStack',
+          'cloudformation:UpdateTerminationProtection',
+        ],
+        resources: [
+          `arn:aws:cloudformation:${TARGET_REGION}:${TARGET_ACCOUNT}:stack/LocksAppStack/*`,
+        ],
+      }),
+    );
+    appDeployRole.addToPolicy(
+      new PolicyStatement({
+        sid: 'WriteAppStackWithRole',
+        actions: [
+          'cloudformation:CreateStack',
+          'cloudformation:UpdateStack',
+        ],
+        resources: [
+          `arn:aws:cloudformation:${TARGET_REGION}:${TARGET_ACCOUNT}:stack/LocksAppStack/*`,
+        ],
+        conditions: {
+          StringEquals: {
+            'cloudformation:RoleArn':
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/${APP_EXECUTION_ROLE_NAME}`,
+          },
+        },
+      }),
+    );
+    appDeployRole.addToPolicy(
+      new PolicyStatement({
+        sid: 'DeployAppChangeSet',
+        actions: [
+          'cloudformation:DeleteChangeSet',
+          'cloudformation:DescribeChangeSet',
+          'cloudformation:ExecuteChangeSet',
+        ],
+        resources: [
+          `arn:aws:cloudformation:${TARGET_REGION}:${TARGET_ACCOUNT}:stack/LocksAppStack/*`,
+          `arn:aws:cloudformation:${TARGET_REGION}:${TARGET_ACCOUNT}:changeSet/cdk-deploy-change-set/*`,
+        ],
+      }),
+    );
+    appDeployRole.addToPolicy(
+      new PolicyStatement({
+        sid: 'CreateAppChangeSetWithRole',
+        actions: ['cloudformation:CreateChangeSet'],
+        resources: [
+          `arn:aws:cloudformation:${TARGET_REGION}:${TARGET_ACCOUNT}:stack/LocksAppStack/*`,
+          `arn:aws:cloudformation:${TARGET_REGION}:${TARGET_ACCOUNT}:changeSet/cdk-deploy-change-set/*`,
+        ],
+        conditions: {
+          StringEquals: {
+            'cloudformation:RoleArn':
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/${APP_EXECUTION_ROLE_NAME}`,
+          },
+        },
+      }),
+    );
+    appDeployRole.addToPolicy(
+      new PolicyStatement({
+        sid: 'PassAppExecutionRole',
+        actions: ['iam:PassRole'],
+        resources: [
+          `arn:aws:iam::${TARGET_ACCOUNT}:role/${APP_EXECUTION_ROLE_NAME}`,
+        ],
+        conditions: {
+          StringEquals: {
+            'iam:PassedToService': 'cloudformation.amazonaws.com',
+          },
+        },
+      }),
+    );
+    appDeployRole.addToPolicy(
+      new PolicyStatement({
+        sid: 'ReadBootstrap',
+        actions: ['s3:GetBucketLocation', 's3:GetObject', 's3:ListBucket'],
+        resources: [
+          `arn:aws:s3:::cdk-hnb659fds-assets-${TARGET_ACCOUNT}-${TARGET_REGION}`,
+          `arn:aws:s3:::cdk-hnb659fds-assets-${TARGET_ACCOUNT}-${TARGET_REGION}/*`,
+        ],
+      }),
+    );
+    appDeployRole.addToPolicy(
+      new PolicyStatement({
+        sid: 'ReadBootstrapVersion',
+        actions: ['ssm:GetParameter', 'ssm:GetParameters'],
+        resources: [
+          `arn:aws:ssm:${TARGET_REGION}:${TARGET_ACCOUNT}:parameter/cdk-bootstrap/hnb659fds/version`,
+        ],
+      }),
+    );
+    appDeployRole.addToPolicy(
+      new PolicyStatement({
+        sid: 'CallerIdentity',
+        actions: ['sts:GetCallerIdentity'],
+        resources: ['*'],
+      }),
+    );
 
     const deployRole = new Role(this, 'GitHubDeployRole', {
       roleName: 'LocksGitHubDeployRole',
@@ -405,7 +747,7 @@ export class LocksGitHubOidcStack extends Stack {
       new PolicyStatement({
         actions: ['sts:AssumeRole'],
         resources: [
-          `arn:aws:iam::${TARGET_ACCOUNT}:role/cdk-hnb659fds-deploy-role-${TARGET_ACCOUNT}-${TARGET_REGION}`,
+          `arn:aws:iam::${TARGET_ACCOUNT}:role/${APP_DEPLOY_ROLE_NAME}`,
           `arn:aws:iam::${TARGET_ACCOUNT}:role/cdk-hnb659fds-file-publishing-role-${TARGET_ACCOUNT}-${TARGET_REGION}`,
           `arn:aws:iam::${TARGET_ACCOUNT}:role/cdk-hnb659fds-image-publishing-role-${TARGET_ACCOUNT}-${TARGET_REGION}`,
           `arn:aws:iam::${TARGET_ACCOUNT}:role/cdk-hnb659fds-lookup-role-${TARGET_ACCOUNT}-${TARGET_REGION}`,
@@ -458,10 +800,25 @@ export class LocksGitHubOidcStack extends Stack {
       value: deployRole.roleArn,
     });
     new CfnOutput(this, 'CdkExecutionPolicyArn', {
-      value: executionPolicy.managedPolicyArn,
+      value: bootstrapExecutionPolicy.managedPolicyArn,
     });
     new CfnOutput(this, 'CdkIamExecutionPolicyArn', {
       value: iamExecutionPolicy.managedPolicyArn,
+    });
+    new CfnOutput(this, 'AppDeployRoleArn', {
+      value: appDeployRole.roleArn,
+    });
+    new CfnOutput(this, 'AppExecutionRoleArn', {
+      value: appExecutionRole.roleArn,
+    });
+    new CfnOutput(this, 'AppExecutionPolicyArn', {
+      value: executionPolicy.managedPolicyArn,
+    });
+    new CfnOutput(this, 'AppIamExecutionPolicyArn', {
+      value: appIamExecutionPolicy.managedPolicyArn,
+    });
+    new CfnOutput(this, 'AppRuntimeBoundaryArn', {
+      value: appRuntimeBoundary.managedPolicyArn,
     });
   }
 }

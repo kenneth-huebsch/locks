@@ -5,9 +5,10 @@ import { LocksAppStack } from '../lib/locks-app-stack.js';
 
 describe('LocksAppStack', () => {
   const app = new App();
-  const template = Template.fromStack(
-    new LocksAppStack(app, 'LocksAppStack', { env: TARGET_ENV }),
-  );
+  const stack = new LocksAppStack(app, 'LocksAppStack', {
+    env: TARGET_ENV,
+  });
+  const template = Template.fromStack(stack);
 
   it('keeps the site private and encrypted', () => {
     template.hasResourceProperties('AWS::S3::Bucket', {
@@ -88,5 +89,28 @@ describe('LocksAppStack', () => {
         ]),
       },
     });
+  });
+
+  it('uses only the dedicated application deployment identities', () => {
+    const assembly = app.synth();
+    const artifact = assembly.getStackArtifact(stack.artifactId);
+
+    expect(artifact.assumeRoleArn).toBe(
+      'arn:aws:iam::580956784928:role/LocksAppDeployRole',
+    );
+    expect(artifact.cloudFormationExecutionRoleArn).toBe(
+      'arn:aws:iam::580956784928:role/LocksAppCloudFormationExecutionRole',
+    );
+  });
+
+  it('applies the exact runtime boundary to every synthesized role', () => {
+    const roles = template.findResources('AWS::IAM::Role');
+    expect(Object.keys(roles).length).toBeGreaterThan(0);
+
+    for (const role of Object.values(roles)) {
+      expect(role.Properties.PermissionsBoundary).toBe(
+        'arn:aws:iam::580956784928:policy/LocksAppRuntimeBoundary',
+      );
+    }
   });
 });

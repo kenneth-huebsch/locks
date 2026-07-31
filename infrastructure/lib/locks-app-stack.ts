@@ -1,6 +1,8 @@
 import {
   CfnOutput,
+  DefaultStackSynthesizer,
   Duration,
+  PermissionsBoundary,
   RemovalPolicy,
   Stack,
   type StackProps,
@@ -55,6 +57,9 @@ import {
 import { CfnScheduleGroup } from 'aws-cdk-lib/aws-scheduler';
 import type { Construct } from 'constructs';
 import {
+  APP_DEPLOY_ROLE_NAME,
+  APP_EXECUTION_ROLE_NAME,
+  APP_RUNTIME_BOUNDARY_NAME,
   TARGET_ACCOUNT,
   TARGET_REGION,
   assertTargetEnvironment,
@@ -64,7 +69,18 @@ const INVITED_EMAIL = 'kenneth.huebsch@gmail.com';
 
 export class LocksAppStack extends Stack {
   constructor(scope: Construct, id: string, props: StackProps) {
-    super(scope, id, props);
+    super(scope, id, {
+      ...props,
+      permissionsBoundary: PermissionsBoundary.fromArn(
+        `arn:aws:iam::${TARGET_ACCOUNT}:policy/${APP_RUNTIME_BOUNDARY_NAME}`,
+      ),
+      synthesizer: new DefaultStackSynthesizer({
+        deployRoleArn:
+          `arn:aws:iam::${TARGET_ACCOUNT}:role/${APP_DEPLOY_ROLE_NAME}`,
+        cloudFormationExecutionRole:
+          `arn:aws:iam::${TARGET_ACCOUNT}:role/${APP_EXECUTION_ROLE_NAME}`,
+      }),
+    });
     assertTargetEnvironment(this);
 
     const table = new Table(this, 'Table', {

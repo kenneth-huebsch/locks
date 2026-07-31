@@ -70,11 +70,44 @@ npx cdk bootstrap "aws://580956784928/us-east-1" `
 ```
 
 The initial bootstrap uses its default `AdministratorAccess` policy so the
-OIDC stack can create both scoped policies. The second bootstrap update
-replaces that default with both action-scoped policies created by the OIDC
-stack. Repeating the policy option is the current CDK CLI syntax for attaching
-multiple policies. The GitHub role trusts only
-`repo:kenneth-huebsch/locks:ref:refs/heads/main`.
+OIDC stack can create the foundation policies, application deployment roles,
+and application runtime boundary. The second bootstrap update replaces that
+default with the two foundation-only policies. Repeating the policy option is
+the current CDK CLI syntax for attaching multiple policies.
+
+The GitHub role trusts only
+`repo:kenneth-huebsch/locks:ref:refs/heads/main`. It cannot assume the generic
+bootstrap deploy role. `LocksAppStack` always uses `LocksAppDeployRole` and
+`LocksAppCloudFormationExecutionRole`; only the GitHub role and
+`arn:aws:iam::580956784928:user/coding-agent` can assume the application deploy
+role. Bootstrap file, image, and lookup roles remain available for CDK assets
+and lookups.
+
+## Migration from the earlier scoped bootstrap
+
+An account already using the earlier execution policies must temporarily
+restore bootstrap administrator execution so CloudFormation can create the new
+roles, policies, and boundary. Pause the `main` deployment workflow before the
+first command because the old GitHub role can still assume the generic deploy
+role during this brief administrator migration window. Run this exact sequence
+after the account guard:
+
+```powershell
+npx cdk bootstrap "aws://580956784928/us-east-1" `
+  --profile $Profile `
+  --cloudformation-execution-policies "arn:aws:iam::aws:policy/AdministratorAccess"
+npm run deploy:oidc
+npx cdk bootstrap "aws://580956784928/us-east-1" `
+  --profile $Profile `
+  --cloudformation-execution-policies "arn:aws:iam::580956784928:policy/LocksCdkExecutionPolicy" `
+  --cloudformation-execution-policies "arn:aws:iam::580956784928:policy/LocksCdkIamExecutionPolicy"
+npm run deploy:infrastructure
+```
+
+Do not leave the bootstrap execution role on `AdministratorAccess`. The final
+bootstrap command removes it, and the final application deployment records the
+dedicated application execution role on the existing stack. Resume the
+workflow only after all four commands succeed.
 
 ## Deployment
 
@@ -106,8 +139,8 @@ Run the account guard first, then destroy the application before the OIDC
 bootstrap resources:
 
 ```powershell
-npm run cdk -- destroy LocksAppStack --force
-npm run cdk -- destroy LocksGitHubOidcStack --force
+npm run destroy:app
+npm run destroy:oidc
 aws cloudformation delete-stack `
   --stack-name CDKToolkit `
   --region us-east-1 `
@@ -125,6 +158,8 @@ aws iam delete-policy `
 ```
 
 The app bucket and DynamoDB table use destroy policies for this foundation.
+The dedicated application roles, their execution policies, and the runtime
+boundary are removed with the OIDC stack after the application is gone.
 The CDK execution policies are retained during OIDC stack deletion so they
 remain available to finish teardown, then removed explicitly above. No SSM
 parameter or AWS Budget is created.
