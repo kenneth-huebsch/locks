@@ -194,6 +194,27 @@ describe('LocksGitHubOidcStack', () => {
     template.hasOutput('CdkIamExecutionPolicyArn', {});
   });
 
+  it('preserves deployed fixed-name policy replacement properties', () => {
+    const resources = template.findResources('AWS::IAM::ManagedPolicy');
+
+    expect(resources.CdkExecutionPolicy7229B59A).toMatchObject({
+      Properties: {
+        Description:
+          'CloudFormation permissions for the Locks application stack',
+        ManagedPolicyName: 'LocksCdkExecutionPolicy',
+        Path: '/',
+      },
+    });
+    expect(resources.CdkIamExecutionPolicy109909DF).toMatchObject({
+      Properties: {
+        Description:
+          'CloudFormation permissions for Locks identity and bootstrap resources',
+        ManagedPolicyName: 'LocksCdkIamExecutionPolicy',
+        Path: '/',
+      },
+    });
+  });
+
   it('lets GitHub assume only app deployment and bootstrap support roles', () => {
     const statements = inlineRoleStatements(
       template,

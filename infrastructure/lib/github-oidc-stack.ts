@@ -420,8 +420,9 @@ export class LocksGitHubOidcStack extends Stack {
       'CdkExecutionPolicy',
       {
         managedPolicyName: 'LocksCdkExecutionPolicy',
+        // Legacy wording is intentionally immutable for safe in-place upgrades.
         description:
-          'CloudFormation service permissions for Locks foundation resources',
+          'CloudFormation permissions for the Locks application stack',
         statements: [
           new PolicyStatement({
             sid: 'OidcLambda',
