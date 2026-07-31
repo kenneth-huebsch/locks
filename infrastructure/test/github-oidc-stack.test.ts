@@ -99,20 +99,9 @@ describe('LocksGitHubOidcStack', () => {
   });
 
   it('invokes only Locks custom-resource functions', () => {
-    const policies = template.findResources('AWS::IAM::ManagedPolicy');
-    const policy = Object.values(policies)[0] as {
-      Properties: {
-        PolicyDocument: {
-          Statement: Array<{
-            Action: string | string[];
-            Effect: string;
-            Resource: string | string[];
-          }>;
-        };
-      };
-    };
-    const invokeStatements =
-      policy.Properties.PolicyDocument.Statement.filter(({ Action }) =>
+    const invokeStatements = Object.values(managedPolicyStatements(template))
+      .flat()
+      .filter(({ Action }) =>
         Array.isArray(Action)
           ? Action.includes('lambda:InvokeFunction')
           : Action === 'lambda:InvokeFunction',
@@ -122,17 +111,22 @@ describe('LocksGitHubOidcStack', () => {
       {
         Action: 'lambda:InvokeFunction',
         Effect: 'Allow',
-        Resource: [
+        Resource:
           'arn:aws:lambda:us-east-1:580956784928:function:LocksAppStack-*',
+        Sid: 'Invoke',
+      },
+      {
+        Action: 'lambda:InvokeFunction',
+        Effect: 'Allow',
+        Resource:
           'arn:aws:lambda:us-east-1:580956784928:function:LocksGitHubOidcStack-*',
-        ],
         Sid: 'Invoke',
       },
     ]);
   });
 
   it('never grants IAM actions against every resource', () => {
-    const statements = executionPolicyStatements(template);
+    const statements = Object.values(managedPolicyStatements(template)).flat();
 
     for (const statement of statements) {
       const actions = toArray(statement.Action);
@@ -143,7 +137,7 @@ describe('LocksGitHubOidcStack', () => {
   });
 
   it('isolates only unsupported create actions on every resource', () => {
-    const statements = executionPolicyStatements(template);
+    const statements = Object.values(managedPolicyStatements(template)).flat();
     const wildcardActions = statements
       .filter((statement) => toArray(statement.Resource).includes('*'))
       .flatMap((statement) => toArray(statement.Action))
@@ -158,13 +152,31 @@ describe('LocksGitHubOidcStack', () => {
     expect(wildcardActions.every((action) => !action.endsWith(':*'))).toBe(true);
   });
 
-  it('fits the CloudFormation execution document in an IAM managed policy', () => {
-    const policyDocument = {
-      Version: '2012-10-17',
-      Statement: executionPolicyStatements(template),
-    };
+  it('splits execution permissions into two policies with substantial capacity', () => {
+    const policies = managedPolicyStatements(template);
+    const resources = template.findResources('AWS::IAM::ManagedPolicy');
 
-    expect(JSON.stringify(policyDocument).length).toBeLessThanOrEqual(6_144);
+    expect(Object.keys(policies).sort()).toEqual([
+      'LocksCdkExecutionPolicy',
+      'LocksCdkIamExecutionPolicy',
+    ]);
+    for (const resource of Object.values(resources)) {
+      expect(resource.Properties.Roles).toEqual([
+        'cdk-hnb659fds-cfn-exec-role-580956784928-us-east-1',
+      ]);
+    }
+    for (const statements of Object.values(policies)) {
+      const policyDocument = {
+        Version: '2012-10-17',
+        Statement: statements,
+      };
+      expect(JSON.stringify(policyDocument).length).toBeLessThanOrEqual(4_500);
+    }
+  });
+
+  it('outputs both execution policy ARNs for bootstrap adoption', () => {
+    template.hasOutput('CdkExecutionPolicyArn', {});
+    template.hasOutput('CdkIamExecutionPolicyArn', {});
   });
 });
 
@@ -174,18 +186,26 @@ interface PolicyStatementDocument {
   Resource: string | string[];
 }
 
-function executionPolicyStatements(
+function managedPolicyStatements(
   template: Template,
-): PolicyStatementDocument[] {
+): Record<string, PolicyStatementDocument[]> {
   const policies = template.findResources('AWS::IAM::ManagedPolicy');
-  const policy = Object.values(policies)[0] as {
-    Properties: {
-      PolicyDocument: {
-        Statement: PolicyStatementDocument[];
+  return Object.fromEntries(
+    Object.values(policies).map((policy) => {
+      const typedPolicy = policy as {
+        Properties: {
+          ManagedPolicyName: string;
+          PolicyDocument: {
+            Statement: PolicyStatementDocument[];
+          };
+        };
       };
-    };
-  };
-  return policy.Properties.PolicyDocument.Statement;
+      return [
+        typedPolicy.Properties.ManagedPolicyName,
+        typedPolicy.Properties.PolicyDocument.Statement,
+      ];
+    }),
+  );
 }
 
 function toArray(value: string | string[]): string[] {

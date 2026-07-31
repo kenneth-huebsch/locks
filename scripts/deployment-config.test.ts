@@ -32,6 +32,21 @@ describe('deployment commands', () => {
     expect(readme).not.toContain('npm run cdk -- deploy');
   });
 
+  it('adopts both execution policies with repeated CDK bootstrap flags', async () => {
+    const readme = await readFile('README.md', 'utf8');
+    const executionPolicyFlag = '--cloudformation-execution-policies';
+
+    expect(readme.match(new RegExp(executionPolicyFlag, 'g'))).toHaveLength(2);
+    expect(readme).toContain(
+      `${executionPolicyFlag} "arn:aws:iam::580956784928:policy/LocksCdkExecutionPolicy"`,
+    );
+    expect(readme).toContain(
+      `${executionPolicyFlag} "arn:aws:iam::580956784928:policy/LocksCdkIamExecutionPolicy"`,
+    );
+    expect(readme.match(/policy\/LocksCdkExecutionPolicy/g)).toHaveLength(2);
+    expect(readme.match(/policy\/LocksCdkIamExecutionPolicy/g)).toHaveLength(2);
+  });
+
   it('pins third-party actions to immutable v4 commit SHAs', async () => {
     const workflow = await readFile('.github/workflows/deploy.yml', 'utf8');
 

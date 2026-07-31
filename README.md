@@ -65,12 +65,15 @@ npx cdk bootstrap "aws://580956784928/us-east-1" --profile $Profile
 npm run deploy:oidc
 npx cdk bootstrap "aws://580956784928/us-east-1" `
   --profile $Profile `
-  --cloudformation-execution-policies "arn:aws:iam::580956784928:policy/LocksCdkExecutionPolicy"
+  --cloudformation-execution-policies "arn:aws:iam::580956784928:policy/LocksCdkExecutionPolicy" `
+  --cloudformation-execution-policies "arn:aws:iam::580956784928:policy/LocksCdkIamExecutionPolicy"
 ```
 
-The second bootstrap update replaces the bootstrap execution role’s default
-permissions with the action-scoped policy created by the OIDC stack. The
-GitHub role trusts only
+The initial bootstrap uses its default `AdministratorAccess` policy so the
+OIDC stack can create both scoped policies. The second bootstrap update
+replaces that default with both action-scoped policies created by the OIDC
+stack. Repeating the policy option is the current CDK CLI syntax for attaching
+multiple policies. The GitHub role trusts only
 `repo:kenneth-huebsch/locks:ref:refs/heads/main`.
 
 ## Deployment
@@ -116,9 +119,12 @@ aws cloudformation wait stack-delete-complete `
 aws iam delete-policy `
   --policy-arn "arn:aws:iam::580956784928:policy/LocksCdkExecutionPolicy" `
   --profile "kenneth.huebsch@gmail.com"
+aws iam delete-policy `
+  --policy-arn "arn:aws:iam::580956784928:policy/LocksCdkIamExecutionPolicy" `
+  --profile "kenneth.huebsch@gmail.com"
 ```
 
 The app bucket and DynamoDB table use destroy policies for this foundation.
-The CDK execution policy is retained during OIDC stack deletion so it remains
-available to finish teardown, then removed explicitly above. No SSM parameter
-or AWS Budget is created.
+The CDK execution policies are retained during OIDC stack deletion so they
+remain available to finish teardown, then removed explicitly above. No SSM
+parameter or AWS Budget is created.

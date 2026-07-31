@@ -158,73 +158,6 @@ export class LocksGitHubOidcStack extends Stack {
             ],
           }),
           new PolicyStatement({
-            sid: 'Roles',
-            actions: [
-              'iam:AttachRolePolicy',
-              'iam:CreateRole',
-              'iam:DeleteRole',
-              'iam:DeleteRolePolicy',
-              'iam:DetachRolePolicy',
-              'iam:GetRole',
-              'iam:GetRolePolicy',
-              'iam:ListAttachedRolePolicies',
-              'iam:PutRolePolicy',
-              'iam:TagRole',
-              'iam:UntagRole',
-              'iam:UpdateAssumeRolePolicy',
-            ],
-            resources: [
-              `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksAppStack-*`,
-              `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksGitHubOidcStack-*`,
-              `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksGitHubDeployRole`,
-              `arn:aws:iam::${TARGET_ACCOUNT}:role/cdk-hnb659fds-cfn-exec-role-${TARGET_ACCOUNT}-${TARGET_REGION}`,
-            ],
-          }),
-          new PolicyStatement({
-            sid: 'PassRoles',
-            actions: ['iam:PassRole'],
-            resources: [
-              `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksAppStack-*`,
-              `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksGitHubOidcStack-*`,
-            ],
-            conditions: {
-              StringEquals: {
-                'iam:PassedToService': 'lambda.amazonaws.com',
-              },
-            },
-          }),
-          new PolicyStatement({
-            sid: 'Policy',
-            actions: [
-              'iam:CreatePolicy',
-              'iam:CreatePolicyVersion',
-              'iam:DeletePolicy',
-              'iam:DeletePolicyVersion',
-              'iam:GetPolicy',
-              'iam:GetPolicyVersion',
-              'iam:ListPolicyVersions',
-              'iam:SetDefaultPolicyVersion',
-              'iam:TagPolicy',
-              'iam:UntagPolicy',
-            ],
-            resources: [
-              `arn:aws:iam::${TARGET_ACCOUNT}:policy/LocksCdkExecutionPolicy`,
-            ],
-          }),
-          new PolicyStatement({
-            sid: 'Oidc',
-            actions: [
-              'iam:CreateOpenIDConnectProvider',
-              'iam:DeleteOpenIDConnectProvider',
-              'iam:GetOpenIDConnectProvider',
-              'iam:TagOpenIDConnectProvider',
-              'iam:UntagOpenIDConnectProvider',
-            ],
-            resources: [
-              `arn:aws:iam::${TARGET_ACCOUNT}:oidc-provider/token.actions.githubusercontent.com`,
-            ],
-          }),
-          new PolicyStatement({
             sid: 'Lambda',
             actions: [
               'lambda:AddPermission',
@@ -241,7 +174,6 @@ export class LocksGitHubOidcStack extends Stack {
             ],
             resources: [
               `arn:aws:lambda:${TARGET_REGION}:${TARGET_ACCOUNT}:function:LocksAppStack-*`,
-              `arn:aws:lambda:${TARGET_REGION}:${TARGET_ACCOUNT}:function:LocksGitHubOidcStack-*`,
             ],
           }),
           new PolicyStatement({
@@ -256,7 +188,6 @@ export class LocksGitHubOidcStack extends Stack {
             ],
             resources: [
               `arn:aws:logs:${TARGET_REGION}:${TARGET_ACCOUNT}:log-group:/aws/lambda/LocksAppStack-*`,
-              `arn:aws:logs:${TARGET_REGION}:${TARGET_ACCOUNT}:log-group:/aws/lambda/LocksGitHubOidcStack-*`,
             ],
           }),
           new PolicyStatement({
@@ -318,6 +249,126 @@ export class LocksGitHubOidcStack extends Stack {
             actions: ['lambda:InvokeFunction'],
             resources: [
               `arn:aws:lambda:${TARGET_REGION}:${TARGET_ACCOUNT}:function:LocksAppStack-*`,
+            ],
+          }),
+        ],
+        roles: [bootstrapExecutionRole],
+      },
+    );
+    executionPolicy.applyRemovalPolicy(RemovalPolicy.RETAIN);
+    const iamExecutionPolicy = new ManagedPolicy(
+      this,
+      'CdkIamExecutionPolicy',
+      {
+        managedPolicyName: 'LocksCdkIamExecutionPolicy',
+        description:
+          'CloudFormation permissions for Locks identity and bootstrap resources',
+        statements: [
+          new PolicyStatement({
+            sid: 'Roles',
+            actions: [
+              'iam:AttachRolePolicy',
+              'iam:CreateRole',
+              'iam:DeleteRole',
+              'iam:DeleteRolePolicy',
+              'iam:DetachRolePolicy',
+              'iam:GetRole',
+              'iam:GetRolePolicy',
+              'iam:ListAttachedRolePolicies',
+              'iam:PutRolePolicy',
+              'iam:TagRole',
+              'iam:UntagRole',
+              'iam:UpdateAssumeRolePolicy',
+            ],
+            resources: [
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksAppStack-*`,
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksGitHubOidcStack-*`,
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksGitHubDeployRole`,
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/cdk-hnb659fds-cfn-exec-role-${TARGET_ACCOUNT}-${TARGET_REGION}`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'PassRoles',
+            actions: ['iam:PassRole'],
+            resources: [
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksAppStack-*`,
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksGitHubOidcStack-*`,
+            ],
+            conditions: {
+              StringEquals: {
+                'iam:PassedToService': 'lambda.amazonaws.com',
+              },
+            },
+          }),
+          new PolicyStatement({
+            sid: 'Policies',
+            actions: [
+              'iam:CreatePolicy',
+              'iam:CreatePolicyVersion',
+              'iam:DeletePolicy',
+              'iam:DeletePolicyVersion',
+              'iam:GetPolicy',
+              'iam:GetPolicyVersion',
+              'iam:ListPolicyVersions',
+              'iam:SetDefaultPolicyVersion',
+              'iam:TagPolicy',
+              'iam:UntagPolicy',
+            ],
+            resources: [
+              `arn:aws:iam::${TARGET_ACCOUNT}:policy/LocksCdkExecutionPolicy`,
+              `arn:aws:iam::${TARGET_ACCOUNT}:policy/LocksCdkIamExecutionPolicy`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'Oidc',
+            actions: [
+              'iam:CreateOpenIDConnectProvider',
+              'iam:DeleteOpenIDConnectProvider',
+              'iam:GetOpenIDConnectProvider',
+              'iam:TagOpenIDConnectProvider',
+              'iam:UntagOpenIDConnectProvider',
+            ],
+            resources: [
+              `arn:aws:iam::${TARGET_ACCOUNT}:oidc-provider/token.actions.githubusercontent.com`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'Lambda',
+            actions: [
+              'lambda:AddPermission',
+              'lambda:CreateFunction',
+              'lambda:DeleteFunction',
+              'lambda:GetFunction',
+              'lambda:GetFunctionConfiguration',
+              'lambda:ListTags',
+              'lambda:RemovePermission',
+              'lambda:TagResource',
+              'lambda:UntagResource',
+              'lambda:UpdateFunctionCode',
+              'lambda:UpdateFunctionConfiguration',
+            ],
+            resources: [
+              `arn:aws:lambda:${TARGET_REGION}:${TARGET_ACCOUNT}:function:LocksGitHubOidcStack-*`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'Logs',
+            actions: [
+              'logs:CreateLogGroup',
+              'logs:DeleteLogGroup',
+              'logs:ListTagsForResource',
+              'logs:PutRetentionPolicy',
+              'logs:TagResource',
+              'logs:UntagResource',
+            ],
+            resources: [
+              `arn:aws:logs:${TARGET_REGION}:${TARGET_ACCOUNT}:log-group:/aws/lambda/LocksGitHubOidcStack-*`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'Invoke',
+            actions: ['lambda:InvokeFunction'],
+            resources: [
               `arn:aws:lambda:${TARGET_REGION}:${TARGET_ACCOUNT}:function:LocksGitHubOidcStack-*`,
             ],
           }),
@@ -332,7 +383,7 @@ export class LocksGitHubOidcStack extends Stack {
         roles: [bootstrapExecutionRole],
       },
     );
-    executionPolicy.applyRemovalPolicy(RemovalPolicy.RETAIN);
+    iamExecutionPolicy.applyRemovalPolicy(RemovalPolicy.RETAIN);
 
     const deployRole = new Role(this, 'GitHubDeployRole', {
       roleName: 'LocksGitHubDeployRole',
@@ -408,6 +459,9 @@ export class LocksGitHubOidcStack extends Stack {
     });
     new CfnOutput(this, 'CdkExecutionPolicyArn', {
       value: executionPolicy.managedPolicyArn,
+    });
+    new CfnOutput(this, 'CdkIamExecutionPolicyArn', {
+      value: iamExecutionPolicy.managedPolicyArn,
     });
   }
 }
