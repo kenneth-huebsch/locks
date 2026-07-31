@@ -1,5 +1,23 @@
 # NFL Locks Web App Plan
 
+## Project status
+
+Last updated: July 31, 2026.
+
+- **Phase 1 is complete and deployed.**
+- Production application: https://d141pq884g4gai.cloudfront.net
+- AWS account: `580956784928`
+- AWS region: `us-east-1`
+- Cognito login, required password change, authenticated API access, seeded
+  game retrieval, and browser display have been validated end to end.
+- GitHub Actions deploys `LocksAppStack` from `main` through short-lived OIDC
+  credentials.
+- Foundation and application deployments use separate, least-privilege roles
+  and runtime permissions boundaries.
+- The current Cognito user is `kenneth.huebsch@gmail.com`.
+- No AWS Budget exists by user choice; spending is monitored manually.
+- **Phase 2: Picks and odds is next.**
+
 ## Recommendation: AWS serverless with DynamoDB caching
 
 Use AWS serverless rather than Lightsail:
@@ -13,7 +31,8 @@ Use AWS serverless rather than Lightsail:
 
 At three users, expected AWS usage is far below the published free allowances for Lambda, DynamoDB, and EventBridge. CloudFront, S3, and API Gateway may incur small charges, but expected cost is approximately $0–1/month.
 
-Create an AWS Budget alert rather than assuming every service will always remain free.
+AWS spending will be monitored manually. A Budget alert was intentionally not
+created.
 
 AWS does not reduce The Odds API usage by itself; caching was already planned. It removes Netlify/Airtable dependencies and gives us control over caching, schedules, and retention.
 
@@ -68,7 +87,10 @@ flowchart TB
   FnGrade --> Store
 ```
 
-The Odds API key lives in Parameter Store and is readable only by the synchronization Lambda role. The browser never talks directly to DynamoDB or The Odds API. Cognito JWTs protect every API route.
+In Phase 2, the Odds API key will live in Parameter Store and will be readable
+only by the synchronization Lambda role. Phase 1 provisions the exact access
+boundary but does not create the parameter value. The browser never talks
+directly to DynamoDB or The Odds API. Cognito JWTs protect every API route.
 
 ## Competition rules
 
@@ -91,7 +113,10 @@ The Odds API key lives in Parameter Store and is readable only by the synchroniz
 
 ## DynamoDB data model
 
-Use one DynamoDB table with explicit partition and sort keys plus focused secondary indexes. Final key patterns will be documented in `docs/data-model.md`.
+Use one DynamoDB table with explicit partition and sort keys plus focused
+secondary indexes. Phase 1 created the encrypted table and a minimal seeded game
+shape. Final Phase 2 key patterns must be documented in `docs/data-model.md`
+before implementing picks or odds caching.
 
 ### Players
 
@@ -355,26 +380,37 @@ locks/
 
 ## Implementation phases
 
-### Phase 1: Foundation
+### Phase 1: Foundation — complete
 
-- Scaffold React, Vite, TypeScript, and Tailwind.
-- Add CDK infrastructure.
-- Provision:
-  - S3
-  - CloudFront
-  - Cognito
-  - API Gateway
-  - Lambda
-  - DynamoDB
-  - EventBridge
-  - Parameter Store access
-  - AWS Budget alert
-- Configure GitHub Actions deployment through AWS OIDC.
-- Create three invite-only Cognito accounts.
-- Use manually seeded games to validate the flow end-to-end.
+- [x] Scaffold React, Vite, TypeScript, and Tailwind.
+- [x] Add tested TypeScript CDK infrastructure.
+- [x] Provision private S3, CloudFront, Cognito, API Gateway, Lambda,
+  DynamoDB, and EventBridge Scheduler resources.
+- [x] Provision exact future Parameter Store access without creating a fake
+  Odds API key.
+- [x] Configure GitHub Actions deployment through branch-restricted AWS OIDC.
+- [x] Separate foundation and application deployment identities.
+- [x] Apply least-privilege execution policies and a runtime permissions
+  boundary.
+- [x] Create the initial invite-only Cognito account.
+- [x] Seed a dummy game and validate the authenticated flow end to end.
+- [x] Document human and agent infrastructure operations.
 
-### Phase 2: Picks and odds
+Approved Phase 1 deviations:
 
+- No AWS Budget alert; spending is monitored manually.
+- One Cognito account was created initially. Jack and Eric remain pending until
+  their email addresses are supplied.
+- The Odds API parameter value is deferred until Phase 2.
+
+### Phase 2: Picks and odds — next
+
+- Document final DynamoDB keys, indexes, transactions, and TTL records in
+  `docs/data-model.md`.
+- Add the approved Odds API key to Parameter Store without exposing it to the
+  browser, logs, GitHub, or source control.
+- Create Jack and Eric's Cognito accounts when their email addresses are
+  available.
 - Implement the scheduled odds synchronization Lambda.
 - Cache games and spreads in DynamoDB.
 - Add free-tier quota tracking and the circuit breaker.
@@ -387,14 +423,14 @@ locks/
   - Three-pick weekly maximum
 - Refresh shared picks after submission, on window focus, and at a short interval.
 
-### Phase 3: Grading and standings
+### Phase 3: Grading and standings — planned
 
 - Implement scheduled score synchronization.
 - Implement W-L-P grading.
 - Build season and weekly standings.
 - Build the historical picks board.
 
-### Phase 4: Polish and deployment
+### Phase 4: Polish and final release — planned
 
 - Complete the mobile UX pass.
 - Display kickoff times in Eastern Time.
@@ -402,20 +438,27 @@ locks/
 - Reinforce immutable-pick messaging.
 - Add admin-only grading overrides for postponed games and unusual outcomes.
 - Admin overrides cannot edit player picks.
-- Deploy the production application.
+- Deploy the completed version-one application changes to the existing
+  production infrastructure.
 - Optionally link to it from inov8.cc.
 
 ## Required from you
 
-1. AWS account.
-2. Target AWS region; recommended default is `us-east-1`.
-3. Temporary deployment access for initial CDK/OIDC setup.
-4. Free-tier Odds API key.
-5. Jack and Eric’s email addresses for Cognito invitations.
-6. Preferred sportsbook; DraftKings is the default recommendation.
-7. Launch target:
-   - 2026 Week 1, or
-   - An offseason test using dummy games.
+Completed:
+
+1. AWS account: `580956784928`.
+2. Target AWS region: `us-east-1`.
+3. Initial CDK/OIDC deployment access.
+4. Kenny's invite-only Cognito account and login validation.
+5. Offseason/foundation validation using a dummy 2026 Week 1 game.
+
+Needed for Phase 2:
+
+1. Free-tier Odds API key.
+2. Jack and Eric's email addresses for Cognito invitations.
+3. Preferred sportsbook; DraftKings remains the default recommendation.
+4. Confirm whether the real launch target is 2026 Week 1 or an earlier test
+   window.
 
 ## Risks and mitigations
 
@@ -430,7 +473,8 @@ locks/
 - **API outage**
   - Continue displaying cached lines and provide a manual grading fallback.
 - **Unexpected AWS charges**
-  - Use only serverless resources, add a low AWS Budget alert, and avoid NAT Gateway or always-on compute.
+  - Use only serverless resources, monitor billing manually, and avoid NAT
+    Gateway or always-on compute.
 - **Concurrent or repeated submissions**
   - Use DynamoDB conditional transactions to enforce uniqueness, immutability, and the weekly limit atomically.
 
