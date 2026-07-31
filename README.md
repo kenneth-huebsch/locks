@@ -62,7 +62,7 @@ $env:AWS_REGION = "us-east-1"
 $env:AWS_DEFAULT_REGION = "us-east-1"
 
 npx cdk bootstrap "aws://580956784928/us-east-1" --profile $Profile
-npm run cdk -- deploy LocksGitHubOidcStack --require-approval never
+npm run deploy:oidc
 npx cdk bootstrap "aws://580956784928/us-east-1" `
   --profile $Profile `
   --cloudformation-execution-policies "arn:aws:iam::580956784928:policy/LocksCdkExecutionPolicy"
@@ -78,7 +78,7 @@ GitHub role trusts only
 For a local deployment, repeat the account guard above, then run:
 
 ```powershell
-npm run cdk -- deploy LocksAppStack --require-approval never
+npm run deploy:infrastructure
 npm run deploy:app
 ```
 

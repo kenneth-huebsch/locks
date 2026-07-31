@@ -7,6 +7,8 @@
     "build": "tsc -b && vite build",
     "cdk": "cdk --app \"npx tsx infrastructure/bin/locks.ts\"",
     "deploy:app": "tsx scripts/deploy-app.ts",
+    "deploy:infrastructure": "cdk --app \"npx tsx infrastructure/bin/locks.ts\" deploy LocksAppStack --require-approval never",
+    "deploy:oidc": "cdk --app \"npx tsx infrastructure/bin/locks.ts\" deploy LocksGitHubOidcStack --require-approval never",
     "lint": "eslint .",
     "seed": "tsx scripts/seed-foundation.ts",
     "synth": "npm run cdk -- synth",

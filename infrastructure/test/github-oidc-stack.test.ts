@@ -58,4 +58,19 @@ describe('LocksGitHubOidcStack', () => {
       },
     });
   });
+
+  it('allows CloudFormation to read only the CDK bootstrap version parameter', () => {
+    template.hasResourceProperties('AWS::IAM::ManagedPolicy', {
+      PolicyDocument: {
+        Statement: Match.arrayWith([
+          {
+            Action: 'ssm:GetParameters',
+            Effect: 'Allow',
+            Resource:
+              'arn:aws:ssm:us-east-1:580956784928:parameter/cdk-bootstrap/hnb659fds/version',
+          },
+        ]),
+      },
+    });
+  });
 });
