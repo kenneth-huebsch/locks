@@ -613,12 +613,25 @@ export class LocksGitHubOidcStack extends Stack {
     );
     iamExecutionPolicy.applyRemovalPolicy(RemovalPolicy.RETAIN);
 
+    const deployRole = new Role(this, 'GitHubDeployRole', {
+      roleName: 'LocksGitHubDeployRole',
+      assumedBy: new FederatedPrincipal(
+        provider.openIdConnectProviderArn,
+        {
+          StringEquals: {
+            'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com',
+            'token.actions.githubusercontent.com:sub': GITHUB_SUBJECT,
+          },
+        },
+        'sts:AssumeRoleWithWebIdentity',
+      ),
+      description: 'Deploys the Locks application from the main branch',
+      maxSessionDuration: Duration.hours(1),
+    });
     const appDeployRole = new Role(this, 'AppDeployRole', {
       roleName: APP_DEPLOY_ROLE_NAME,
       assumedBy: new CompositePrincipal(
-        new ArnPrincipal(
-          `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksGitHubDeployRole`,
-        ),
+        new ArnPrincipal(deployRole.roleArn),
         new ArnPrincipal(
           `arn:aws:iam::${TARGET_ACCOUNT}:user/coding-agent`,
         ),
@@ -627,6 +640,7 @@ export class LocksGitHubOidcStack extends Stack {
         'Initiates CloudFormation deployments only for LocksAppStack',
       maxSessionDuration: Duration.hours(1),
     });
+    appDeployRole.node.addDependency(deployRole);
     appDeployRole.addToPolicy(
       new PolicyStatement({
         sid: 'DeployAppStack',
@@ -734,22 +748,6 @@ export class LocksGitHubOidcStack extends Stack {
         resources: ['*'],
       }),
     );
-
-    const deployRole = new Role(this, 'GitHubDeployRole', {
-      roleName: 'LocksGitHubDeployRole',
-      assumedBy: new FederatedPrincipal(
-        provider.openIdConnectProviderArn,
-        {
-          StringEquals: {
-            'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com',
-            'token.actions.githubusercontent.com:sub': GITHUB_SUBJECT,
-          },
-        },
-        'sts:AssumeRoleWithWebIdentity',
-      ),
-      description: 'Deploys the Locks application from the main branch',
-      maxSessionDuration: Duration.hours(1),
-    });
 
     deployRole.addToPolicy(
       new PolicyStatement({

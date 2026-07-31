@@ -276,7 +276,7 @@ describe('LocksGitHubOidcStack', () => {
     );
 
     expect(trust).toContain(
-      'arn:aws:iam::580956784928:role/LocksGitHubDeployRole',
+      '"Fn::GetAtt":["GitHubDeployRoleED73FD64","Arn"]',
     );
     expect(trust).toContain(
       'arn:aws:iam::580956784928:user/coding-agent',
@@ -327,6 +327,28 @@ describe('LocksGitHubOidcStack', () => {
         },
       });
     }
+  });
+
+  it('creates the GitHub role before using it as an app deploy principal', () => {
+    const roles = template.findResources('AWS::IAM::Role');
+    const appDeployRole = roles.AppDeployRole78A91266;
+
+    expect(appDeployRole.DependsOn).toContain(
+      'GitHubDeployRoleED73FD64',
+    );
+    expect(
+      appDeployRole.Properties.AssumeRolePolicyDocument.Statement,
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          Principal: {
+            AWS: {
+              'Fn::GetAtt': ['GitHubDeployRoleED73FD64', 'Arn'],
+            },
+          },
+        }),
+      ]),
+    );
   });
 
   it('requires the app boundary for role creation and allowlists attachments', () => {
