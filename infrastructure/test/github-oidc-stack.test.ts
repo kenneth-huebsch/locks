@@ -74,6 +74,27 @@ describe('LocksGitHubOidcStack', () => {
     });
   });
 
+  it('lets only app CloudFormation read the exact bootstrap version', () => {
+    const policies = managedPolicyStatements(template);
+    const appStatement =
+      policies.LocksAppCloudFormationExecutionPolicy.find(({ Action }) =>
+        toArray(Action).includes('ssm:GetParameters'),
+      );
+
+    expect(appStatement).toEqual({
+      Action: 'ssm:GetParameters',
+      Effect: 'Allow',
+      Resource:
+        'arn:aws:ssm:us-east-1:580956784928:parameter/cdk-bootstrap/hnb659fds/version',
+      Sid: 'BootstrapVersion',
+    });
+    expect(
+      policies.LocksAppRuntimeBoundary.flatMap(({ Action }) =>
+        toArray(Action),
+      ),
+    ).not.toContain('ssm:GetParameters');
+  });
+
   it('supports API tagging and scheduler rollback without service wildcards', () => {
     template.hasResourceProperties('AWS::IAM::ManagedPolicy', {
       PolicyDocument: {

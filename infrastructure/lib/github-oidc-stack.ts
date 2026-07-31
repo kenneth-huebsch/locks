@@ -328,6 +328,13 @@ export class LocksGitHubOidcStack extends Stack {
               `arn:aws:lambda:${TARGET_REGION}:${TARGET_ACCOUNT}:function:LocksAppStack-*`,
             ],
           }),
+          new PolicyStatement({
+            sid: 'BootstrapVersion',
+            actions: ['ssm:GetParameters'],
+            resources: [
+              `arn:aws:ssm:${TARGET_REGION}:${TARGET_ACCOUNT}:parameter/cdk-bootstrap/hnb659fds/version`,
+            ],
+          }),
         ],
         roles: [appExecutionRole],
       },
