@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "tsBuildInfoFile": "./node_modules/.cache/tsconfig.node.tsbuildinfo",
+    "types": ["node", "vitest/globals"]
+  },
+  "include": [
+    "backend",
+    "infrastructure",
+    "scripts",
+    "shared",
+    "eslint.config.js",
+    "vite.config.ts",
+    "vitest.config.ts"
+  ]
+}
