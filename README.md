@@ -5,6 +5,21 @@ invite-only Cognito login, a JWT-protected current-week API, and one
 idempotently seeded game. Picks, odds, grading, and standings are intentionally
 out of scope.
 
+## Current deployment
+
+| Item | Value |
+|---|---|
+| Application | https://d141pq884g4gai.cloudfront.net |
+| AWS account | `580956784928` |
+| AWS region | `us-east-1` |
+| Production branch | `main` |
+| Login | Invite-only Cognito managed login |
+| Current user | `kenneth.huebsch@gmail.com` |
+| Data | One manually seeded 2026 Week 1 game |
+
+The production flow has been validated through Cognito login, required password
+change, authenticated API access, and game display.
+
 ## Architecture
 
 - React, Vite, TypeScript, and Tailwind CSS
@@ -17,6 +32,37 @@ out of scope.
 
 All AWS resources are defined in `LocksGitHubOidcStack` and `LocksAppStack`.
 The target is fixed to account `580956784928` in `us-east-1`.
+
+```mermaid
+flowchart LR
+  Browser[Browser] --> CloudFront[CloudFront]
+  CloudFront --> S3[Private S3]
+  CloudFront --> Api[API Gateway]
+  Browser --> Cognito[Cognito]
+  Api --> Lambda[Current-week Lambda]
+  Lambda --> DynamoDB[DynamoDB]
+  GitHub[GitHub main] --> Oidc[GitHub OIDC role]
+  Oidc --> AppDeploy[App deploy role]
+  AppDeploy --> AppCfn[App CloudFormation role]
+  Local[Approved local operator] --> Foundation[Foundation CDK path]
+```
+
+The foundation and application use separate deployment identities. GitHub can
+deploy only `LocksAppStack`; it cannot assume the generic CDK bootstrap deploy
+role or change the OIDC foundation. Application runtime roles are capped by a
+permissions boundary.
+
+## Repository guide
+
+- `src/`: React application
+- `backend/functions/`: Lambda handlers
+- `shared/`: shared API and fixture types
+- `infrastructure/`: TypeScript CDK stacks and assertions
+- `scripts/`: guarded publishing, configuration, and seeding
+- `.github/workflows/deploy.yml`: OIDC deployment from `main`
+- `PLAN.md`: product roadmap and later phases
+- `AGENTS.md`: mandatory rules for coding agents
+- `.agent/skills/managing-locks-infrastructure/`: agent infrastructure runbook
 
 ## Local verification
 
@@ -83,9 +129,11 @@ bootstrap deploy role. `LocksAppStack` always uses `LocksAppDeployRole` and
 role. Bootstrap file, image, and lookup roles remain available for CDK assets
 and lookups.
 
-## Migration from the earlier scoped bootstrap
+## Recovery from the earlier scoped bootstrap
 
-An account already using the earlier execution policies must temporarily
+This production account has already completed the migration. Use this recovery
+sequence only if an older environment still has the pre-separation execution
+policies. It must temporarily
 restore bootstrap administrator execution so CloudFormation can create the new
 roles, policies, and boundary. Pause the `main` deployment workflow before the
 first command because the old GitHub role can still assume the generic deploy
@@ -125,6 +173,28 @@ canonical game fixture, and invalidates CloudFront.
 After the one-time OIDC setup, a push to `main` runs the same checks and deploys
 only `LocksAppStack`. The workflow asserts the STS account before any
 deployment and contains no long-lived AWS credentials.
+
+## Operational notes
+
+- Normal application deployment is `npm run deploy:infrastructure` followed by
+  `npm run deploy:app`.
+- Foundation or IAM changes use `npm run deploy:oidc` locally and require
+  explicit approval. They are intentionally excluded from GitHub Actions.
+- Never leave the bootstrap CloudFormation execution role attached to
+  `AdministratorAccess`. Its normal state is the two scoped Locks CDK policies.
+- Remove temporary operator policies from `coding-agent` after bootstrap or
+  recovery work.
+- No AWS Budget exists by user choice. Monitor AWS Billing and Cost Explorer
+  manually.
+- No Odds API key or SSM parameter value exists yet. Phase 2 must add it as an
+  explicitly approved credential operation.
+- `docs/data-model.md` is planned but does not exist yet; create it before
+  implementing the Phase 2 DynamoDB model.
+- The DynamoDB table has point-in-time recovery, but the table, Cognito pool,
+  and site bucket use destroy-oriented Phase 1 removal policies.
+- A high-severity `brace-expansion` advisory is bundled inside the latest CDK
+  tooling dependency. It is not shipped in the SPA or Lambda; update CDK when
+  AWS releases a version containing the patched bundle.
 
 ## Login
 
