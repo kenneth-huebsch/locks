@@ -54,7 +54,10 @@ import {
   Bucket,
   BucketEncryption,
 } from 'aws-cdk-lib/aws-s3';
-import { CfnScheduleGroup } from 'aws-cdk-lib/aws-scheduler';
+import {
+  CfnSchedule,
+  CfnScheduleGroup,
+} from 'aws-cdk-lib/aws-scheduler';
 import type { Construct } from 'constructs';
 import {
   APP_DEPLOY_ROLE_NAME,
@@ -193,7 +196,7 @@ function handler(event) {
           origin: new HttpOrigin(
             `${httpApi.apiId}.execute-api.${this.region}.${this.urlSuffix}`,
           ),
-          allowedMethods: AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
+          allowedMethods: AllowedMethods.ALLOW_ALL,
           cachePolicy: CachePolicy.CACHING_DISABLED,
           originRequestPolicy:
             OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
@@ -237,24 +240,16 @@ function handler(event) {
       authorizer,
     });
 
-    new CfnScheduleGroup(this, 'ScheduledFunctionsGroup', {
-      name: 'locks',
+    const syncOddsFunctionRole = new Role(this, 'SyncOddsFunctionRole', {
+      assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
+      description: 'Execution role for scheduled odds synchronization',
+      managedPolicies: [
+        ManagedPolicy.fromAwsManagedPolicyName(
+          'service-role/AWSLambdaBasicExecutionRole',
+        ),
+      ],
     });
-    const scheduledFunctionRole = new Role(
-      this,
-      'FutureScheduledFunctionRole',
-      {
-        assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
-        description:
-          'Execution role reserved for Phase 2 scheduled functions',
-        managedPolicies: [
-          ManagedPolicy.fromAwsManagedPolicyName(
-            'service-role/AWSLambdaBasicExecutionRole',
-          ),
-        ],
-      },
-    );
-    scheduledFunctionRole.addToPolicy(
+    syncOddsFunctionRole.addToPolicy(
       new PolicyStatement({
         actions: ['ssm:GetParameter'],
         resources: [
@@ -262,6 +257,76 @@ function handler(event) {
         ],
       }),
     );
+    syncOddsFunctionRole.addToPolicy(
+      new PolicyStatement({
+        actions: [
+          'dynamodb:GetItem',
+          'dynamodb:PutItem',
+          'dynamodb:Query',
+          'dynamodb:UpdateItem',
+        ],
+        resources: [
+          table.tableArn,
+          `${table.tableArn}/index/*`,
+        ],
+      }),
+    );
+
+    const syncOddsFunction = new NodejsFunction(this, 'SyncOddsFunction', {
+      entry: 'backend/functions/sync-odds.ts',
+      handler: 'handler',
+      runtime: Runtime.NODEJS_22_X,
+      architecture: Architecture.ARM_64,
+      timeout: Duration.seconds(30),
+      memorySize: 256,
+      role: syncOddsFunctionRole,
+      environment: {
+        TABLE_NAME: table.tableName,
+        ODDS_API_ENABLED: 'true',
+      },
+      bundling: {
+        minify: true,
+        sourceMap: true,
+      },
+    });
+
+    const schedulerInvokeRole = new Role(this, 'SyncOddsSchedulerInvokeRole', {
+      assumedBy: new ServicePrincipal('scheduler.amazonaws.com'),
+      description: 'Allows EventBridge Scheduler to invoke sync-odds',
+    });
+    syncOddsFunction.grantInvoke(schedulerInvokeRole);
+
+    new CfnScheduleGroup(this, 'ScheduledFunctionsGroup', {
+      name: 'locks',
+    });
+
+    const scheduleProps = {
+      groupName: 'locks',
+      flexibleTimeWindow: { mode: 'OFF' },
+      state: 'DISABLED',
+      target: {
+        arn: syncOddsFunction.functionArn,
+        roleArn: schedulerInvokeRole.roleArn,
+        retryPolicy: {
+          maximumRetryAttempts: 2,
+        },
+      },
+    } as const;
+
+    new CfnSchedule(this, 'SyncOddsMorningSchedule', {
+      name: 'sync-odds-morning',
+      scheduleExpression: 'cron(0 12 * * ? *)',
+      scheduleExpressionTimezone: 'UTC',
+      description: 'Morning NFL odds sync (8am ET, Tue-Mon during season)',
+      ...scheduleProps,
+    });
+    new CfnSchedule(this, 'SyncOddsAfternoonSchedule', {
+      name: 'sync-odds-afternoon',
+      scheduleExpression: 'cron(0 20 * * ? *)',
+      scheduleExpressionTimezone: 'UTC',
+      description: 'Afternoon NFL odds sync (4pm ET, Tue-Mon during season)',
+      ...scheduleProps,
+    });
 
     output(this, 'ApiEndpoint', httpApi.apiEndpoint);
     output(this, 'Authority', userPool.userPoolProviderUrl);

@@ -77,6 +77,17 @@ describe('LocksAppStack', () => {
     });
     template.resourceCountIs('AWS::Scheduler::ScheduleGroup', 1);
     template.resourceCountIs('AWS::SSM::Parameter', 0);
+    template.resourceCountIs('AWS::Scheduler::Schedule', 2);
+    template.hasResourceProperties('AWS::Scheduler::Schedule', {
+      Name: 'sync-odds-morning',
+      State: 'DISABLED',
+      ScheduleExpression: 'cron(0 12 * * ? *)',
+    });
+    template.hasResourceProperties('AWS::Scheduler::Schedule', {
+      Name: 'sync-odds-afternoon',
+      State: 'DISABLED',
+      ScheduleExpression: 'cron(0 20 * * ? *)',
+    });
     template.hasResourceProperties('AWS::IAM::Policy', {
       PolicyDocument: {
         Statement: Match.arrayWith([
@@ -85,6 +96,26 @@ describe('LocksAppStack', () => {
             Effect: 'Allow',
             Resource:
               'arn:aws:ssm:us-east-1:580956784928:parameter/locks/odds-api-key',
+          }),
+          Match.objectLike({
+            Action: Match.arrayWith([
+              'dynamodb:GetItem',
+              'dynamodb:PutItem',
+              'dynamodb:UpdateItem',
+            ]),
+          }),
+        ]),
+      },
+    });
+  });
+
+  it('allows POST through CloudFront for future pick submission', () => {
+    template.hasResourceProperties('AWS::CloudFront::Distribution', {
+      DistributionConfig: {
+        CacheBehaviors: Match.arrayWith([
+          Match.objectLike({
+            PathPattern: 'api/*',
+            AllowedMethods: Match.arrayWith(['GET', 'HEAD', 'OPTIONS', 'POST']),
           }),
         ]),
       },

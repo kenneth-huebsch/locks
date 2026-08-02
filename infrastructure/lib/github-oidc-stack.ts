@@ -65,8 +65,10 @@ export class LocksGitHubOidcStack extends Stack {
               'dynamodb:ConditionCheckItem',
               'dynamodb:DescribeTable',
               'dynamodb:GetItem',
+              'dynamodb:PutItem',
               'dynamodb:Query',
               'dynamodb:Scan',
+              'dynamodb:UpdateItem',
             ],
             resources: [
               `arn:aws:dynamodb:${TARGET_REGION}:${TARGET_ACCOUNT}:table/locks`,
