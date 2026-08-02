@@ -31,6 +31,28 @@ $env:AWS_DEFAULT_REGION = "us-east-1"
 
 Stop if the guard fails.
 
+
+
+## Container operations (Mira)
+
+Mira can operate on Locks AWS infrastructure from her OpenClaw container using
+the Node AWS SDK. No `aws` CLI is available in the container, but all seed
+scripts and SDK-based inspection work with credentials from
+`~/.openclaw/secrets/aws.env`. See the "Container operations (Mira)" section in
+`runbooks.md` for exact commands.
+
+Container capabilities:
+- Account identity verification (STS)
+- CloudFormation stack inspection
+- DynamoDB seeding (all seed scripts)
+- Post-deployment verification (curl probes, stack outputs)
+- Any Node AWS SDK script
+
+Container limitations:
+- No `cdk` CLI (deployment still runs from host)
+- No `aws` CLI (use Node SDK instead)
+- No PowerShell (use bash/sh)
+
 ## Choose the path
 
 | Change | Stack/path |

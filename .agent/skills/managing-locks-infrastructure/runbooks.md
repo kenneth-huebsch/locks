@@ -199,3 +199,84 @@ aws iam delete-policy --policy-arn "arn:aws:iam::580956784928:policy/LocksCdkIam
 ```
 
 Order is mandatory: application, foundation identities, bootstrap stack, retained policies. Never destroy deployment identities before the application stack.
+
+## Container operations (Mira)
+
+Mira's OpenClaw container has no `aws` CLI but can use the Node AWS SDK
+directly. Credentials are loaded from `~/.openclaw/secrets/aws.env`. The
+dedicated IAM user is `coding-agent` in account `580956784928`.
+
+### Account guard (container)
+
+```bash
+cd /home/node/.openclaw/workspace/runtime/repos/kenneth-huebsch--locks
+export $(cat ~/.openclaw/secrets/aws.env | xargs)
+node -e "
+const { STSClient, GetCallerIdentityCommand } = require('@aws-sdk/client-sts');
+const sts = new STSClient({ region: 'us-east-1' });
+sts.send(new GetCallerIdentityCommand({})).then(r => {
+  if (r.Account !== '580956784928') { console.error('Wrong account:', r.Account); process.exit(1); }
+  console.log('Account verified:', r.Account, r.Arn);
+}).catch(e => { console.error(e.message); process.exit(1); });
+"
+```
+
+### Read-only inspection (container)
+
+```bash
+cd /home/node/.openclaw/workspace/runtime/repos/kenneth-huebsch--locks
+export $(cat ~/.openclaw/secrets/aws.env | xargs)
+node -e "
+const { CloudFormationClient, DescribeStacksCommand } = require('@aws-sdk/client-cloudformation');
+const cfn = new CloudFormationClient({ region: 'us-east-1' });
+cfn.send(new DescribeStacksCommand({ StackName: 'LocksAppStack' })).then(res => {
+  const stack = res.Stacks[0];
+  console.log('Status:', stack.StackStatus);
+  (stack.Outputs || []).forEach(o => console.log(o.OutputKey + ': ' + o.OutputValue));
+}).catch(e => { console.error(e.message); process.exit(1); });
+"
+```
+
+### Seeding (container)
+
+The seed scripts use `tsx` with the AWS SDK and can run directly from the
+container:
+
+```bash
+cd /home/node/.openclaw/workspace/runtime/repos/kenneth-huebsch--locks
+export $(cat ~/.openclaw/secrets/aws.env | xargs)
+npm run seed                    # foundation game item
+npx tsx scripts/seed-active-week.ts   # active week + fake game slate
+npx tsx scripts/seed-week.ts          # fake game slate only
+```
+
+All seed scripts are idempotent (PutItem with no condition). The account guard
+in `aws-context.ts` runs automatically before any mutation.
+
+### Post-deployment verification (container)
+
+```bash
+# Site and API probes (no AWS credentials needed)
+curl -s -o /dev/null -w "%{http_code}" https://d141pq884g4gai.cloudfront.net/
+curl -s -o /dev/null -w "%{http_code}" https://d141pq884g4gai.cloudfront.net/api/week/current
+# Expected: 200 and 401
+
+# Stack outputs
+export $(cat ~/.openclaw/secrets/aws.env | xargs)
+node -e "
+const { CloudFormationClient, DescribeStacksCommand } = require('@aws-sdk/client-cloudformation');
+const cfn = new CloudFormationClient({ region: 'us-east-1' });
+cfn.send(new DescribeStacksCommand({ StackName: 'LocksAppStack' })).then(res => {
+  (res.Stacks[0].Outputs || []).forEach(o => console.log(o.OutputKey + ': ' + o.OutputValue));
+}).catch(e => { console.error(e.message); });
+"
+```
+
+### Deploying from the container
+
+CDK deployment is not yet supported from the container (no `cdk` CLI).
+Infrastructure and app deployment still run from the host with the approved
+PowerShell profile. The container can seed, inspect stacks, verify the
+deployment, and run any Node AWS SDK script. When `cdk` is added to the
+container, the host runbook commands can be mirrored here using
+`npx cdk` with env vars instead of `--profile`.
