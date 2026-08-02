@@ -72,7 +72,7 @@ export function WeekView({
 
   async function handleSubmitPicks(picks: PickSummary[]) {
     const succeededGameIds: string[] = [];
-    const errors: unknown[] = [];
+    let firstError: unknown = null;
 
     for (const pick of picks) {
       const request: SubmitPickRequest = {
@@ -85,16 +85,15 @@ export function WeekView({
         await submitPickRequest(accessToken, request, apiBaseUrl);
         succeededGameIds.push(pick.gameId);
       } catch (error) {
-        errors.push(error);
+        if (firstError === null) {
+          firstError = error;
+        }
       }
     }
 
+    // Always remove successful picks from the selection state and refresh.
     if (succeededGameIds.length > 0) {
       setSelections((current) => {
-        if (succeededGameIds.length === picks.length) {
-          return {};
-        }
-
         const next = { ...current };
         for (const gameId of succeededGameIds) {
           delete next[gameId];
@@ -104,10 +103,12 @@ export function WeekView({
       await onRefresh();
     }
 
+    // Close modal only if everything succeeded. Otherwise keep it open
+    // and rethrow the first error so the modal shows the right message.
     if (succeededGameIds.length === picks.length) {
       setIsModalOpen(false);
-    } else if (errors.length > 0) {
-      throw errors[0];
+    } else if (firstError !== null) {
+      throw firstError;
     }
   }
 

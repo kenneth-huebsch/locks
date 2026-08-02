@@ -43,7 +43,7 @@ export function GameCard({
 }: GameCardProps) {
   const started = hasGameStarted(game.commenceTime, now);
   const locked = Boolean(existingPick);
-  const selectable = !started && !locked;
+  const selectable = !started && !locked && game.status === 'scheduled';
 
   const statusLabel =
     game.status === 'final'

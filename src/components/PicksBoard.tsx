@@ -7,6 +7,7 @@ export interface PicksBoardProps {
   games: Game[];
   picks: Pick[];
   userSub: string;
+  userDisplayName?: string;
 }
 
 const RESULT_STYLES: Record<Pick['result'], string> = {
@@ -24,8 +25,11 @@ function pickLabel(pick: Pick | undefined): string {
   return `${pick.pickedTeam} ${formatSpread(pick.spreadAtPick)}`;
 }
 
-export function PicksBoard({ games, picks, userSub }: PicksBoardProps) {
-  const players = useMemo(() => boardPlayersForUser(userSub), [userSub]);
+export function PicksBoard({ games, picks, userSub, userDisplayName }: PicksBoardProps) {
+  const players = useMemo(
+    () => boardPlayersForUser(userSub, picks),
+    [userSub, picks],
+  );
 
   const picksByPlayerAndGame = useMemo(() => {
     const map = new Map<string, Pick>();
@@ -56,9 +60,11 @@ export function PicksBoard({ games, picks, userSub }: PicksBoardProps) {
               {players.map((player) => (
                 <th
                   className="border border-slate-200 bg-white px-4 py-3 text-sm font-semibold uppercase tracking-wide text-slate-500"
-                  key={player.displayName}
+                  key={player.sub}
                 >
-                  {player.displayName}
+                  {player.sub === userSub && userDisplayName
+                    ? userDisplayName
+                    : player.displayName}
                 </th>
               ))}
             </tr>
@@ -75,14 +81,12 @@ export function PicksBoard({ games, picks, userSub }: PicksBoardProps) {
                   </p>
                 </td>
                 {players.map((player) => {
-                  const pick = player.sub
-                    ? picksByPlayerAndGame.get(`${player.sub}:${game.id}`)
-                    : undefined;
+                  const pick = picksByPlayerAndGame.get(`${player.sub}:${game.id}`);
 
                   return (
                     <td
                       className="border border-slate-200 px-4 py-3"
-                      key={`${game.id}-${player.displayName}`}
+                      key={`${game.id}-${player.sub}`}
                     >
                       <span
                         className={`inline-block rounded px-2 py-1 text-sm font-semibold ${

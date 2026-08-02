@@ -86,7 +86,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: /picks board/i }));
 
     expect(screen.getByRole('heading', { name: /picks board/i })).toBeInTheDocument();
-    expect(screen.getByText('Kenny')).toBeInTheDocument();
+    expect(screen.getByText('Player')).toBeInTheDocument();
   });
 
   it('clears the local session and starts Cognito logout', async () => {
