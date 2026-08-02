@@ -100,32 +100,21 @@ async function main(): Promise<void> {
   );
 
   // 5. DynamoDB has seeded active week (requires dynamodb:GetItem permission)
-  // The coding-agent user should have the LocksCodingAgentReadPolicy attached.
-  // This check is best-effort — skip if permission denied.
-  try {
-    const ddb = new DynamoDBClient({ region: TARGET_REGION });
-    const itemRes = await ddb.send(
-      new GetItemCommand({
-        TableName: tableName,
-        Key: {
-          PK: { S: 'SEASON#ACTIVE' },
-          SK: { S: 'META' },
-        },
-      }),
-    );
-    check(
-      'DynamoDB has seeded active week item',
-      !!itemRes.Item,
-      'SEASON#ACTIVE / META not found',
-    );
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (msg.includes('not authorized')) {
-      console.log('  ⚠ DynamoDB GetItem skipped (coding-agent lacks read permission)');
-    } else {
-      throw err;
-    }
-  }
+  const ddb = new DynamoDBClient({ region: TARGET_REGION });
+  const itemRes = await ddb.send(
+    new GetItemCommand({
+      TableName: tableName,
+      Key: {
+        PK: { S: 'SEASON#ACTIVE' },
+        SK: { S: 'META' },
+      },
+    }),
+  );
+  check(
+    'DynamoDB has seeded active week item',
+    !!itemRes.Item,
+    'SEASON#ACTIVE / META not found',
+  );
 
   if (process.exitCode) {
     console.error('\nSome verification checks failed.');

@@ -437,7 +437,12 @@ describe('LocksGitHubOidcStack', () => {
     const statements = Object.values(managedPolicyStatements(template)).flat();
     const attachmentStatements = statements.filter(({ Action }) =>
       toArray(Action).some((action) =>
-        ['iam:AttachRolePolicy', 'iam:DetachRolePolicy'].includes(action),
+        [
+          'iam:AttachRolePolicy',
+          'iam:DetachRolePolicy',
+          'iam:AttachUserPolicy',
+          'iam:DetachUserPolicy',
+        ].includes(action),
       ),
     );
 
@@ -504,6 +509,11 @@ describe('LocksGitHubOidcStack', () => {
   it('creates a coding-agent read policy for live verification', () => {
     const policies = managedPolicyStatements(template);
     const statements = policies.LocksCodingAgentReadPolicy;
+    const resources = template.findResources('AWS::IAM::ManagedPolicy');
+    const policyResource = Object.values(resources).find(
+      (resource) =>
+        resource.Properties.ManagedPolicyName === 'LocksCodingAgentReadPolicy',
+    );
 
     expect(statements).toBeDefined();
     const actions = statements.flatMap(({ Action }) => toArray(Action));
@@ -511,11 +521,37 @@ describe('LocksGitHubOidcStack', () => {
     expect(actions).toContain('dynamodb:Query');
     expect(actions).toContain('cloudformation:DescribeStacks');
 
-    const resources = statements.flatMap(({ Resource }) => toArray(Resource));
-    expect(resources).toContain(
+    const policyResources = statements.flatMap(({ Resource }) =>
+      toArray(Resource),
+    );
+    expect(policyResources).toContain(
       'arn:aws:dynamodb:us-east-1:580956784928:table/locks',
     );
-    expect(resources.every((resource) => resource !== '*')).toBe(true);
+    expect(policyResources.every((resource) => resource !== '*')).toBe(true);
+    expect(policyResource?.Properties.Users).toEqual(['coding-agent']);
+
+    const iamExecutionStatements =
+      policies.LocksCdkIamExecutionPolicy;
+    expect(
+      iamExecutionStatements.find(({ Action }) =>
+        toArray(Action).includes('iam:CreatePolicy'),
+      )?.Resource,
+    ).toContain(
+      'arn:aws:iam::580956784928:policy/LocksCodingAgentReadPolicy',
+    );
+    expect(
+      iamExecutionStatements.find(({ Action }) =>
+        toArray(Action).includes('iam:AttachUserPolicy'),
+      ),
+    ).toMatchObject({
+      Resource: 'arn:aws:iam::580956784928:user/coding-agent',
+      Condition: {
+        StringEquals: {
+          'iam:PolicyARN':
+            'arn:aws:iam::580956784928:policy/LocksCodingAgentReadPolicy',
+        },
+      },
+    });
 
     template.hasOutput('CodingAgentReadPolicyArn', {});
   });

@@ -15,6 +15,7 @@ import {
   PolicyStatement,
   Role,
   ServicePrincipal,
+  User,
 } from 'aws-cdk-lib/aws-iam';
 import type { Construct } from 'constructs';
 
@@ -568,6 +569,18 @@ export class LocksGitHubOidcStack extends Stack {
             },
           }),
           new PolicyStatement({
+            sid: 'AttachCodingAgentReadPolicy',
+            actions: ['iam:AttachUserPolicy', 'iam:DetachUserPolicy'],
+            resources: [
+              `arn:aws:iam::${TARGET_ACCOUNT}:user/coding-agent`,
+            ],
+            conditions: {
+              StringEquals: {
+                'iam:PolicyARN': `arn:aws:iam::${TARGET_ACCOUNT}:policy/${CODING_AGENT_READ_POLICY_NAME}`,
+              },
+            },
+          }),
+          new PolicyStatement({
             sid: 'PassRoles',
             actions: ['iam:PassRole'],
             resources: [
@@ -599,6 +612,7 @@ export class LocksGitHubOidcStack extends Stack {
               `arn:aws:iam::${TARGET_ACCOUNT}:policy/${APP_EXECUTION_POLICY_NAME}`,
               `arn:aws:iam::${TARGET_ACCOUNT}:policy/${APP_IAM_EXECUTION_POLICY_NAME}`,
               `arn:aws:iam::${TARGET_ACCOUNT}:policy/${APP_RUNTIME_BOUNDARY_NAME}`,
+              `arn:aws:iam::${TARGET_ACCOUNT}:policy/${CODING_AGENT_READ_POLICY_NAME}`,
             ],
           }),
           new PolicyStatement({
@@ -810,7 +824,6 @@ export class LocksGitHubOidcStack extends Stack {
     );
 
     // Read-only policy for the coding-agent IAM user (used by live verification scripts).
-    // Attach this policy to the coding-agent user after deploying the OIDC stack.
     const codingAgentReadPolicy = new ManagedPolicy(
       this,
       'CodingAgentReadPolicy',
@@ -845,6 +858,13 @@ export class LocksGitHubOidcStack extends Stack {
         ],
       },
     );
+    const codingAgentUser = User.fromUserName(
+      this,
+      'CodingAgentUser',
+      'coding-agent',
+    );
+    codingAgentReadPolicy.attachToUser(codingAgentUser);
+    codingAgentReadPolicy.node.addDependency(iamExecutionPolicy);
 
     new CfnOutput(this, 'CodingAgentReadPolicyArn', {
       value: codingAgentReadPolicy.managedPolicyArn,
