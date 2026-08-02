@@ -1,11 +1,14 @@
-import { useEffect, useState } from 'react';
-import type { CurrentWeekResponse } from '../shared/foundation';
+import { useCallback, useEffect, useState } from 'react';
+import type { CurrentWeekResponse } from '../shared/types';
+import { PicksBoard } from './components/PicksBoard';
+import { WeekView } from './components/WeekView';
 
 export interface AppAuth {
   isAuthenticated: boolean;
   isLoading: boolean;
   error?: Error;
   accessToken?: string;
+  userSub?: string;
   signinRedirect: () => void | Promise<void>;
   logout: () => void | Promise<void>;
 }
@@ -15,9 +18,30 @@ interface AppProps {
   loadCurrentWeek: (accessToken: string) => Promise<CurrentWeekResponse>;
 }
 
+type AppTab = 'week' | 'board';
+
+const REFRESH_INTERVAL_MS = 30_000;
+
 export function App({ auth, loadCurrentWeek }: AppProps) {
   const [currentWeek, setCurrentWeek] = useState<CurrentWeekResponse>();
   const [loadError, setLoadError] = useState<string>();
+  const [activeTab, setActiveTab] = useState<AppTab>('week');
+
+  const refreshCurrentWeek = useCallback(async (): Promise<void> => {
+    if (!auth.accessToken) {
+      return;
+    }
+
+    const response = await loadCurrentWeek(auth.accessToken);
+    setCurrentWeek(response);
+    setLoadError(undefined);
+  }, [auth.accessToken, loadCurrentWeek]);
+
+  useEffect(() => {
+    if (!auth.isLoading && !auth.isAuthenticated) {
+      void auth.signinRedirect();
+    }
+  }, [auth.isAuthenticated, auth.isLoading, auth.signinRedirect]);
 
   useEffect(() => {
     if (!auth.isAuthenticated || !auth.accessToken) {
@@ -25,14 +49,19 @@ export function App({ auth, loadCurrentWeek }: AppProps) {
     }
 
     let active = true;
-    loadCurrentWeek(auth.accessToken)
-      .then((response) => {
-        if (active) {
-          setCurrentWeek(response);
-          setLoadError(undefined);
-        }
-      })
-      .catch((error: unknown) => {
+
+    void refreshCurrentWeek().catch((error: unknown) => {
+      if (active) {
+        setLoadError(
+          error instanceof Error
+            ? error.message
+            : 'Unable to load the current week',
+        );
+      }
+    });
+
+    function handleFocus() {
+      void refreshCurrentWeek().catch((error: unknown) => {
         if (active) {
           setLoadError(
             error instanceof Error
@@ -41,11 +70,27 @@ export function App({ auth, loadCurrentWeek }: AppProps) {
           );
         }
       });
+    }
+
+    window.addEventListener('focus', handleFocus);
+    const intervalId = window.setInterval(() => {
+      void refreshCurrentWeek().catch((error: unknown) => {
+        if (active) {
+          setLoadError(
+            error instanceof Error
+              ? error.message
+              : 'Unable to load the current week',
+          );
+        }
+      });
+    }, REFRESH_INTERVAL_MS);
 
     return () => {
       active = false;
+      window.removeEventListener('focus', handleFocus);
+      window.clearInterval(intervalId);
     };
-  }, [auth.accessToken, auth.isAuthenticated, loadCurrentWeek]);
+  }, [auth.accessToken, auth.isAuthenticated, refreshCurrentWeek]);
 
   if (auth.isLoading) {
     return <StatusPage message="Checking your session…" />;
@@ -56,28 +101,7 @@ export function App({ auth, loadCurrentWeek }: AppProps) {
   }
 
   if (!auth.isAuthenticated) {
-    return (
-      <main className="grid min-h-screen place-items-center bg-slate-50 px-6">
-        <section className="w-full max-w-md border-t-4 border-blue-950 bg-white p-8 shadow-sm">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-700">
-            NFL picks
-          </p>
-          <h1 className="mt-2 text-5xl font-black tracking-tight text-blue-950">
-            Locks
-          </h1>
-          <p className="mt-4 leading-7 text-slate-600">
-            Sign in with your invited account to view this week’s game.
-          </p>
-          <button
-            className="mt-8 w-full bg-blue-950 px-5 py-3 font-bold text-white hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
-            onClick={() => void auth.signinRedirect()}
-            type="button"
-          >
-            Sign in
-          </button>
-        </section>
-      </main>
-    );
+    return <StatusPage message="Redirecting to sign in…" />;
   }
 
   return (
@@ -93,45 +117,71 @@ export function App({ auth, loadCurrentWeek }: AppProps) {
             Sign out
           </button>
         </div>
+        <nav className="mx-auto flex max-w-4xl gap-2 px-6 pb-4">
+          <TabButton
+            isActive={activeTab === 'week'}
+            label="This Week"
+            onClick={() => setActiveTab('week')}
+          />
+          <TabButton
+            isActive={activeTab === 'board'}
+            label="Picks Board"
+            onClick={() => setActiveTab('board')}
+          />
+        </nav>
       </header>
+
       <section className="mx-auto max-w-4xl px-6 py-10">
-        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-blue-700">
-          2026 season
-        </p>
-        <h2 className="mt-1 text-4xl font-black text-blue-950">
-          {currentWeek ? `Week ${currentWeek.week}` : 'This week'}
-        </h2>
         {loadError ? (
-          <p className="mt-8 border-l-4 border-red-700 bg-red-50 p-4 text-red-900">
+          <p className="mb-8 border-l-4 border-red-700 bg-red-50 p-4 text-red-900">
             {loadError}
           </p>
-        ) : !currentWeek ? (
-          <p className="mt-8 text-slate-600">Loading this week’s games…</p>
-        ) : currentWeek.games.length === 0 ? (
-          <p className="mt-8 text-slate-600">No games are scheduled.</p>
+        ) : null}
+
+        {!currentWeek ? (
+          <p className="text-slate-600">Loading this week’s games…</p>
+        ) : activeTab === 'week' && auth.userSub ? (
+          <WeekView
+            accessToken={auth.accessToken ?? ''}
+            currentWeek={currentWeek}
+            onRefresh={refreshCurrentWeek}
+            userSub={auth.userSub}
+          />
+        ) : activeTab === 'board' && auth.userSub ? (
+          <PicksBoard
+            games={currentWeek.games}
+            picks={currentWeek.picks}
+            userSub={auth.userSub}
+          />
         ) : (
-          <ul className="mt-8 grid gap-4">
-            {currentWeek.games.map((game) => (
-              <li
-                className="border border-slate-200 bg-white p-6 shadow-sm"
-                key={game.id}
-              >
-                <p className="text-sm font-semibold text-slate-500">
-                  {new Date(game.commenceTime).toLocaleString()}
-                </p>
-                <div className="mt-3 grid gap-1 text-xl font-bold text-blue-950">
-                  <span>{game.awayTeam}</span>
-                  <span className="text-sm font-normal uppercase tracking-wider text-slate-400">
-                    at
-                  </span>
-                  <span>{game.homeTeam}</span>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <p className="text-slate-600">Loading player session…</p>
         )}
       </section>
     </main>
+  );
+}
+
+function TabButton({
+  label,
+  isActive,
+  onClick,
+}: {
+  label: string;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className={`rounded px-4 py-2 text-sm font-semibold ${
+        isActive
+          ? 'bg-white text-blue-950'
+          : 'bg-blue-900 text-white hover:bg-blue-800'
+      }`}
+      onClick={onClick}
+      type="button"
+    >
+      {label}
+    </button>
   );
 }
 

@@ -40,6 +40,7 @@ function AuthenticatedApp({ config }: { config: RuntimeConfig }) {
         isLoading: auth.isLoading,
         error: auth.error,
         accessToken: auth.user?.access_token,
+        userSub: auth.user?.profile.sub,
         signinRedirect: auth.signinRedirect,
         logout,
       }}

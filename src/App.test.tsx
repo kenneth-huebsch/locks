@@ -3,7 +3,34 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { App, type AppAuth } from './App';
-import { FOUNDATION_GAME, FOUNDATION_WEEK } from '../shared/foundation';
+import type { CurrentWeekResponse } from '../shared/types';
+
+const mockWeek: CurrentWeekResponse = {
+  week: {
+    season: 2026,
+    week: 1,
+    status: 'open',
+    seasonWeek: '2026#W01',
+  },
+  games: [
+    {
+      id: 'foundation-week-1-game',
+      awayTeam: 'Dallas Cowboys',
+      homeTeam: 'Philadelphia Eagles',
+      awayAbbr: 'DAL',
+      homeAbbr: 'PHI',
+      commenceTime: '2099-09-10T17:00:00.000Z',
+      awaySpread: -3.5,
+      homeSpread: 3.5,
+      status: 'scheduled',
+      bookmaker: 'draftkings',
+      oddsUpdatedAt: '2099-09-09T12:00:00.000Z',
+    },
+  ],
+  picks: [],
+  remainingPicks: 3,
+  oddsUpdatedAt: '2099-09-09T12:00:00.000Z',
+};
 
 const unauthenticatedAuth: AppAuth = {
   isAuthenticated: false,
@@ -13,14 +40,11 @@ const unauthenticatedAuth: AppAuth = {
 };
 
 describe('App', () => {
-  it('offers Cognito managed login when unauthenticated', async () => {
-    const user = userEvent.setup();
+  it('redirects to Cognito login when unauthenticated', () => {
     render(<App auth={unauthenticatedAuth} loadCurrentWeek={vi.fn()} />);
 
-    await user.click(screen.getByRole('button', { name: /sign in/i }));
-
     expect(unauthenticatedAuth.signinRedirect).toHaveBeenCalledOnce();
-    expect(screen.queryByText(FOUNDATION_GAME.homeTeam)).not.toBeInTheDocument();
+    expect(screen.getByText(/redirecting to sign in/i)).toBeInTheDocument();
   });
 
   it('loads and displays the current-week game when authenticated', async () => {
@@ -30,34 +54,56 @@ describe('App', () => {
           ...unauthenticatedAuth,
           isAuthenticated: true,
           accessToken: 'access-token',
+          userSub: 'kenny-sub',
         }}
-        loadCurrentWeek={vi.fn().mockResolvedValue({
-          season: FOUNDATION_WEEK.season,
-          week: FOUNDATION_WEEK.week,
-          games: [FOUNDATION_GAME],
-        })}
+        loadCurrentWeek={vi.fn().mockResolvedValue(mockWeek)}
       />,
     );
 
-    expect(await screen.findByText(FOUNDATION_GAME.awayTeam)).toBeInTheDocument();
-    expect(screen.getByText(FOUNDATION_GAME.homeTeam)).toBeInTheDocument();
+    expect(await screen.findByText('Dallas Cowboys (DAL)')).toBeInTheDocument();
     expect(screen.getByText(/week 1/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/picks are final once submitted/i),
+    ).toBeInTheDocument();
   });
 
-  it('clears the local session and starts Cognito logout', async () => {
+  it('switches to the picks board tab', async () => {
     const user = userEvent.setup();
-    const logout = vi.fn();
+
     render(
       <App
         auth={{
           ...unauthenticatedAuth,
           isAuthenticated: true,
           accessToken: 'access-token',
+          userSub: 'kenny-sub',
+        }}
+        loadCurrentWeek={vi.fn().mockResolvedValue(mockWeek)}
+      />,
+    );
+
+    await screen.findByText('Dallas Cowboys (DAL)');
+    await user.click(screen.getByRole('button', { name: /picks board/i }));
+
+    expect(screen.getByRole('heading', { name: /picks board/i })).toBeInTheDocument();
+    expect(screen.getByText('Kenny')).toBeInTheDocument();
+  });
+
+  it('clears the local session and starts Cognito logout', async () => {
+    const user = userEvent.setup();
+    const logout = vi.fn();
+
+    render(
+      <App
+        auth={{
+          ...unauthenticatedAuth,
+          isAuthenticated: true,
+          accessToken: 'access-token',
+          userSub: 'kenny-sub',
           logout,
         }}
         loadCurrentWeek={vi.fn().mockResolvedValue({
-          season: FOUNDATION_WEEK.season,
-          week: FOUNDATION_WEEK.week,
+          ...mockWeek,
           games: [],
         })}
       />,
