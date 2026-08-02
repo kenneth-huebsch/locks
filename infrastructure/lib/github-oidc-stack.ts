@@ -68,6 +68,7 @@ export class LocksGitHubOidcStack extends Stack {
               'dynamodb:PutItem',
               'dynamodb:Query',
               'dynamodb:Scan',
+              'dynamodb:TransactWriteItems',
               'dynamodb:UpdateItem',
             ],
             resources: [

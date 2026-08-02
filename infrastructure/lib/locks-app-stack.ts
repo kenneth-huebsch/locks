@@ -240,6 +240,53 @@ function handler(event) {
       authorizer,
     });
 
+    const submitPickFunctionRole = new Role(this, 'SubmitPickFunctionRole', {
+      assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
+      description: 'Execution role for authenticated pick submission',
+      managedPolicies: [
+        ManagedPolicy.fromAwsManagedPolicyName(
+          'service-role/AWSLambdaBasicExecutionRole',
+        ),
+      ],
+    });
+    submitPickFunctionRole.addToPolicy(
+      new PolicyStatement({
+        actions: [
+          'dynamodb:ConditionCheckItem',
+          'dynamodb:GetItem',
+          'dynamodb:TransactWriteItems',
+        ],
+        resources: [table.tableArn],
+      }),
+    );
+
+    const submitPickFunction = new NodejsFunction(this, 'SubmitPickFunction', {
+      entry: 'backend/functions/submit-pick.ts',
+      handler: 'handler',
+      runtime: Runtime.NODEJS_22_X,
+      architecture: Architecture.ARM_64,
+      timeout: Duration.seconds(10),
+      memorySize: 256,
+      role: submitPickFunctionRole,
+      environment: {
+        TABLE_NAME: table.tableName,
+      },
+      bundling: {
+        minify: true,
+        sourceMap: true,
+      },
+    });
+
+    httpApi.addRoutes({
+      path: '/api/picks',
+      methods: [HttpMethod.POST],
+      integration: new HttpLambdaIntegration(
+        'SubmitPickIntegration',
+        submitPickFunction,
+      ),
+      authorizer,
+    });
+
     const syncOddsFunctionRole = new Role(this, 'SyncOddsFunctionRole', {
       assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
       description: 'Execution role for scheduled odds synchronization',

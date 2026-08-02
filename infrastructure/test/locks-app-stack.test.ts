@@ -46,7 +46,7 @@ describe('LocksAppStack', () => {
     });
   });
 
-  it('protects the current-week route with a Cognito JWT authorizer', () => {
+  it('protects the picks route with a Cognito JWT authorizer', () => {
     template.hasResourceProperties('AWS::ApiGatewayV2::Authorizer', {
       AuthorizerType: 'JWT',
       IdentitySource: ['$request.header.Authorization'],
@@ -54,6 +54,30 @@ describe('LocksAppStack', () => {
     template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
       AuthorizationType: 'JWT',
       RouteKey: 'GET /api/week/current',
+    });
+    template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
+      AuthorizationType: 'JWT',
+      RouteKey: 'POST /api/picks',
+    });
+  });
+
+  it('grants submit-pick transactional DynamoDB access within the runtime boundary', () => {
+    template.hasResourceProperties('AWS::IAM::Role', {
+      Description: 'Execution role for authenticated pick submission',
+    });
+    template.hasResourceProperties('AWS::IAM::Policy', {
+      PolicyDocument: {
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Action: Match.arrayWith([
+              'dynamodb:ConditionCheckItem',
+              'dynamodb:GetItem',
+              'dynamodb:TransactWriteItems',
+            ]),
+            Effect: 'Allow',
+          }),
+        ]),
+      },
     });
   });
 

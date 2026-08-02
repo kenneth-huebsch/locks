@@ -476,6 +476,7 @@ describe('LocksGitHubOidcStack', () => {
       'dynamodb:PutItem',
       'dynamodb:Query',
       'dynamodb:Scan',
+      'dynamodb:TransactWriteItems',
       'dynamodb:UpdateItem',
       'logs:CreateLogGroup',
       'logs:CreateLogStream',
