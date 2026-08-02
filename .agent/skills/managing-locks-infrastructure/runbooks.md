@@ -203,14 +203,14 @@ Order is mandatory: application, foundation identities, bootstrap stack, retaine
 ## Container operations (Mira)
 
 Mira's OpenClaw container has no `aws` CLI but can use the Node AWS SDK
-directly. Credentials are loaded from `~/.openclaw/secrets/aws.env`. The
-dedicated IAM user is `coding-agent` in account `580956784928`.
+directly. The host wrappers load `~/.openclaw/.env` and pass the required AWS
+variables into the container. Do not source or print that file from a runbook
+command. The dedicated IAM user is `coding-agent` in account `580956784928`.
 
 ### Account guard (container)
 
 ```bash
 cd /home/node/.openclaw/workspace/runtime/repos/kenneth-huebsch--locks
-export $(cat ~/.openclaw/secrets/aws.env | xargs)
 node -e "
 const { STSClient, GetCallerIdentityCommand } = require('@aws-sdk/client-sts');
 const sts = new STSClient({ region: 'us-east-1' });
@@ -225,7 +225,6 @@ sts.send(new GetCallerIdentityCommand({})).then(r => {
 
 ```bash
 cd /home/node/.openclaw/workspace/runtime/repos/kenneth-huebsch--locks
-export $(cat ~/.openclaw/secrets/aws.env | xargs)
 node -e "
 const { CloudFormationClient, DescribeStacksCommand } = require('@aws-sdk/client-cloudformation');
 const cfn = new CloudFormationClient({ region: 'us-east-1' });
@@ -244,7 +243,6 @@ container:
 
 ```bash
 cd /home/node/.openclaw/workspace/runtime/repos/kenneth-huebsch--locks
-export $(cat ~/.openclaw/secrets/aws.env | xargs)
 npm run seed                    # foundation game item
 npx tsx scripts/seed-active-week.ts   # active week + fake game slate
 npx tsx scripts/seed-week.ts          # fake game slate only
@@ -262,7 +260,6 @@ curl -s -o /dev/null -w "%{http_code}" https://d141pq884g4gai.cloudfront.net/api
 # Expected: 200 and 401
 
 # Stack outputs
-export $(cat ~/.openclaw/secrets/aws.env | xargs)
 node -e "
 const { CloudFormationClient, DescribeStacksCommand } = require('@aws-sdk/client-cloudformation');
 const cfn = new CloudFormationClient({ region: 'us-east-1' });

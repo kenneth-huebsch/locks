@@ -38,7 +38,7 @@ Stop if the guard fails.
 Mira can operate on Locks AWS infrastructure from her OpenClaw container using
 the Node AWS SDK. No `aws` CLI is available in the container, but all seed
 scripts and SDK-based inspection work with credentials from
-`~/.openclaw/secrets/aws.env`. See the "Container operations (Mira)" section in
+`~/.openclaw/.env`. See the "Container operations (Mira)" section in
 `runbooks.md` for exact commands.
 
 Container capabilities:
