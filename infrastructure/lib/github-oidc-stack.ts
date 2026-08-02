@@ -311,13 +311,16 @@ export class LocksGitHubOidcStack extends Stack {
           new PolicyStatement({
             sid: 'Scheduler',
             actions: [
+              'scheduler:CreateSchedule',
               'scheduler:CreateScheduleGroup',
               'scheduler:DeleteSchedule',
               'scheduler:DeleteScheduleGroup',
+              'scheduler:GetSchedule',
               'scheduler:GetScheduleGroup',
               'scheduler:ListTagsForResource',
               'scheduler:TagResource',
               'scheduler:UntagResource',
+              'scheduler:UpdateSchedule',
             ],
             resources: [
               `arn:aws:scheduler:${TARGET_REGION}:${TARGET_ACCOUNT}:schedule-group/locks`,

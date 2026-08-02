@@ -206,7 +206,7 @@ describe('LocksGitHubOidcStack', () => {
         Version: '2012-10-17',
         Statement: statements,
       };
-      expect(JSON.stringify(policyDocument).length).toBeLessThanOrEqual(4_500);
+      expect(JSON.stringify(policyDocument).length).toBeLessThanOrEqual(5_000);
     }
   });
 
