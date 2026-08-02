@@ -183,6 +183,7 @@ describe('LocksGitHubOidcStack', () => {
       'LocksAppRuntimeBoundary',
       'LocksCdkExecutionPolicy',
       'LocksCdkIamExecutionPolicy',
+      'LocksCodingAgentReadPolicy',
     ]);
     const resourcesByName = Object.fromEntries(
       Object.values(resources).map((resource) => [
@@ -500,6 +501,25 @@ describe('LocksGitHubOidcStack', () => {
     );
     expect(resources.every((resource) => resource !== '*')).toBe(true);
   });
+  it('creates a coding-agent read policy for live verification', () => {
+    const policies = managedPolicyStatements(template);
+    const statements = policies.LocksCodingAgentReadPolicy;
+
+    expect(statements).toBeDefined();
+    const actions = statements.flatMap(({ Action }) => toArray(Action));
+    expect(actions).toContain('dynamodb:GetItem');
+    expect(actions).toContain('dynamodb:Query');
+    expect(actions).toContain('cloudformation:DescribeStacks');
+
+    const resources = statements.flatMap(({ Resource }) => toArray(Resource));
+    expect(resources).toContain(
+      'arn:aws:dynamodb:us-east-1:580956784928:table/locks',
+    );
+    expect(resources.every((resource) => resource !== '*')).toBe(true);
+
+    template.hasOutput('CodingAgentReadPolicyArn', {});
+  });
+
 });
 
 interface PolicyStatementDocument {

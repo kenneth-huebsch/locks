@@ -35,6 +35,7 @@ export const APP_EXECUTION_POLICY_NAME =
 export const APP_IAM_EXECUTION_POLICY_NAME =
   'LocksAppIamExecutionPolicy';
 export const APP_RUNTIME_BOUNDARY_NAME = 'LocksAppRuntimeBoundary';
+export const CODING_AGENT_READ_POLICY_NAME = 'LocksCodingAgentReadPolicy';
 
 export class LocksGitHubOidcStack extends Stack {
   constructor(scope: Construct, id: string, props: StackProps) {
@@ -808,6 +809,46 @@ export class LocksGitHubOidcStack extends Stack {
       }),
     );
 
+    // Read-only policy for the coding-agent IAM user (used by live verification scripts).
+    // Attach this policy to the coding-agent user after deploying the OIDC stack.
+    const codingAgentReadPolicy = new ManagedPolicy(
+      this,
+      'CodingAgentReadPolicy',
+      {
+        managedPolicyName: CODING_AGENT_READ_POLICY_NAME,
+        description:
+          'Read-only access to the Locks table for the coding-agent IAM user',
+        statements: [
+          new PolicyStatement({
+            sid: 'TableRead',
+            actions: [
+              'dynamodb:DescribeTable',
+              'dynamodb:GetItem',
+              'dynamodb:Query',
+              'dynamodb:Scan',
+            ],
+            resources: [
+              `arn:aws:dynamodb:${TARGET_REGION}:${TARGET_ACCOUNT}:table/locks`,
+              `arn:aws:dynamodb:${TARGET_REGION}:${TARGET_ACCOUNT}:table/locks/index/*`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'StackRead',
+            actions: [
+              'cloudformation:DescribeStacks',
+              'cloudformation:GetTemplate',
+            ],
+            resources: [
+              `arn:aws:cloudformation:${TARGET_REGION}:${TARGET_ACCOUNT}:stack/LocksAppStack/*`,
+            ],
+          }),
+        ],
+      },
+    );
+
+    new CfnOutput(this, 'CodingAgentReadPolicyArn', {
+      value: codingAgentReadPolicy.managedPolicyArn,
+    });
     new CfnOutput(this, 'GitHubDeployRoleArn', {
       value: deployRole.roleArn,
     });

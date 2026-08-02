@@ -23,7 +23,6 @@ import https from 'node:https';
 const TARGET_ACCOUNT = '580956784928';
 const TARGET_REGION = 'us-east-1';
 const APP_STACK_NAME = 'LocksAppStack';
-const SITE_URL = 'https://d141pq884g4gai.cloudfront.net';
 
 function check(label: string, condition: boolean, detail?: string): void {
   if (condition) {
@@ -80,6 +79,14 @@ async function main(): Promise<void> {
     return;
   }
 
+  const distributionDomain = outputs['DistributionDomainName'];
+  if (!distributionDomain) {
+    console.error('✗ DistributionDomainName output not found');
+    process.exitCode = 1;
+    return;
+  }
+  const SITE_URL = `https://${distributionDomain}`;
+
   // 3. Site root returns 200
   const siteRes = await httpGet(`${SITE_URL}/`);
   check('Site root returns 200', siteRes.status === 200, `got ${siteRes.status}`);
@@ -93,7 +100,7 @@ async function main(): Promise<void> {
   );
 
   // 5. DynamoDB has seeded active week (requires dynamodb:GetItem permission)
-  // The coding-agent IAM user may only have PutItem (for seeding).
+  // The coding-agent user should have the LocksCodingAgentReadPolicy attached.
   // This check is best-effort — skip if permission denied.
   try {
     const ddb = new DynamoDBClient({ region: TARGET_REGION });
