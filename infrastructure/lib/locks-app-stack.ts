@@ -117,6 +117,7 @@ export class LocksAppStack extends Stack {
         },
       },
     );
+    // grantReadData includes base-table and GSI reads (GSI1 picks query).
     table.grantReadData(currentWeekFunction);
 
     const userPool = new UserPool(this, 'UserPool', {
