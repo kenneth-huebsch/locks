@@ -26,11 +26,12 @@ export const TARGET_ENV = {
   region: TARGET_REGION,
 } as const;
 
-// Push to main is the intended producer. Use StringLike on repo scope so we can
-// diagnose claim-shape drift (e.g. job_workflow_ref vs ref) without blocking all
-// GitHub OIDC subjects for this repository. Tighten back to the exact ref after
-// Deploy assumes LocksGitHubDeployRole successfully.
-const GITHUB_SUBJECT = 'repo:kenneth-huebsch/locks:*';
+// GitHub Actions OIDC for this repo currently emits id-qualified subjects:
+//   repo:kenneth-huebsch@25780362/locks@1317783805:...
+// Classic repo:owner/name:... does not match. Allow the id-qualified repo prefix
+// temporarily; tighten to the exact main ref after Deploy succeeds.
+const GITHUB_SUBJECT =
+  'repo:kenneth-huebsch@25780362/locks@1317783805:*';
 export const APP_DEPLOY_ROLE_NAME = 'LocksAppDeployRole';
 export const APP_PUBLISH_ROLE_NAME = 'LocksAppPublishRole';
 export const APP_EXECUTION_ROLE_NAME =
