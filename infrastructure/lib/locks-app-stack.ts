@@ -38,6 +38,7 @@ import {
 import {
   AttributeType,
   BillingMode,
+  ProjectionType,
   Table,
   TableEncryption,
 } from 'aws-cdk-lib/aws-dynamodb';
@@ -96,6 +97,13 @@ export class LocksAppStack extends Stack {
         pointInTimeRecoveryEnabled: true,
       },
       removalPolicy: RemovalPolicy.DESTROY,
+    });
+
+    table.addGlobalSecondaryIndex({
+      indexName: 'GSI1',
+      partitionKey: { name: 'GSI1PK', type: AttributeType.STRING },
+      sortKey: { name: 'GSI1SK', type: AttributeType.STRING },
+      projectionType: ProjectionType.ALL,
     });
 
     const currentWeekFunction = new NodejsFunction(
