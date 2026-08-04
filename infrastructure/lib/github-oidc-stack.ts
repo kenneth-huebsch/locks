@@ -26,8 +26,11 @@ export const TARGET_ENV = {
   region: TARGET_REGION,
 } as const;
 
-const GITHUB_SUBJECT =
-  'repo:kenneth-huebsch/locks:ref:refs/heads/main';
+// Push to main is the intended producer. Use StringLike on repo scope so we can
+// diagnose claim-shape drift (e.g. job_workflow_ref vs ref) without blocking all
+// GitHub OIDC subjects for this repository. Tighten back to the exact ref after
+// Deploy assumes LocksGitHubDeployRole successfully.
+const GITHUB_SUBJECT = 'repo:kenneth-huebsch/locks:*';
 export const APP_DEPLOY_ROLE_NAME = 'LocksAppDeployRole';
 export const APP_PUBLISH_ROLE_NAME = 'LocksAppPublishRole';
 export const APP_EXECUTION_ROLE_NAME =

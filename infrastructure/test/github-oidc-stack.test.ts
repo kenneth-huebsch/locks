@@ -29,7 +29,7 @@ describe('LocksGitHubOidcStack', () => {
               },
               StringLike: {
                 'token.actions.githubusercontent.com:sub':
-                  'repo:kenneth-huebsch/locks:ref:refs/heads/main',
+                  'repo:kenneth-huebsch/locks:*',
               },
             },
           }),
