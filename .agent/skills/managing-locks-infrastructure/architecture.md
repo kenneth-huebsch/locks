@@ -30,6 +30,10 @@ The local `coding-agent` identity manages `LocksGitHubOidcStack` through the sta
 
 These policies are foundation-only. Never leave `AdministratorAccess` attached after bootstrap or migration.
 
+The user's durable policy may assume only the exact Locks application,
+publishing, and CDK bootstrap roles. Long-lived user credentials do not receive
+direct deployment-write permissions.
+
 The fixed names, paths, logical IDs, and legacy descriptions of these two managed policies are migration-sensitive. Changing replacement-sensitive properties can fail because IAM cannot replace a fixed-name policy while the old policy exists.
 
 ### Application path
@@ -43,6 +47,14 @@ GitHub OIDC or coding-agent
 ```
 
 GitHub may also assume CDK file, image, and lookup roles. It must not assume the generic bootstrap deploy role.
+
+Static publishing and seeding from Mira use a separate path:
+
+```text
+coding-agent
+  -> LocksAppPublishRole
+  -> Locks site bucket, CloudFront invalidation, and table seed only
+```
 
 `LocksAppCloudFormationExecutionRole` cannot mutate foundation, GitHub, deployment, or execution identities. It may manage only `LocksAppStack-*` runtime roles.
 

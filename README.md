@@ -127,7 +127,8 @@ bootstrap deploy role. `LocksAppStack` always uses `LocksAppDeployRole` and
 `LocksAppCloudFormationExecutionRole`; only the GitHub role and
 `arn:aws:iam::580956784928:user/coding-agent` can assume the application deploy
 role. Bootstrap file, image, and lookup roles remain available for CDK assets
-and lookups.
+and lookups. Mira assumes `LocksAppPublishRole` for static-site publishing and
+seeding; that role cannot deploy CloudFormation or mutate foundation IAM.
 
 ## Recovery from the earlier scoped bootstrap
 
@@ -166,6 +167,10 @@ npm run deploy:infrastructure
 npm run deploy:app
 ```
 
+From Mira's container, use `AWS_PROFILE=coding-agent` for CDK and
+`AWS_PROFILE=locks-publish` for `deploy:app`. Both paths require the same
+account guard and explicit mutation approval.
+
 `deploy:app` reads CloudFormation outputs, creates the same-origin runtime
 configuration, builds and synchronizes the SPA, idempotently writes the
 canonical game fixture, and invalidates CloudFront.
@@ -177,7 +182,8 @@ deployment and contains no long-lived AWS credentials.
 ## Operational notes
 
 - Normal application deployment is `npm run deploy:infrastructure` followed by
-  `npm run deploy:app`.
+  `npm run deploy:app`; Mira uses separate `coding-agent` and `locks-publish`
+  profiles for those commands.
 - Foundation or IAM changes use `npm run deploy:oidc` locally and require
   explicit approval. They are intentionally excluded from GitHub Actions.
 - Never leave the bootstrap CloudFormation execution role attached to

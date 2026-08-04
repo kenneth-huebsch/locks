@@ -36,30 +36,30 @@ Stop if the guard fails.
 ## Container operations (Mira)
 
 Mira can operate on Locks AWS infrastructure from her OpenClaw container using
-the Node AWS SDK. No `aws` CLI is available in the container, but all seed
-scripts and SDK-based inspection work with credentials from
-`~/.openclaw/.env`. See the "Container operations (Mira)" section in
-`runbooks.md` for exact commands.
+the Node AWS SDK, AWS CLI v2, and repository-local CDK. AWS uses native named
+profiles from the persistent OpenClaw credential store; access keys must not be
+copied into `.env`. See the "Container operations (Mira)" section in
+`runbooks.md` for account guards and exact profile selection.
 
 Container capabilities:
 - Account identity verification (STS)
 - CloudFormation stack inspection
 - DynamoDB seeding (all seed scripts)
 - Post-deployment verification (curl probes, stack outputs)
+- Foundation and application CDK deployment after targeted diff approval
+- Static-site publishing through the `locks-publish` role profile
 - Any Node AWS SDK script
 
-Container limitations:
-- No `cdk` CLI (deployment still runs from host)
-- No `aws` CLI (use Node SDK instead)
-- No PowerShell (use bash/sh)
+Use `coding-agent` for read-only checks and CDK. Use `locks-publish` only for
+an approved static publish or seed. The container uses bash/sh, not PowerShell.
 
 ## Choose the path
 
 | Change | Stack/path |
 |---|---|
 | App AWS resources | `LocksAppStack` via `LocksAppDeployRole` |
-| Static app or seed | `npm run deploy:app` after infrastructure |
-| OIDC, deploy roles, execution policies, boundary | `LocksGitHubOidcStack`, local approval only |
+| Static app or seed | `LocksAppPublishRole` via `AWS_PROFILE=locks-publish` |
+| OIDC, deploy roles, execution policies, boundary | `LocksGitHubOidcStack` via `AWS_PROFILE=coding-agent`, explicit approval only |
 | Bootstrap | One-time or recovery operation only |
 | Destruction | Follow the exact teardown order in `runbooks.md` |
 

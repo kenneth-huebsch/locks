@@ -506,6 +506,48 @@ describe('LocksGitHubOidcStack', () => {
     );
     expect(resources.every((resource) => resource !== '*')).toBe(true);
   });
+
+  it('creates a coding-agent-only application publishing role', () => {
+    const publishRole = roleByName(template, 'LocksAppPublishRole');
+    const trust = JSON.stringify(
+      publishRole.Properties.AssumeRolePolicyDocument,
+    );
+    const statements = inlineRoleStatements(template, 'LocksAppPublishRole');
+    const actions = statements.flatMap(({ Action }) => toArray(Action));
+    const scopedResources = statements
+      .filter(({ Action }) => !toArray(Action).includes('sts:GetCallerIdentity'))
+      .flatMap(({ Resource }) => toArray(Resource));
+
+    expect(trust).toContain(
+      'arn:aws:iam::580956784928:user/coding-agent',
+    );
+    expect(publishRole.DependsOn).toContain(
+      'CdkIamExecutionPolicy109909DF',
+    );
+    expect(actions).toEqual(
+      expect.arrayContaining([
+        'cloudformation:DescribeStacks',
+        'cloudfront:CreateInvalidation',
+        'dynamodb:PutItem',
+        's3:DeleteObject',
+        's3:ListBucket',
+        's3:PutObject',
+        'sts:GetCallerIdentity',
+      ]),
+    );
+    expect(scopedResources.every((resource) => resource !== '*')).toBe(true);
+    expect(scopedResources).toEqual(
+      expect.arrayContaining([
+        'arn:aws:cloudformation:us-east-1:580956784928:stack/LocksAppStack/*',
+        'arn:aws:cloudfront::580956784928:distribution/*',
+        'arn:aws:dynamodb:us-east-1:580956784928:table/locks',
+        'arn:aws:s3:::locks-580956784928-us-east-1-site',
+        'arn:aws:s3:::locks-580956784928-us-east-1-site/*',
+      ]),
+    );
+    template.hasOutput('AppPublishRoleArn', {});
+  });
+
   it('creates a coding-agent read policy for live verification', () => {
     const policies = managedPolicyStatements(template);
     const statements = policies.LocksCodingAgentReadPolicy;
@@ -520,12 +562,25 @@ describe('LocksGitHubOidcStack', () => {
     expect(actions).toContain('dynamodb:GetItem');
     expect(actions).toContain('dynamodb:Query');
     expect(actions).toContain('cloudformation:DescribeStacks');
+    expect(actions).toContain('sts:AssumeRole');
+    expect(actions).toContain('iam:ListAttachedUserPolicies');
 
     const policyResources = statements.flatMap(({ Resource }) =>
       toArray(Resource),
     );
     expect(policyResources).toContain(
       'arn:aws:dynamodb:us-east-1:580956784928:table/locks',
+    );
+    expect(policyResources).toEqual(
+      expect.arrayContaining([
+        'arn:aws:iam::580956784928:role/LocksAppDeployRole',
+        'arn:aws:iam::580956784928:role/LocksAppPublishRole',
+        'arn:aws:iam::580956784928:role/cdk-hnb659fds-deploy-role-580956784928-us-east-1',
+        'arn:aws:iam::580956784928:role/cdk-hnb659fds-file-publishing-role-580956784928-us-east-1',
+        'arn:aws:iam::580956784928:role/cdk-hnb659fds-image-publishing-role-580956784928-us-east-1',
+        'arn:aws:iam::580956784928:role/cdk-hnb659fds-lookup-role-580956784928-us-east-1',
+        'arn:aws:iam::580956784928:user/coding-agent',
+      ]),
     );
     expect(policyResources.every((resource) => resource !== '*')).toBe(true);
     expect(policyResource?.Properties.Users).toEqual(['coding-agent']);
@@ -566,6 +621,7 @@ interface PolicyStatementDocument {
 }
 
 interface RoleResource {
+  DependsOn?: string[];
   Properties: {
     AssumeRolePolicyDocument: object;
     Policies?: Array<{

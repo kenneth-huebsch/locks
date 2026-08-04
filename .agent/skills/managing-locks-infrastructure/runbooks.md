@@ -202,50 +202,46 @@ Order is mandatory: application, foundation identities, bootstrap stack, retaine
 
 ## Container operations (Mira)
 
-Mira's OpenClaw container has no `aws` CLI but can use the Node AWS SDK
-directly. The host wrappers load `~/.openclaw/.env` and pass the required AWS
-variables into the container. Do not source or print that file from a runbook
-command. The dedicated IAM user is `coding-agent` in account `580956784928`.
+Mira's OpenClaw container has AWS CLI v2, the Node AWS SDK, and
+repository-local CDK. It uses native shared credential and config files
+selected by trusted `AWS_SHARED_CREDENTIALS_FILE` and `AWS_CONFIG_FILE`
+environment paths. AWS access keys are not stored in `.env`.
+
+Profiles:
+
+- `coding-agent`: read-only inspection and CDK. CDK assumes the exact
+  application or bootstrap deployment role declared by the stack assembly.
+- `locks-publish`: one-hour `LocksAppPublishRole` session for static publishing
+  and DynamoDB seeding.
 
 ### Account guard (container)
 
 ```bash
 cd /home/node/.openclaw/workspace/runtime/repos/kenneth-huebsch--locks
-node -e "
-const { STSClient, GetCallerIdentityCommand } = require('@aws-sdk/client-sts');
-const sts = new STSClient({ region: 'us-east-1' });
-sts.send(new GetCallerIdentityCommand({})).then(r => {
-  if (r.Account !== '580956784928') { console.error('Wrong account:', r.Account); process.exit(1); }
-  console.log('Account verified:', r.Account, r.Arn);
-}).catch(e => { console.error(e.message); process.exit(1); });
-"
+account="$(AWS_PROFILE=coding-agent aws sts get-caller-identity --query Account --output text)"
+test "$account" = "580956784928" || { echo "Wrong account: $account" >&2; exit 1; }
+AWS_PROFILE=coding-agent aws sts get-caller-identity --query Arn --output text
 ```
 
 ### Read-only inspection (container)
 
 ```bash
 cd /home/node/.openclaw/workspace/runtime/repos/kenneth-huebsch--locks
-node -e "
-const { CloudFormationClient, DescribeStacksCommand } = require('@aws-sdk/client-cloudformation');
-const cfn = new CloudFormationClient({ region: 'us-east-1' });
-cfn.send(new DescribeStacksCommand({ StackName: 'LocksAppStack' })).then(res => {
-  const stack = res.Stacks[0];
-  console.log('Status:', stack.StackStatus);
-  (stack.Outputs || []).forEach(o => console.log(o.OutputKey + ': ' + o.OutputValue));
-}).catch(e => { console.error(e.message); process.exit(1); });
-"
+AWS_PROFILE=coding-agent aws cloudformation describe-stacks \
+  --stack-name LocksAppStack \
+  --query 'Stacks[0].{Status:StackStatus,Outputs:Outputs}' \
+  --output json
 ```
 
 ### Seeding (container)
 
-The seed scripts use `tsx` with the AWS SDK and can run directly from the
-container:
+Seeding is a mutation and requires fresh approval. Use the publishing role:
 
 ```bash
 cd /home/node/.openclaw/workspace/runtime/repos/kenneth-huebsch--locks
-npm run seed                    # foundation game item
-npx tsx scripts/seed-active-week.ts   # active week + fake game slate
-npx tsx scripts/seed-week.ts          # fake game slate only
+AWS_PROFILE=locks-publish npm run seed
+AWS_PROFILE=locks-publish npx tsx scripts/seed-active-week.ts
+AWS_PROFILE=locks-publish npx tsx scripts/seed-week.ts
 ```
 
 All seed scripts are idempotent (PutItem with no condition). The account guard
@@ -260,20 +256,40 @@ curl -s -o /dev/null -w "%{http_code}" https://d141pq884g4gai.cloudfront.net/api
 # Expected: 200 and 401
 
 # Stack outputs
-node -e "
-const { CloudFormationClient, DescribeStacksCommand } = require('@aws-sdk/client-cloudformation');
-const cfn = new CloudFormationClient({ region: 'us-east-1' });
-cfn.send(new DescribeStacksCommand({ StackName: 'LocksAppStack' })).then(res => {
-  (res.Stacks[0].Outputs || []).forEach(o => console.log(o.OutputKey + ': ' + o.OutputValue));
-}).catch(e => { console.error(e.message); });
-"
+AWS_PROFILE=coding-agent aws cloudformation describe-stacks \
+  --stack-name LocksAppStack \
+  --query 'Stacks[0].Outputs' \
+  --output json
 ```
 
 ### Deploying from the container
 
-CDK deployment is not yet supported from the container (no `cdk` CLI).
-Infrastructure and app deployment still run from the host with the approved
-PowerShell profile. The container can seed, inspect stacks, verify the
-deployment, and run any Node AWS SDK script. When `cdk` is added to the
-container, the host runbook commands can be mirrored here using
-`npx cdk` with env vars instead of `--profile`.
+Run all required checks and show a targeted diff before requesting deployment
+approval:
+
+```bash
+cd /home/node/.openclaw/workspace/runtime/repos/kenneth-huebsch--locks
+AWS_PROFILE=coding-agent npm run lint
+AWS_PROFILE=coding-agent npm run typecheck
+AWS_PROFILE=coding-agent npm test
+AWS_PROFILE=coding-agent npm run build
+AWS_PROFILE=coding-agent npm run synth
+AWS_PROFILE=coding-agent npm run cdk -- diff LocksGitHubOidcStack
+AWS_PROFILE=coding-agent npm run cdk -- diff LocksAppStack
+```
+
+After fresh approval, use only the targeted command:
+
+```bash
+# Foundation, identity, or deployment-role changes
+AWS_PROFILE=coding-agent npm run deploy:oidc
+
+# Application infrastructure
+AWS_PROFILE=coding-agent npm run deploy:infrastructure
+
+# Static site and seed
+AWS_PROFILE=locks-publish npm run deploy:app
+```
+
+Never use `cdk deploy --all`. Re-run the account guard immediately before each
+mutation.

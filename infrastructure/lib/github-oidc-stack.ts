@@ -29,6 +29,7 @@ export const TARGET_ENV = {
 const GITHUB_SUBJECT =
   'repo:kenneth-huebsch/locks:ref:refs/heads/main';
 export const APP_DEPLOY_ROLE_NAME = 'LocksAppDeployRole';
+export const APP_PUBLISH_ROLE_NAME = 'LocksAppPublishRole';
 export const APP_EXECUTION_ROLE_NAME =
   'LocksAppCloudFormationExecutionRole';
 export const APP_EXECUTION_POLICY_NAME =
@@ -521,6 +522,7 @@ export class LocksGitHubOidcStack extends Stack {
               `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksGitHubOidcStack-*`,
               `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksGitHubDeployRole`,
               `arn:aws:iam::${TARGET_ACCOUNT}:role/${APP_DEPLOY_ROLE_NAME}`,
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/${APP_PUBLISH_ROLE_NAME}`,
               `arn:aws:iam::${TARGET_ACCOUNT}:role/${APP_EXECUTION_ROLE_NAME}`,
             ],
           }),
@@ -535,6 +537,7 @@ export class LocksGitHubOidcStack extends Stack {
               `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksGitHubOidcStack-*`,
               `arn:aws:iam::${TARGET_ACCOUNT}:role/LocksGitHubDeployRole`,
               `arn:aws:iam::${TARGET_ACCOUNT}:role/${APP_DEPLOY_ROLE_NAME}`,
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/${APP_PUBLISH_ROLE_NAME}`,
             ],
           }),
           new PolicyStatement({
@@ -662,6 +665,16 @@ export class LocksGitHubOidcStack extends Stack {
       maxSessionDuration: Duration.hours(1),
     });
     appDeployRole.node.addDependency(deployRole);
+    const appPublishRole = new Role(this, 'AppPublishRole', {
+      roleName: APP_PUBLISH_ROLE_NAME,
+      assumedBy: new ArnPrincipal(
+        `arn:aws:iam::${TARGET_ACCOUNT}:user/coding-agent`,
+      ),
+      description:
+        'Publishes the Locks static site and seeds application data',
+      maxSessionDuration: Duration.hours(1),
+    });
+    appPublishRole.node.addDependency(iamExecutionPolicy);
     appDeployRole.addToPolicy(
       new PolicyStatement({
         sid: 'DeployAppStack',
@@ -769,6 +782,58 @@ export class LocksGitHubOidcStack extends Stack {
         resources: ['*'],
       }),
     );
+    appPublishRole.addToPolicy(
+      new PolicyStatement({
+        sid: 'StackRead',
+        actions: ['cloudformation:DescribeStacks'],
+        resources: [
+          `arn:aws:cloudformation:${TARGET_REGION}:${TARGET_ACCOUNT}:stack/LocksAppStack/*`,
+        ],
+      }),
+    );
+    appPublishRole.addToPolicy(
+      new PolicyStatement({
+        sid: 'SeedLocksTable',
+        actions: ['dynamodb:PutItem'],
+        resources: [
+          `arn:aws:dynamodb:${TARGET_REGION}:${TARGET_ACCOUNT}:table/locks`,
+        ],
+      }),
+    );
+    appPublishRole.addToPolicy(
+      new PolicyStatement({
+        sid: 'PublishSite',
+        actions: ['s3:ListBucket'],
+        resources: [
+          `arn:aws:s3:::locks-${TARGET_ACCOUNT}-${TARGET_REGION}-site`,
+        ],
+      }),
+    );
+    appPublishRole.addToPolicy(
+      new PolicyStatement({
+        sid: 'PublishSiteObjects',
+        actions: ['s3:DeleteObject', 's3:PutObject'],
+        resources: [
+          `arn:aws:s3:::locks-${TARGET_ACCOUNT}-${TARGET_REGION}-site/*`,
+        ],
+      }),
+    );
+    appPublishRole.addToPolicy(
+      new PolicyStatement({
+        sid: 'InvalidateSite',
+        actions: ['cloudfront:CreateInvalidation'],
+        resources: [
+          `arn:aws:cloudfront::${TARGET_ACCOUNT}:distribution/*`,
+        ],
+      }),
+    );
+    appPublishRole.addToPolicy(
+      new PolicyStatement({
+        sid: 'CallerIdentity',
+        actions: ['sts:GetCallerIdentity'],
+        resources: ['*'],
+      }),
+    );
 
     deployRole.addToPolicy(
       new PolicyStatement({
@@ -855,6 +920,30 @@ export class LocksGitHubOidcStack extends Stack {
               `arn:aws:cloudformation:${TARGET_REGION}:${TARGET_ACCOUNT}:stack/LocksAppStack/*`,
             ],
           }),
+          new PolicyStatement({
+            sid: 'AssumeLocksDeploymentRoles',
+            actions: ['sts:AssumeRole'],
+            resources: [
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/${APP_DEPLOY_ROLE_NAME}`,
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/${APP_PUBLISH_ROLE_NAME}`,
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/cdk-hnb659fds-deploy-role-${TARGET_ACCOUNT}-${TARGET_REGION}`,
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/cdk-hnb659fds-file-publishing-role-${TARGET_ACCOUNT}-${TARGET_REGION}`,
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/cdk-hnb659fds-image-publishing-role-${TARGET_ACCOUNT}-${TARGET_REGION}`,
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/cdk-hnb659fds-lookup-role-${TARGET_ACCOUNT}-${TARGET_REGION}`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'AuditOwnPolicies',
+            actions: [
+              'iam:GetUser',
+              'iam:GetUserPolicy',
+              'iam:ListAttachedUserPolicies',
+              'iam:ListUserPolicies',
+            ],
+            resources: [
+              `arn:aws:iam::${TARGET_ACCOUNT}:user/coding-agent`,
+            ],
+          }),
         ],
       },
     );
@@ -880,6 +969,9 @@ export class LocksGitHubOidcStack extends Stack {
     });
     new CfnOutput(this, 'AppDeployRoleArn', {
       value: appDeployRole.roleArn,
+    });
+    new CfnOutput(this, 'AppPublishRoleArn', {
+      value: appPublishRole.roleArn,
     });
     new CfnOutput(this, 'AppExecutionRoleArn', {
       value: appExecutionRole.roleArn,
