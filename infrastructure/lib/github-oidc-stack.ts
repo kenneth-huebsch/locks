@@ -166,9 +166,10 @@ export class LocksGitHubOidcStack extends Stack {
               'cloudfront:TagResource',
               'cloudfront:UntagResource',
               'cloudfront:UpdateFunction',
+              'cloudfront:ListTagsForResource',
             ],
             resources: [
-              `arn:aws:cloudfront::${TARGET_ACCOUNT}:function/LocksAppStack-*`,
+              `arn:aws:cloudfront::${TARGET_ACCOUNT}:function/*`,
             ],
           }),
           new PolicyStatement({
@@ -423,7 +424,10 @@ export class LocksGitHubOidcStack extends Stack {
             ],
             conditions: {
               StringEquals: {
-                'iam:PassedToService': 'lambda.amazonaws.com',
+                'iam:PassedToService': [
+                  'lambda.amazonaws.com',
+                  'scheduler.amazonaws.com',
+                ],
               },
             },
           }),
