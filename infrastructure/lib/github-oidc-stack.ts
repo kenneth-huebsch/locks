@@ -26,13 +26,11 @@ export const TARGET_ENV = {
   region: TARGET_REGION,
 } as const;
 
-// Temporary dual-subject trust while diagnosing GitHub OIDC assume failures.
-// Includes classic owner/name and id-qualified owner@id/repo@id forms.
-const GITHUB_SUBJECTS = [
-  'repo:kenneth-huebsch/locks:*',
-  'repo:kenneth-huebsch@25780362/locks@1317783805:*',
-  'repo:*',
-] as const;
+// GitHub Actions for this repo emits id-qualified OIDC subjects
+// (owner@id/repo@id), not classic owner/name. Confirmed via JWT debug:
+//   repo:kenneth-huebsch@25780362/locks@1317783805:ref:refs/heads/main
+const GITHUB_SUBJECT =
+  'repo:kenneth-huebsch@25780362/locks@1317783805:ref:refs/heads/main';
 export const APP_DEPLOY_ROLE_NAME = 'LocksAppDeployRole';
 export const APP_PUBLISH_ROLE_NAME = 'LocksAppPublishRole';
 export const APP_EXECUTION_ROLE_NAME =
@@ -653,9 +651,7 @@ export class LocksGitHubOidcStack extends Stack {
         {
           StringEquals: {
             'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com',
-          },
-          StringLike: {
-            'token.actions.githubusercontent.com:sub': [...GITHUB_SUBJECTS],
+            'token.actions.githubusercontent.com:sub': GITHUB_SUBJECT,
           },
         },
         'sts:AssumeRoleWithWebIdentity',
