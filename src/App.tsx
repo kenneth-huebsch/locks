@@ -150,7 +150,7 @@ export function App({ auth, loadCurrentWeek }: AppProps) {
         ) : activeTab === 'board' && auth.userSub ? (
           <PicksBoard
             games={currentWeek.games}
-            picks={currentWeek.picks}
+            picks={currentWeek.picks ?? []}
             userSub={auth.userSub}
           />
         ) : (

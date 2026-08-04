@@ -30,8 +30,8 @@ export function WeekView({
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const playerPicks = useMemo(
-    () => currentWeek.picks.filter((pick) => pick.playerId === userSub),
-    [currentWeek.picks, userSub],
+    () => (currentWeek.picks ?? []).filter((pick) => pick.playerId === userSub),
+    [currentWeek.picks ?? [], userSub],
   );
 
   const picksByGameId = useMemo(() => {
@@ -43,8 +43,8 @@ export function WeekView({
   }, [playerPicks]);
 
   const groupedGames = useMemo(
-    () => groupGamesByDay(currentWeek.games),
-    [currentWeek.games],
+    () => groupGamesByDay((currentWeek.games ?? [])),
+    [(currentWeek.games ?? [])],
   );
 
   const pendingSelections = useMemo<PickSummary[]>(() => {
@@ -145,7 +145,7 @@ export function WeekView({
           : 'Lines not yet available'}
       </p>
 
-      {currentWeek.games.length === 0 ? (
+      {(currentWeek.games ?? []).length === 0 ? (
         <p className="mt-8 text-slate-600">No games are scheduled.</p>
       ) : (
         <div className="mt-8 space-y-10">
