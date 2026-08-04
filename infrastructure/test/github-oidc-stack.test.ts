@@ -26,6 +26,8 @@ describe('LocksGitHubOidcStack', () => {
             Condition: {
               StringEquals: {
                 'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com',
+              },
+              StringLike: {
                 'token.actions.githubusercontent.com:sub':
                   'repo:kenneth-huebsch/locks:ref:refs/heads/main',
               },

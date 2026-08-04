@@ -648,6 +648,8 @@ export class LocksGitHubOidcStack extends Stack {
         {
           StringEquals: {
             'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com',
+          },
+          StringLike: {
             'token.actions.githubusercontent.com:sub': GITHUB_SUBJECT,
           },
         },
@@ -946,6 +948,22 @@ export class LocksGitHubOidcStack extends Stack {
             ],
             resources: [
               `arn:aws:iam::${TARGET_ACCOUNT}:user/coding-agent`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'InspectOidcAndRoles',
+            actions: [
+              'iam:GetRole',
+              'iam:ListOpenIdConnectProviders',
+              'iam:GetOpenIdConnectProvider',
+              'cloudformation:GetTemplate',
+              'cloudformation:DescribeStacks',
+            ],
+            resources: [
+              `arn:aws:iam::${TARGET_ACCOUNT}:role/*`,
+              `arn:aws:iam::${TARGET_ACCOUNT}:oidc-provider/*`,
+              `arn:aws:cloudformation:${TARGET_REGION}:${TARGET_ACCOUNT}:stack/LocksGitHubOidcStack/*`,
+              `arn:aws:cloudformation:${TARGET_REGION}:${TARGET_ACCOUNT}:stack/LocksAppStack/*`,
             ],
           }),
         ],
