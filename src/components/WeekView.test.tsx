@@ -165,6 +165,7 @@ describe('WeekView', () => {
         spreadAtPick: 2.5,
       },
       '/api',
+      'user-sub',
     );
   });
 

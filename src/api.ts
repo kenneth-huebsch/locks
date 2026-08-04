@@ -4,7 +4,18 @@ import type {
   ErrorCode,
   SubmitPickRequest,
   SubmitPickResponse,
+  WeekSummary,
 } from '../shared/types';
+import {
+  listMockWeeks,
+  loadMockWeek,
+  MockPickError,
+  submitMockPick,
+} from './lib/mockWeeks';
+
+// Demo path: mock 3-week season until week-history API routes ship.
+// Set VITE_USE_MOCK_WEEKS=false to use the live current-week endpoint only.
+const USE_MOCK_WEEKS = import.meta.env.VITE_USE_MOCK_WEEKS !== 'false';
 
 export class ApiError extends Error {
   readonly code: ErrorCode;
@@ -54,11 +65,61 @@ export async function loadCurrentWeek(
   return parseResponse<CurrentWeekResponse>(response);
 }
 
+export async function listWeeks(
+  _accessToken: string,
+  _apiBaseUrl = '/api',
+): Promise<WeekSummary[]> {
+  if (USE_MOCK_WEEKS) {
+    return listMockWeeks();
+  }
+
+  const current = await loadCurrentWeek(_accessToken, _apiBaseUrl);
+  return [
+    {
+      season: current.week.season,
+      week: current.week.week,
+      isCurrent: true,
+    },
+  ];
+}
+
+export async function loadWeek(
+  accessToken: string,
+  season: number,
+  week: number,
+  apiBaseUrl = '/api',
+  userSub?: string,
+): Promise<CurrentWeekResponse> {
+  if (USE_MOCK_WEEKS) {
+    return loadMockWeek(season, week, userSub);
+  }
+
+  const current = await loadCurrentWeek(accessToken, apiBaseUrl);
+  if (current.week.season === season && current.week.week === week) {
+    return current;
+  }
+
+  throw new Error(`Week ${season} W${week} is not available`);
+}
+
 export async function submitPick(
   accessToken: string,
   request: SubmitPickRequest,
   apiBaseUrl = '/api',
+  userSub?: string,
 ): Promise<SubmitPickResponse> {
+  if (USE_MOCK_WEEKS) {
+    try {
+      return submitMockPick(userSub ?? '', request);
+    } catch (error) {
+      if (error instanceof MockPickError) {
+        throw new ApiError(error.code, error.message);
+      }
+
+      throw error;
+    }
+  }
+
   const response = await fetch(`${apiBaseUrl}/picks`, {
     method: 'POST',
     headers: authHeaders(accessToken),

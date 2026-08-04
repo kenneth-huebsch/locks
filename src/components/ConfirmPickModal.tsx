@@ -48,7 +48,7 @@ export function ConfirmPickModal({
       } else if (submitError instanceof Error) {
         setError(submitError.message);
       } else {
-        setError('Unable to submit picks');
+        setError('Unable to submit pick');
       }
     } finally {
       setIsSubmitting(false);
@@ -67,10 +67,10 @@ export function ConfirmPickModal({
           className="text-2xl font-black text-blue-950"
           id="confirm-picks-title"
         >
-          Confirm picks
+          Confirm pick
         </h2>
         <p className="mt-3 text-slate-600">
-          This cannot be undone. Lock in these picks?
+          This cannot be undone. Lock in this pick?
         </p>
 
         <ul className="mt-6 space-y-3">

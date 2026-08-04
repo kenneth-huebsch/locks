@@ -217,7 +217,15 @@ Old usage records will expire through DynamoDB TTL after a short diagnostic peri
 - Public registration disabled.
 - Redirect authenticated users to the current week.
 
-### This Week
+### Weeks navigation
+
+- Single **Weeks** dropdown in the header (no separate This Week / Picks Board tabs).
+- Default selection is the current week.
+- **Current week:** pick-entry view only (WeekView).
+- **Past weeks:** Picks Board for that week only (read-only).
+- Until historical week APIs ship, the UI can run on mock three-week demo data via `VITE_USE_MOCK_WEEKS` (default on unless set to `false`).
+
+### Current week (pick entry)
 
 - Display the player’s current record.
 - Display the number of remaining picks.
@@ -231,13 +239,14 @@ Old usage records will expire through DynamoDB TTL after a short diagnostic peri
   - Kickoff time in Eastern Time
   - Current cached spread
   - Last odds update time
-- Tapping a side selects it before submission.
+- Exactly one pending selection at a time: tap a team to select, tap again to clear, tap another team to move the selection.
+- Sticky singular **Submit pick** after selection; confirmation modal before lock-in.
 - Started games are disabled.
 - Previously picked games show the locked team and spread in read-only mode.
 
-Before submission, show a confirmation modal summarizing the selections:
+Before submission, show a confirmation modal:
 
-> This cannot be undone. Lock in these picks?
+> This cannot be undone. Lock in this pick?
 
 The submission API validates:
 
@@ -250,7 +259,6 @@ After submission:
 
 - Show the locked pick and spread.
 - Show a lock icon.
-- Refresh the shared picks board so everyone sees it promptly.
 
 ### Standings
 
@@ -258,11 +266,10 @@ After submission:
 - Weekly records.
 - Optional current-week scoreboard as games finish.
 
-### Picks Board
+### Picks Board (past weeks)
 
-- Three-player layout similar to the existing generated HTML.
-- Current and historical weeks.
-- Expand/collapse completed weeks.
+- Shown when a past week is selected in the Weeks dropdown.
+- Multi-player table of submitted picks for that week’s games.
 - All submitted picks visible immediately.
 - Result colors:
   - Win: green

@@ -52,6 +52,14 @@ deploy only `LocksAppStack`; it cannot assume the generic CDK bootstrap deploy
 role or change the OIDC foundation. Application runtime roles are capped by a
 permissions boundary.
 
+
+## Frontend navigation (current UX)
+
+- Header **Weeks** dropdown defaults to the current week.
+- Current week: single-pending-pick entry UI.
+- Past weeks: read-only Picks Board for that week.
+- Demo path: mock weeks 1–3 when `VITE_USE_MOCK_WEEKS` is not `false` (no historical API yet).
+
 ## Repository guide
 
 - `src/`: React application

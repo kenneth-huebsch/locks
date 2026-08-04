@@ -43,6 +43,12 @@ export interface QuotaRecord {
   ttl: number;
 }
 
+export interface WeekSummary {
+  season: number;
+  week: number;
+  isCurrent: boolean;
+}
+
 export interface CurrentWeekResponse {
   week: Week;
   games: Game[];

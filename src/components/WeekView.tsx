@@ -92,7 +92,7 @@ export function WeekView({
       };
 
       try {
-        await submitPickRequest(accessToken, request, apiBaseUrl);
+        await submitPickRequest(accessToken, request, apiBaseUrl, userSub);
         succeededGameIds.push(pick.gameId);
       } catch (error) {
         if (firstError === null) {

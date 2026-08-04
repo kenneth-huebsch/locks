@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { CurrentWeekResponse } from '../shared/types';
+import type { CurrentWeekResponse, WeekSummary } from '../shared/types';
 import { PicksBoard } from './components/PicksBoard';
 import { WeekView } from './components/WeekView';
 
@@ -15,27 +15,68 @@ export interface AppAuth {
 
 interface AppProps {
   auth: AppAuth;
-  loadCurrentWeek: (accessToken: string) => Promise<CurrentWeekResponse>;
+  listWeeks: (accessToken: string) => Promise<WeekSummary[]>;
+  loadWeek: (
+    accessToken: string,
+    season: number,
+    week: number,
+    userSub?: string,
+  ) => Promise<CurrentWeekResponse>;
 }
-
-type AppTab = 'week' | 'board';
 
 const REFRESH_INTERVAL_MS = 30_000;
 
-export function App({ auth, loadCurrentWeek }: AppProps) {
-  const [currentWeek, setCurrentWeek] = useState<CurrentWeekResponse>();
-  const [loadError, setLoadError] = useState<string>();
-  const [activeTab, setActiveTab] = useState<AppTab>('week');
+function weekKey(season: number, week: number): string {
+  return `${season}-${week}`;
+}
 
-  const refreshCurrentWeek = useCallback(async (): Promise<void> => {
-    if (!auth.accessToken) {
+function weekOptionLabel(summary: WeekSummary): string {
+  return summary.isCurrent
+    ? `Week ${summary.week} (current)`
+    : `Week ${summary.week}`;
+}
+
+function weekDataMatchesSelection(
+  weekData: CurrentWeekResponse | undefined,
+  selectedWeek: WeekSummary | undefined,
+): boolean {
+  if (!weekData || !selectedWeek) {
+    return false;
+  }
+
+  return (
+    weekData.week.season === selectedWeek.season &&
+    weekData.week.week === selectedWeek.week
+  );
+}
+
+export function App({ auth, listWeeks, loadWeek }: AppProps) {
+  const [weekSummaries, setWeekSummaries] = useState<WeekSummary[]>([]);
+  const [selectedWeek, setSelectedWeek] = useState<WeekSummary>();
+  const [weekData, setWeekData] = useState<CurrentWeekResponse>();
+  const [loadError, setLoadError] = useState<string>();
+
+  const refreshSelectedWeek = useCallback(async (): Promise<void> => {
+    if (!auth.accessToken || !selectedWeek) {
       return;
     }
 
-    const response = await loadCurrentWeek(auth.accessToken);
-    setCurrentWeek(response);
-    setLoadError(undefined);
-  }, [auth.accessToken, loadCurrentWeek]);
+    try {
+      const response = await loadWeek(
+        auth.accessToken,
+        selectedWeek.season,
+        selectedWeek.week,
+        auth.userSub,
+      );
+      setWeekData(response);
+      setLoadError(undefined);
+    } catch (error: unknown) {
+      setWeekData(undefined);
+      setLoadError(
+        error instanceof Error ? error.message : 'Unable to load week data',
+      );
+    }
+  }, [auth.accessToken, auth.userSub, loadWeek, selectedWeek]);
 
   useEffect(() => {
     if (!auth.isLoading && !auth.isAuthenticated) {
@@ -50,39 +91,67 @@ export function App({ auth, loadCurrentWeek }: AppProps) {
 
     let active = true;
 
-    void refreshCurrentWeek().catch((error: unknown) => {
-      if (active) {
-        setLoadError(
-          error instanceof Error
-            ? error.message
-            : 'Unable to load the current week',
-        );
-      }
-    });
+    void listWeeks(auth.accessToken)
+      .then((summaries) => {
+        if (!active) {
+          return;
+        }
 
-    function handleFocus() {
-      void refreshCurrentWeek().catch((error: unknown) => {
+        setWeekSummaries(summaries);
+        const current =
+          summaries.find((summary) => summary.isCurrent) ?? summaries[0];
+        setSelectedWeek(current);
+      })
+      .catch((error: unknown) => {
         if (active) {
           setLoadError(
             error instanceof Error
               ? error.message
-              : 'Unable to load the current week',
+              : 'Unable to load available weeks',
           );
         }
       });
+
+    return () => {
+      active = false;
+    };
+  }, [auth.accessToken, auth.isAuthenticated, listWeeks]);
+
+  useEffect(() => {
+    if (!auth.isAuthenticated || !auth.accessToken || !selectedWeek) {
+      return;
+    }
+
+    let active = true;
+
+    void loadWeek(
+      auth.accessToken,
+      selectedWeek.season,
+      selectedWeek.week,
+      auth.userSub,
+    )
+      .then((response) => {
+        if (active) {
+          setWeekData(response);
+          setLoadError(undefined);
+        }
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setWeekData(undefined);
+          setLoadError(
+            error instanceof Error ? error.message : 'Unable to load week data',
+          );
+        }
+      });
+
+    function handleFocus() {
+      void refreshSelectedWeek();
     }
 
     window.addEventListener('focus', handleFocus);
     const intervalId = window.setInterval(() => {
-      void refreshCurrentWeek().catch((error: unknown) => {
-        if (active) {
-          setLoadError(
-            error instanceof Error
-              ? error.message
-              : 'Unable to load the current week',
-          );
-        }
-      });
+      void refreshSelectedWeek();
     }, REFRESH_INTERVAL_MS);
 
     return () => {
@@ -90,7 +159,14 @@ export function App({ auth, loadCurrentWeek }: AppProps) {
       window.removeEventListener('focus', handleFocus);
       window.clearInterval(intervalId);
     };
-  }, [auth.accessToken, auth.isAuthenticated, refreshCurrentWeek]);
+  }, [
+    auth.accessToken,
+    auth.isAuthenticated,
+    auth.userSub,
+    loadWeek,
+    refreshSelectedWeek,
+    selectedWeek,
+  ]);
 
   if (auth.isLoading) {
     return <StatusPage message="Checking your session…" />;
@@ -104,31 +180,67 @@ export function App({ auth, loadCurrentWeek }: AppProps) {
     return <StatusPage message="Redirecting to sign in…" />;
   }
 
+  const showingCurrentWeek = selectedWeek?.isCurrent ?? false;
+  const weekDataReady = weekDataMatchesSelection(weekData, selectedWeek);
+  const readyWeekData = weekDataReady ? weekData : undefined;
+
   return (
     <main className="min-h-screen bg-slate-50">
       <header className="bg-blue-950 text-white">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-5">
+        <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-4 px-6 py-5">
           <h1 className="text-2xl font-black tracking-tight">Locks</h1>
-          <button
-            className="text-sm font-semibold underline underline-offset-4"
-            onClick={() => void auth.logout()}
-            type="button"
-          >
-            Sign out
-          </button>
+          <div className="flex flex-wrap items-center gap-4">
+            {weekSummaries.length > 0 ? (
+              <div className="flex items-center gap-2">
+                <label
+                  className="text-sm font-semibold"
+                  htmlFor="weeks-select"
+                >
+                  Weeks
+                </label>
+                <select
+                  className="rounded bg-white px-3 py-1.5 text-sm font-semibold text-blue-950"
+                  id="weeks-select"
+                  onChange={(event) => {
+                    const [season, week] = event.target.value
+                      .split('-')
+                      .map(Number);
+                    const summary = weekSummaries.find(
+                      (item) =>
+                        item.season === season && item.week === week,
+                    );
+                    if (summary) {
+                      setSelectedWeek(summary);
+                      setWeekData(undefined);
+                      setLoadError(undefined);
+                    }
+                  }}
+                  value={
+                    selectedWeek
+                      ? weekKey(selectedWeek.season, selectedWeek.week)
+                      : ''
+                  }
+                >
+                  {weekSummaries.map((summary) => (
+                    <option
+                      key={weekKey(summary.season, summary.week)}
+                      value={weekKey(summary.season, summary.week)}
+                    >
+                      {weekOptionLabel(summary)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+            <button
+              className="text-sm font-semibold underline underline-offset-4"
+              onClick={() => void auth.logout()}
+              type="button"
+            >
+              Sign out
+            </button>
+          </div>
         </div>
-        <nav className="mx-auto flex max-w-4xl gap-2 px-6 pb-4">
-          <TabButton
-            isActive={activeTab === 'week'}
-            label="This Week"
-            onClick={() => setActiveTab('week')}
-          />
-          <TabButton
-            isActive={activeTab === 'board'}
-            label="Picks Board"
-            onClick={() => setActiveTab('board')}
-          />
-        </nav>
       </header>
 
       <section className="mx-auto max-w-4xl px-6 py-10">
@@ -138,19 +250,19 @@ export function App({ auth, loadCurrentWeek }: AppProps) {
           </p>
         ) : null}
 
-        {!currentWeek ? (
+        {!readyWeekData || !selectedWeek ? (
           <p className="text-slate-600">Loading this week’s games…</p>
-        ) : activeTab === 'week' && auth.userSub ? (
+        ) : showingCurrentWeek && auth.userSub ? (
           <WeekView
             accessToken={auth.accessToken ?? ''}
-            currentWeek={currentWeek}
-            onRefresh={refreshCurrentWeek}
+            currentWeek={readyWeekData}
+            onRefresh={refreshSelectedWeek}
             userSub={auth.userSub}
           />
-        ) : activeTab === 'board' && auth.userSub ? (
+        ) : !showingCurrentWeek && auth.userSub ? (
           <PicksBoard
-            games={currentWeek.games}
-            picks={currentWeek.picks ?? []}
+            games={readyWeekData.games}
+            picks={readyWeekData.picks ?? []}
             userSub={auth.userSub}
           />
         ) : (
@@ -158,30 +270,6 @@ export function App({ auth, loadCurrentWeek }: AppProps) {
         )}
       </section>
     </main>
-  );
-}
-
-function TabButton({
-  label,
-  isActive,
-  onClick,
-}: {
-  label: string;
-  isActive: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      className={`rounded px-4 py-2 text-sm font-semibold ${
-        isActive
-          ? 'bg-white text-blue-950'
-          : 'bg-blue-900 text-white hover:bg-blue-800'
-      }`}
-      onClick={onClick}
-      type="button"
-    >
-      {label}
-    </button>
   );
 }
 

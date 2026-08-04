@@ -21,7 +21,7 @@ describe('ConfirmPickModal', () => {
     );
 
     expect(
-      screen.getByText(/this cannot be undone\. lock in these picks\?/i),
+      screen.getByText(/this cannot be undone\. lock in this pick\?/i),
     ).toBeInTheDocument();
     expect(screen.getByText('Dallas Cowboys')).toBeInTheDocument();
     expect(screen.getByText('-3.5')).toBeInTheDocument();

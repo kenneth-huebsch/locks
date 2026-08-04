@@ -2,7 +2,7 @@ import { StrictMode, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AuthProvider, useAuth } from 'react-oidc-context';
 import { App } from './App';
-import { loadCurrentWeek } from './api';
+import { listWeeks, loadWeek } from './api';
 import './index.css';
 import {
   loadRuntimeConfig,
@@ -12,9 +12,13 @@ import {
 
 function AuthenticatedApp({ config }: { config: RuntimeConfig }) {
   const auth = useAuth();
-  const loadWeek = useCallback(
-    (accessToken: string) =>
-      loadCurrentWeek(accessToken, config.apiBaseUrl),
+  const loadWeekForConfig = useCallback(
+    (accessToken: string, season: number, week: number, userSub?: string) =>
+      loadWeek(accessToken, season, week, config.apiBaseUrl, userSub),
+    [config.apiBaseUrl],
+  );
+  const listWeeksForConfig = useCallback(
+    (accessToken: string) => listWeeks(accessToken, config.apiBaseUrl),
     [config.apiBaseUrl],
   );
   const logout = useCallback(
@@ -44,7 +48,8 @@ function AuthenticatedApp({ config }: { config: RuntimeConfig }) {
         signinRedirect: auth.signinRedirect,
         logout,
       }}
-      loadCurrentWeek={loadWeek}
+      loadWeek={loadWeekForConfig}
+      listWeeks={listWeeksForConfig}
     />
   );
 }
