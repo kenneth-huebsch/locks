@@ -2,9 +2,10 @@
 
 ## Project status
 
-Last updated: July 31, 2026.
+Last updated: August 3, 2026.
 
 - **Phase 1 is complete and deployed.**
+- **Phase 2 is substantially complete and deployed.**
 - Production application: https://d141pq884g4gai.cloudfront.net
 - AWS account: `580956784928`
 - AWS region: `us-east-1`
@@ -16,7 +17,36 @@ Last updated: July 31, 2026.
   and runtime permissions boundaries.
 - The current Cognito user is `kenneth.huebsch@gmail.com`.
 - No AWS Budget exists by user choice; spending is monitored manually.
-- **Phase 2: Picks and odds is next.**
+- AWS CLI v2 and CDK are available in Mira's container; deployment uses
+  `coding-agent` and `locks-publish` IAM profiles.
+- `LocksAppPublishRole` enables container-based static publishing and seeding.
+- `LocksCodingAgentReadPolicy` grants read-only DynamoDB, CloudFormation, and
+  IAM inspection from the container.
+
+### Phase 2 completion status
+
+- [x] DynamoDB data model documented in `docs/data-model.md`
+- [x] Shared types, NFL team mappings, and DynamoDB key patterns
+- [x] Odds API client with quota tracking and circuit breaker
+- [x] `sync-odds` Lambda with EventBridge schedule (disabled until API key set)
+- [x] `current-week` API endpoint (GET /api/week/current)
+- [x] Atomic pick submission (POST /api/picks) with validation
+- [x] Frontend: game cards, pick flow, confirmation modal, picks board
+- [x] Auto-refresh of picks board
+- [x] All 89 tests passing, lint/typecheck/build green
+- [ ] Odds API key set in SSM Parameter Store (needs Kenny to provide key)
+- [ ] Jack and Eric Cognito accounts created (need email addresses)
+- [ ] Odds sync schedule enabled and validated against live API
+- [ ] Phase 2 end-to-end validation with real game data
+
+### Current blockers
+
+1. **Odds API key:** Kenny needs to provide a free-tier Odds API key. Without
+   it, `sync-odds` Lambda will fail. The SSM parameter `/locks/odds-api-key`
+   must be set with Kenny's explicit approval.
+2. **Jack and Eric emails:** Needed to create Cognito user accounts for the
+   other two players.
+3. **Sportsbook preference:** DraftKings is the default; Kenny should confirm.
 
 ## Recommendation: AWS serverless with DynamoDB caching
 
