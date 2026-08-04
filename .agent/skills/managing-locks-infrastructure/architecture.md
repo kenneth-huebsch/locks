@@ -15,6 +15,8 @@
 - Region: `us-east-1`
 - Repository: `kenneth-huebsch/locks`
 - GitHub deployment ref: `refs/heads/main`
+- GitHub OIDC `sub` (exact, id-qualified):
+  `repo:kenneth-huebsch@25780362/locks@1317783805:ref:refs/heads/main`
 - Site: `https://d141pq884g4gai.cloudfront.net`
 
 The CDK entry point rejects any other account or region.
@@ -47,6 +49,39 @@ GitHub OIDC or coding-agent
 ```
 
 GitHub may also assume CDK file, image, and lookup roles. It must not assume the generic bootstrap deploy role.
+
+### GitHub Actions OIDC subject
+
+`LocksGitHubDeployRole` is assumed by `.github/workflows/deploy.yml` via
+`aws-actions/configure-aws-credentials` with `id-token: write`.
+
+This repo's Actions OIDC tokens use **id-qualified** subjects:
+
+```text
+sub = repo:kenneth-huebsch@25780362/locks@1317783805:ref:refs/heads/main
+aud = sts.amazonaws.com
+iss = https://token.actions.githubusercontent.com
+```
+
+Do **not** write trust as the classic `repo:kenneth-huebsch/locks:ref:refs/heads/main`
+form. That never matches the JWT `sub` for this repository and produces:
+
+`Not authorized to perform sts:AssumeRoleWithWebIdentity`
+
+Confirm the live claim shape before changing trust:
+
+```bash
+gh api repos/kenneth-huebsch/locks/actions/oidc/customization/sub
+```
+
+`sub_claim_prefix` showing `repo:kenneth-huebsch@25780362/locks@1317783805`
+means trust must use that prefix. Owner id `25780362` and repo id `1317783805`
+are stable for this GitHub repository; if the repo is transferred or recreated,
+re-read the JWT/`sub_claim_prefix` and update `GITHUB_SUBJECT` in
+`infrastructure/lib/github-oidc-stack.ts` plus its unit test.
+
+Foundation/OIDC trust changes are local-only (`npm run deploy:oidc`). Pushing
+the CDK change to `main` does not update live IAM until `deploy:oidc` runs.
 
 Static publishing and seeding from Mira use a separate path:
 

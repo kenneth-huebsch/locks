@@ -54,7 +54,9 @@ npm run deploy:oidc
 
 Before deployment, prove:
 
-- GitHub still trusts only `kenneth-huebsch/locks` on `main`.
+- GitHub still trusts only the exact id-qualified main subject
+  `repo:kenneth-huebsch@25780362/locks@1317783805:ref:refs/heads/main`
+  (StringEquals on both `aud` and `sub`; no temporary `repo:*`).
 - GitHub cannot assume the generic CDK deploy role.
 - App deployment and CloudFormation execution roles remain dedicated.
 - Every app runtime role has `LocksAppRuntimeBoundary`.
@@ -151,6 +153,66 @@ npm run deploy:app
 Require confirmation that `$KnownGoodSha` is the intended remote commit before
 creating the worktree or deploying. The site bucket is not versioned, so
 rebuild and republish that commit.
+
+## GitHub Actions OIDC assume failures
+
+Symptom: Deploy fails at `aws-actions/configure-aws-credentials` with
+
+```text
+Could not assume role with OIDC: Not authorized to perform sts:AssumeRoleWithWebIdentity
+```
+
+Later steps never run. `LocksGitHubDeployRole` `RoleLastUsed` stays empty.
+
+### Confirmed root cause (2026-08)
+
+This repository emits **id-qualified** OIDC subjects. Classic
+`repo:owner/name:ref:refs/heads/main` trust never matches.
+
+Working exact trust:
+
+```text
+token.actions.githubusercontent.com:aud = sts.amazonaws.com
+token.actions.githubusercontent.com:sub =
+  repo:kenneth-huebsch@25780362/locks@1317783805:ref:refs/heads/main
+```
+
+Source of truth in code: `GITHUB_SUBJECT` in
+`infrastructure/lib/github-oidc-stack.ts` (unit-tested).
+
+### Diagnose
+
+1. Read the failed Actions step (assume vs later CDK/app failure).
+2. Compare live role trust to code:
+
+```bash
+AWS_PROFILE=coding-agent aws iam get-role \
+  --role-name LocksGitHubDeployRole \
+  --query 'Role.AssumeRolePolicyDocument' --output json
+gh api repos/kenneth-huebsch/locks/actions/oidc/customization/sub
+```
+
+3. If you must see the JWT claims, add a **temporary** debug step that decodes
+   only the JWT payload (`sub`, `aud`, `iss`, `ref`, `repository_id`, …), push,
+   then remove the step. Do not leave claim dumps or broad `repo:*` trust on
+   `main`.
+
+4. Remember: updating the CDK file and pushing does **not** change IAM until
+   an approved local `AWS_PROFILE=coding-agent npm run deploy:oidc` succeeds.
+   A Deploy run can still fail on the commit that only changed trust in git.
+
+### Fix path
+
+1. Set `GITHUB_SUBJECT` to the exact JWT `sub` for `main` pushes.
+2. Prefer `StringEquals` on both `aud` and `sub` (not open-ended `StringLike`).
+3. Update `infrastructure/test/github-oidc-stack.test.ts`.
+4. Run OIDC unit tests + targeted `cdk diff LocksGitHubOidcStack`.
+5. After explicit approval: `AWS_PROFILE=coding-agent npm run deploy:oidc`.
+6. Confirm live trust, then confirm Deploy goes green end-to-end.
+7. Never leave diagnostic `repo:*` (or other-repo) trust in production.
+
+`coding-agent` cannot read CloudTrail `LookupEvents`; do not depend on
+CloudTrail for this diagnosis.
 
 ## Post-deployment verification
 

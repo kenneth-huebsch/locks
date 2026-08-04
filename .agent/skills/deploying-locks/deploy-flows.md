@@ -32,7 +32,18 @@ AWS_PROFILE=coding-agent npm run deploy:oidc
 **Post-deploy:**
 - Verify `LocksCodingAgentReadPolicy` is attached to `coding-agent`
 - Verify `LocksAppPublishRole` exists if it was part of the change
-- Verify GitHub OIDC trust relationship
+- Verify live GitHub OIDC trust is exact id-qualified main:
+
+```bash
+AWS_PROFILE=coding-agent aws iam get-role \
+  --role-name LocksGitHubDeployRole \
+  --query 'Role.AssumeRolePolicyDocument.Statement[0].Condition' --output json
+# Expect StringEquals aud=sts.amazonaws.com and
+# sub=repo:kenneth-huebsch@25780362/locks@1317783805:ref:refs/heads/main
+```
+
+- If Deploy was failing only on OIDC, re-run or push and confirm assume succeeds
+  before treating the foundation change as done.
 
 ## Flow 2: Application Infrastructure (`deploy:infrastructure`)
 

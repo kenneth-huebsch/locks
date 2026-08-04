@@ -119,6 +119,10 @@ A CloudFront function (`SpaRewrite`) handles SPA routing.
 
 ## GitHub Actions (.github/workflows/deploy.yml)
 
-Triggers on push to `main`. Uses OIDC to assume `LocksGitHubDeployRole`.
+Triggers on push to `main`. Uses OIDC to assume `LocksGitHubDeployRole`
+with the id-qualified subject
+`repo:kenneth-huebsch@25780362/locks@1317783805:ref:refs/heads/main`
+(see `GITHUB_SUBJECT` in `infrastructure/lib/github-oidc-stack.ts`).
 Runs lint, typecheck, test, build, synth, then deploys `LocksAppStack` and
-publishes the app. Cannot deploy foundation/OIDC changes.
+publishes the app. Cannot deploy foundation/OIDC changes — those need local
+`deploy:oidc` after explicit approval.

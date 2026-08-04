@@ -104,3 +104,5 @@ Never force a rollback without understanding what changed. Check the diff first.
 - **Never use `cdk deploy --all`.** Always specify the exact stack.
 - **GitHub Actions deploys only `LocksAppStack`.** Foundation changes are local.
 - **`deploy:oidc` changes IAM.** Review the diff for privilege escalation.
+- **OIDC trust uses the id-qualified main `sub`**, not classic `owner/name`.
+  See `managing-locks-infrastructure/runbooks.md` → "GitHub Actions OIDC assume failures".

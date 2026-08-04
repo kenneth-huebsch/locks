@@ -63,6 +63,13 @@ an approved static publish or seed. The container uses bash/sh, not PowerShell.
 | Bootstrap | One-time or recovery operation only |
 | Destruction | Follow the exact teardown order in `runbooks.md` |
 
+## GitHub OIDC trust
+
+`LocksGitHubDeployRole` trusts the **id-qualified** main subject, not classic
+`owner/name`. Details and assume-failure runbook:
+`runbooks.md` → "GitHub Actions OIDC assume failures", and `architecture.md`
+→ "GitHub Actions OIDC subject".
+
 ## Required checks
 
 Run lint, typecheck, tests, build, guarded synth, and a targeted CDK diff. Review replacements, deletions, IAM scope, role boundaries, S3 public access, JWT authorizers, and data loss before deployment.

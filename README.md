@@ -121,9 +121,11 @@ and application runtime boundary. The second bootstrap update replaces that
 default with the two foundation-only policies. Repeating the policy option is
 the current CDK CLI syntax for attaching multiple policies.
 
-The GitHub role trusts only
-`repo:kenneth-huebsch/locks:ref:refs/heads/main`. It cannot assume the generic
-bootstrap deploy role. `LocksAppStack` always uses `LocksAppDeployRole` and
+The GitHub role trusts only the id-qualified main-branch subject
+`repo:kenneth-huebsch@25780362/locks@1317783805:ref:refs/heads/main`
+(not the classic `repo:kenneth-huebsch/locks:ref:refs/heads/main` form).
+This repository's Actions OIDC tokens use owner/repo numeric IDs in `sub`.
+It cannot assume the generic bootstrap deploy role. `LocksAppStack` always uses `LocksAppDeployRole` and
 `LocksAppCloudFormationExecutionRole`; only the GitHub role and
 `arn:aws:iam::580956784928:user/coding-agent` can assume the application deploy
 role. Bootstrap file, image, and lookup roles remain available for CDK assets

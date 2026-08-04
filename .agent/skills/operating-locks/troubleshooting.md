@@ -134,7 +134,11 @@ AWS_PROFILE=coding-agent aws cloudwatch get-metric-statistics \
 **Diagnosis:**
 - Check workflow run logs in GitHub Actions tab
 - Common causes:
-  - OIDC role trust mismatch (check `repo:kenneth-huebsch/locks:ref:refs/heads/main`)
+  - OIDC role trust mismatch — must be id-qualified
+    `repo:kenneth-huebsch@25780362/locks@1317783805:ref:refs/heads/main`
+    (classic `repo:kenneth-huebsch/locks:...` will not match). See
+    `managing-locks-infrastructure/runbooks.md` → "GitHub Actions OIDC assume failures".
+  - Trust updated in git but not yet applied via local `deploy:oidc`
   - Test/lint/typecheck/build failure in the commit
   - CDK synth error
   - CloudFormation drift
