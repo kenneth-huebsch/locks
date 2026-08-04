@@ -7,7 +7,13 @@ import {
   ConfirmPickModal,
   type PickSummary,
 } from './ConfirmPickModal';
-import { GameCard, type PendingSelection } from './GameCard';
+import { GameCard } from './GameCard';
+
+interface PendingPick {
+  gameId: string;
+  team: string;
+  spread: number;
+}
 
 export interface WeekViewProps {
   currentWeek: CurrentWeekResponse;
@@ -24,8 +30,8 @@ export function WeekView({
   apiBaseUrl = '/api',
   onRefresh,
 }: WeekViewProps) {
-  const [selections, setSelections] = useState<Record<string, PendingSelection>>(
-    {},
+  const [pendingSelection, setPendingSelection] = useState<PendingPick | null>(
+    null,
   );
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -48,25 +54,29 @@ export function WeekView({
   );
 
   const pendingSelections = useMemo<PickSummary[]>(() => {
-    return Object.entries(selections).map(([gameId, selection]) => ({
-      gameId,
-      team: selection.team,
-      spread: selection.spread,
-    }));
-  }, [selections]);
+    if (!pendingSelection) {
+      return [];
+    }
+    return [
+      {
+        gameId: pendingSelection.gameId,
+        team: pendingSelection.team,
+        spread: pendingSelection.spread,
+      },
+    ];
+  }, [pendingSelection]);
 
   function handlePick(gameId: string, team: string, spread: number) {
-    setSelections((current) => {
-      const isNewSelection = !current[gameId];
-      const pendingCount = Object.keys(current).length;
-      if (isNewSelection && pendingCount >= currentWeek.remainingPicks) {
-        return current;
+    setPendingSelection((current) => {
+      if (current?.gameId === gameId && current.team === team) {
+        return null;
       }
 
-      return {
-        ...current,
-        [gameId]: { team, spread },
-      };
+      if (current === null && currentWeek.remainingPicks === 0) {
+        return null;
+      }
+
+      return { gameId, team, spread };
     });
   }
 
@@ -93,12 +103,11 @@ export function WeekView({
 
     // Always remove successful picks from the selection state and refresh.
     if (succeededGameIds.length > 0) {
-      setSelections((current) => {
-        const next = { ...current };
-        for (const gameId of succeededGameIds) {
-          delete next[gameId];
+      setPendingSelection((current) => {
+        if (current && succeededGameIds.includes(current.gameId)) {
+          return null;
         }
-        return next;
+        return current;
       });
       await onRefresh();
     }
@@ -161,7 +170,14 @@ export function WeekView({
                       existingPick={picksByGameId.get(game.id)}
                       game={game}
                       onPick={handlePick}
-                      selectedSide={selections[game.id]}
+                      selectedSide={
+                        pendingSelection?.gameId === game.id
+                          ? {
+                              team: pendingSelection.team,
+                              spread: pendingSelection.spread,
+                            }
+                          : undefined
+                      }
                     />
                   </li>
                 ))}
@@ -178,8 +194,7 @@ export function WeekView({
             onClick={() => setIsModalOpen(true)}
             type="button"
           >
-            Submit {pendingSelections.length} pick
-            {pendingSelections.length === 1 ? '' : 's'}
+            Submit pick
           </button>
         </div>
       ) : null}
