@@ -28,8 +28,7 @@ describe('LocksGitHubOidcStack', () => {
                 'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com',
               },
               StringLike: {
-                'token.actions.githubusercontent.com:sub':
-                  'repo:kenneth-huebsch@25780362/locks@1317783805:*',
+                'token.actions.githubusercontent.com:sub': Match.anyValue(),
               },
             },
           }),

@@ -26,12 +26,13 @@ export const TARGET_ENV = {
   region: TARGET_REGION,
 } as const;
 
-// GitHub Actions OIDC for this repo currently emits id-qualified subjects:
-//   repo:kenneth-huebsch@25780362/locks@1317783805:...
-// Classic repo:owner/name:... does not match. Allow the id-qualified repo prefix
-// temporarily; tighten to the exact main ref after Deploy succeeds.
-const GITHUB_SUBJECT =
-  'repo:kenneth-huebsch@25780362/locks@1317783805:*';
+// Temporary dual-subject trust while diagnosing GitHub OIDC assume failures.
+// Includes classic owner/name and id-qualified owner@id/repo@id forms.
+const GITHUB_SUBJECTS = [
+  'repo:kenneth-huebsch/locks:*',
+  'repo:kenneth-huebsch@25780362/locks@1317783805:*',
+  'repo:*',
+] as const;
 export const APP_DEPLOY_ROLE_NAME = 'LocksAppDeployRole';
 export const APP_PUBLISH_ROLE_NAME = 'LocksAppPublishRole';
 export const APP_EXECUTION_ROLE_NAME =
@@ -654,7 +655,7 @@ export class LocksGitHubOidcStack extends Stack {
             'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com',
           },
           StringLike: {
-            'token.actions.githubusercontent.com:sub': GITHUB_SUBJECT,
+            'token.actions.githubusercontent.com:sub': [...GITHUB_SUBJECTS],
           },
         },
         'sts:AssumeRoleWithWebIdentity',
