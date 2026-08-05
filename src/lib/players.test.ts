@@ -1,0 +1,23 @@
+import { describe, expect, it } from 'vitest';
+import {
+  ERIC_SUB,
+  JACK_SUB,
+  KENNY_SUB,
+  LEAGUE_ROSTER,
+} from './players';
+
+describe('LEAGUE_ROSTER', () => {
+  it('lists Kenny, Jack, and Eric in order with mock subs', () => {
+    expect(LEAGUE_ROSTER).toHaveLength(3);
+    expect(LEAGUE_ROSTER.map((player) => player.displayName)).toEqual([
+      'Kenny',
+      'Jack',
+      'Eric',
+    ]);
+    expect(LEAGUE_ROSTER.map((player) => player.sub)).toEqual([
+      KENNY_SUB,
+      JACK_SUB,
+      ERIC_SUB,
+    ]);
+  });
+});

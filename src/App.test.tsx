@@ -156,6 +156,10 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { level: 2, name: /^week 1$/i })).toBeInTheDocument();
     expect(screen.getByText('DAL @ PHI')).toBeInTheDocument();
+    expect(screen.getAllByText('Kenny').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Jack').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Eric').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
     expect(
       screen.queryByRole('heading', { name: /picks board/i }),
     ).not.toBeInTheDocument();
@@ -173,8 +177,10 @@ describe('App', () => {
     await screen.findByText('Green Bay Packers (GB)');
     await user.selectOptions(screen.getByLabelText(/^weeks$/i), '2026-1');
 
-    expect(await screen.findByText('1-0-0')).toBeInTheDocument();
+    expect(await screen.findByLabelText(/standings/i)).toBeInTheDocument();
+    expect(screen.getByText('1-0-0')).toBeInTheDocument();
     expect(screen.getByText('0-1-0')).toBeInTheDocument();
+    expect(screen.getByText('No pick')).toBeInTheDocument();
   });
 
   it('navigates to the current week when Locks is clicked from a past week', async () => {
