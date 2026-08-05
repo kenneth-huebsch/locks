@@ -7,6 +7,8 @@ export interface PicksBoardProps {
   games: Game[];
   picks: Pick[];
   userSub: string;
+  weekNumber: number;
+  playerRecords?: Record<string, string>;
   userDisplayName?: string;
 }
 
@@ -25,7 +27,14 @@ function pickLabel(pick: Pick | undefined): string {
   return `${pick.pickedTeam} ${formatSpread(pick.spreadAtPick)}`;
 }
 
-export function PicksBoard({ games, picks, userSub, userDisplayName }: PicksBoardProps) {
+export function PicksBoard({
+  games,
+  picks,
+  userSub,
+  weekNumber,
+  playerRecords,
+  userDisplayName,
+}: PicksBoardProps) {
   const players = useMemo(
     () => boardPlayersForUser(userSub, picks),
     [userSub, picks],
@@ -45,10 +54,7 @@ export function PicksBoard({ games, picks, userSub, userDisplayName }: PicksBoar
 
   return (
     <section>
-      <h2 className="text-3xl font-black text-blue-950">Picks board</h2>
-      <p className="mt-2 text-slate-600">
-        All submitted picks are visible to every player.
-      </p>
+      <h2 className="text-3xl font-black text-blue-950">Week {weekNumber}</h2>
 
       <div className="mt-8 overflow-x-auto">
         <table className="min-w-full border-collapse text-left">
@@ -62,9 +68,16 @@ export function PicksBoard({ games, picks, userSub, userDisplayName }: PicksBoar
                   className="border border-slate-200 bg-white px-4 py-3 text-sm font-semibold uppercase tracking-wide text-slate-500"
                   key={player.sub}
                 >
-                  {player.sub === userSub && userDisplayName
-                    ? userDisplayName
-                    : player.displayName}
+                  <div>
+                    {player.sub === userSub && userDisplayName
+                      ? userDisplayName
+                      : player.displayName}
+                  </div>
+                  {playerRecords?.[player.sub] ? (
+                    <div className="mt-1 text-xs font-normal normal-case tracking-normal text-slate-400">
+                      {playerRecords[player.sub]}
+                    </div>
+                  ) : null}
                 </th>
               ))}
             </tr>

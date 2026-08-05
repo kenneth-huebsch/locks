@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
-import type { CurrentWeekResponse, WeekSummary } from '../shared/types';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { CurrentWeekResponse, Pick, WeekSummary } from '../shared/types';
+import { loadPicksThroughWeek as defaultLoadPicksThroughWeek } from './api';
 import { PicksBoard } from './components/PicksBoard';
 import { WeekView } from './components/WeekView';
+import { computePlayerRecordsById } from './lib/records';
 
 export interface AppAuth {
   isAuthenticated: boolean;
@@ -22,6 +24,7 @@ interface AppProps {
     week: number,
     userSub?: string,
   ) => Promise<CurrentWeekResponse>;
+  loadPicksThroughWeek?: (season: number, throughWeek: number) => Pick[];
 }
 
 const REFRESH_INTERVAL_MS = 30_000;
@@ -50,7 +53,12 @@ function weekDataMatchesSelection(
   );
 }
 
-export function App({ auth, listWeeks, loadWeek }: AppProps) {
+export function App({
+  auth,
+  listWeeks,
+  loadWeek,
+  loadPicksThroughWeek = defaultLoadPicksThroughWeek,
+}: AppProps) {
   const [weekSummaries, setWeekSummaries] = useState<WeekSummary[]>([]);
   const [selectedWeek, setSelectedWeek] = useState<WeekSummary>();
   const [weekData, setWeekData] = useState<CurrentWeekResponse>();
@@ -168,6 +176,19 @@ export function App({ auth, listWeeks, loadWeek }: AppProps) {
     selectedWeek,
   ]);
 
+  const showingCurrentWeek = selectedWeek?.isCurrent ?? false;
+  const playerRecords = useMemo(() => {
+    if (!selectedWeek || showingCurrentWeek) {
+      return undefined;
+    }
+
+    const cumulativePicks = loadPicksThroughWeek(
+      selectedWeek.season,
+      selectedWeek.week,
+    );
+    return computePlayerRecordsById(cumulativePicks);
+  }, [loadPicksThroughWeek, selectedWeek, showingCurrentWeek]);
+
   if (auth.isLoading) {
     return <StatusPage message="Checking your session…" />;
   }
@@ -180,25 +201,44 @@ export function App({ auth, listWeeks, loadWeek }: AppProps) {
     return <StatusPage message="Redirecting to sign in…" />;
   }
 
-  const showingCurrentWeek = selectedWeek?.isCurrent ?? false;
   const weekDataReady = weekDataMatchesSelection(weekData, selectedWeek);
   const readyWeekData = weekDataReady ? weekData : undefined;
+  const currentWeekSummary = weekSummaries.find((summary) => summary.isCurrent);
+
+  function handleLocksClick(): void {
+    if (!currentWeekSummary) {
+      return;
+    }
+
+    if (
+      selectedWeek?.season === currentWeekSummary.season &&
+      selectedWeek?.week === currentWeekSummary.week
+    ) {
+      void refreshSelectedWeek();
+      return;
+    }
+
+    setSelectedWeek(currentWeekSummary);
+    setWeekData(undefined);
+    setLoadError(undefined);
+  }
 
   return (
     <main className="min-h-screen bg-slate-50">
       <header className="bg-blue-950 text-white">
         <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-4 px-6 py-5">
-          <h1 className="text-2xl font-black tracking-tight">Locks</h1>
+          <button
+            className="text-2xl font-black tracking-tight"
+            onClick={handleLocksClick}
+            type="button"
+          >
+            Locks
+          </button>
           <div className="flex flex-wrap items-center gap-4">
             {weekSummaries.length > 0 ? (
               <div className="flex items-center gap-2">
-                <label
-                  className="text-sm font-semibold"
-                  htmlFor="weeks-select"
-                >
-                  Weeks
-                </label>
                 <select
+                  aria-label="Weeks"
                   className="rounded bg-white px-3 py-1.5 text-sm font-semibold text-blue-950"
                   id="weeks-select"
                   onChange={(event) => {
@@ -263,7 +303,9 @@ export function App({ auth, listWeeks, loadWeek }: AppProps) {
           <PicksBoard
             games={readyWeekData.games}
             picks={readyWeekData.picks ?? []}
+            playerRecords={playerRecords}
             userSub={auth.userSub}
+            weekNumber={selectedWeek.week}
           />
         ) : (
           <p className="text-slate-600">Loading player session…</p>

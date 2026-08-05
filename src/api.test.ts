@@ -75,7 +75,6 @@ describe('api mock weeks', () => {
       ),
     ).rejects.toBeInstanceOf(ApiError);
   });
-});
 
   it('scopes remainingPicks to the authenticated mock user', async () => {
     const forOther = await loadWeek('token', 2026, 3, '/api', 'other-user-sub');
@@ -102,3 +101,13 @@ describe('api mock weeks', () => {
     expect(forKenny.remainingPicks).toBe(2);
   });
 
+  it('provides sixteen games per mock week', async () => {
+    const week1 = await loadWeek('token', 2026, 1);
+    const week2 = await loadWeek('token', 2026, 2);
+    const week3 = await loadWeek('token', 2026, 3);
+
+    expect(week1.games).toHaveLength(16);
+    expect(week2.games).toHaveLength(16);
+    expect(week3.games).toHaveLength(16);
+  });
+});

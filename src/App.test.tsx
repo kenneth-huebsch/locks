@@ -94,6 +94,7 @@ const unauthenticatedAuth: AppAuth = {
 function renderApp(
   loadWeek = vi.fn().mockResolvedValue(currentWeek),
   listWeeksFn = vi.fn().mockResolvedValue(weekSummaries),
+  loadPicksThroughWeek = vi.fn().mockReturnValue(pastWeek.picks),
 ) {
   return render(
     <App
@@ -104,6 +105,7 @@ function renderApp(
         userSub: 'kenny-sub',
       }}
       listWeeks={listWeeksFn}
+      loadPicksThroughWeek={loadPicksThroughWeek}
       loadWeek={loadWeek}
     />,
   );
@@ -123,10 +125,11 @@ describe('App', () => {
     expect(screen.getByText(/redirecting to sign in/i)).toBeInTheDocument();
   });
 
-  it('shows the Weeks dropdown and current-week pick entry by default', async () => {
+  it('shows the week dropdown and current-week pick entry by default', async () => {
     renderApp();
 
     expect(await screen.findByLabelText(/^weeks$/i)).toBeInTheDocument();
+    expect(screen.queryByText('Weeks', { selector: 'label' })).not.toBeInTheDocument();
     expect(screen.getByRole('option', { name: /week 3 \(current\)/i })).toBeInTheDocument();
     expect(await screen.findByText('Green Bay Packers (GB)')).toBeInTheDocument();
     expect(
@@ -140,7 +143,7 @@ describe('App', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('shows the picks board when a past week is selected', async () => {
+  it('shows the past-week board title when a past week is selected', async () => {
     const user = userEvent.setup();
     const loadWeek = vi.fn().mockImplementation(
       (_token: string, _season: number, week: number) =>
@@ -152,11 +155,50 @@ describe('App', () => {
     await screen.findByText('Green Bay Packers (GB)');
     await user.selectOptions(screen.getByLabelText(/^weeks$/i), '2026-1');
 
-    expect(await screen.findByRole('heading', { name: /picks board/i })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: /^week 1$/i })).toBeInTheDocument();
     expect(screen.getByText('DAL @ PHI')).toBeInTheDocument();
     expect(
       screen.queryByText(/picks are final once submitted/i),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: /picks board/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows cumulative player records on a past week board', async () => {
+    const user = userEvent.setup();
+    const loadWeek = vi.fn().mockImplementation(
+      (_token: string, _season: number, week: number) =>
+        Promise.resolve(week === 1 ? pastWeek : currentWeek),
+    );
+
+    renderApp(loadWeek);
+
+    await screen.findByText('Green Bay Packers (GB)');
+    await user.selectOptions(screen.getByLabelText(/^weeks$/i), '2026-1');
+
+    expect(await screen.findByText('1-0-0')).toBeInTheDocument();
+    expect(screen.getByText('0-1-0')).toBeInTheDocument();
+  });
+
+  it('navigates to the current week when Locks is clicked from a past week', async () => {
+    const user = userEvent.setup();
+    const loadWeek = vi.fn().mockImplementation(
+      (_token: string, _season: number, week: number) =>
+        Promise.resolve(week === 1 ? pastWeek : currentWeek),
+    );
+
+    renderApp(loadWeek);
+
+    await screen.findByText('Green Bay Packers (GB)');
+    await user.selectOptions(screen.getByLabelText(/^weeks$/i), '2026-1');
+    await screen.findByRole('heading', { level: 2, name: /^week 1$/i });
+
+    await user.click(screen.getByRole('button', { name: /^locks$/i }));
+
+    expect(await screen.findByRole('heading', { level: 2, name: /^week 3$/i })).toBeInTheDocument();
+    expect(screen.getByText(/picks are final once submitted/i)).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /^weeks$/i })).toHaveValue('2026-3');
   });
 
   it('shows loading instead of stale week data while a new week loads', async () => {
@@ -177,13 +219,13 @@ describe('App', () => {
 
     expect(screen.getByText(/loading this week/i)).toBeInTheDocument();
     expect(
-      screen.queryByRole('heading', { name: /picks board/i }),
+      screen.queryByRole('heading', { level: 2, name: /^week 1$/i }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText('Green Bay Packers (GB)')).not.toBeInTheDocument();
 
     resolvePastWeek(pastWeek);
 
-    expect(await screen.findByRole('heading', { name: /picks board/i })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: /^week 1$/i })).toBeInTheDocument();
     expect(screen.getByText('DAL @ PHI')).toBeInTheDocument();
   });
 
@@ -201,7 +243,7 @@ describe('App', () => {
 
     expect(await screen.findByText(/week unavailable/i)).toBeInTheDocument();
     expect(
-      screen.queryByRole('heading', { name: /picks board/i }),
+      screen.queryByRole('heading', { level: 2, name: /^week 1$/i }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText('Green Bay Packers (GB)')).not.toBeInTheDocument();
   });

@@ -6,7 +6,9 @@ import type {
   SubmitPickResponse,
   WeekSummary,
 } from '../shared/types';
+import type { Pick } from '../shared/types';
 import {
+  listMockPicksThroughWeek,
   listMockWeeks,
   loadMockWeek,
   MockPickError,
@@ -81,6 +83,17 @@ export async function listWeeks(
       isCurrent: true,
     },
   ];
+}
+
+export function loadPicksThroughWeek(
+  season: number,
+  throughWeek: number,
+): Pick[] {
+  if (USE_MOCK_WEEKS) {
+    return listMockPicksThroughWeek(season, throughWeek);
+  }
+
+  return [];
 }
 
 export async function loadWeek(
