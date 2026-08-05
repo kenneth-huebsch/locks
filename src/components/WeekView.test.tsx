@@ -80,6 +80,18 @@ describe('WeekView', () => {
     vi.mocked(submitPick).mockReset();
   });
 
+  it('shows remaining picks and lines updated without banner or season record', () => {
+    renderWeekView();
+
+    expect(screen.getByText(/2 picks remaining/i)).toBeInTheDocument();
+    expect(screen.getByText(/lines last updated/i)).toBeInTheDocument();
+    expect(
+      screen.queryByText(/picks are final once submitted/i),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/season record/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('0-0-0')).not.toBeInTheDocument();
+  });
+
   it('selects a team and shows the singular submit button', async () => {
     const user = userEvent.setup();
     renderWeekView();

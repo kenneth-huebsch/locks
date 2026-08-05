@@ -135,9 +135,8 @@ describe('App', () => {
     expect(
       screen.getByRole('heading', { level: 2, name: /^week 3$/i }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(/picks are final once submitted/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/2 picks remaining/i)).toBeInTheDocument();
+    expect(screen.getByText(/lines last updated/i)).toBeInTheDocument();
     expect(
       screen.queryByRole('heading', { name: /picks board/i }),
     ).not.toBeInTheDocument();
@@ -157,9 +156,6 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { level: 2, name: /^week 1$/i })).toBeInTheDocument();
     expect(screen.getByText('DAL @ PHI')).toBeInTheDocument();
-    expect(
-      screen.queryByText(/picks are final once submitted/i),
-    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole('heading', { name: /picks board/i }),
     ).not.toBeInTheDocument();
@@ -197,7 +193,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: /^locks$/i }));
 
     expect(await screen.findByRole('heading', { level: 2, name: /^week 3$/i })).toBeInTheDocument();
-    expect(screen.getByText(/picks are final once submitted/i)).toBeInTheDocument();
+    expect(screen.getByText(/2 picks remaining/i)).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: /^weeks$/i })).toHaveValue('2026-3');
   });
 

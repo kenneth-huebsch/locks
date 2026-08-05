@@ -123,30 +123,20 @@ export function WeekView({
 
   return (
     <section>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-blue-700">
-            {currentWeek.week.season} season
-          </p>
-          <h2 className="mt-1 text-4xl font-black text-blue-950">
+      <div>
+        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-blue-700">
+          {currentWeek.week.season} season
+        </p>
+        <div className="mt-1 flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-4">
+          <h2 className="text-3xl font-black text-blue-950 md:text-4xl">
             Week {currentWeek.week.week}
           </h2>
-        </div>
-        <div className="text-right">
-          <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Season record
-          </p>
-          <p className="text-2xl font-black text-blue-950">0-0-0</p>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="text-sm text-slate-600 sm:text-base">
             {currentWeek.remainingPicks} pick
             {currentWeek.remainingPicks === 1 ? '' : 's'} remaining
           </p>
         </div>
       </div>
-
-      <p className="mt-6 border-l-4 border-amber-500 bg-amber-50 p-4 font-semibold text-amber-950">
-        Picks are final once submitted — you cannot change them.
-      </p>
 
       <p className="mt-4 text-sm text-slate-600">
         {currentWeek.oddsUpdatedAt
