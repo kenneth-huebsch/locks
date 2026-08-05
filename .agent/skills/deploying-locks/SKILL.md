@@ -5,6 +5,7 @@ checks, the three deployment flows, post-deploy verification, and rollback.
 
 ## When to Use
 
+- Understanding how a `main` push reaches production (default path)
 - Deploying the OIDC/foundation stack (`deploy:oidc`)
 - Deploying the application infrastructure (`deploy:infrastructure`)
 - Publishing the SPA and seeding (`deploy:app`)
@@ -50,19 +51,37 @@ AWS_PROFILE=coding-agent npm run cdk -- diff <StackName>
 
 Never deploy if any check fails. Never deploy all stacks with a broad command.
 
+## Default production path: push to `main`
+
+**This is how almost all app changes go live.**
+
+| Trigger | Workflow | Effect |
+|---|---|---|
+| `git push` / merge to branch `main` | `.github/workflows/deploy.yml` (**Deploy**) | Assumes `LocksGitHubDeployRole` via OIDC → account assert → lint/typecheck/test/build/synth → `deploy:infrastructure` → `deploy:app` |
+
+- Scope: **`LocksAppStack` only** (not OIDC/foundation).
+- Concurrency group `locks-production` (no cancel-in-progress).
+- Live app: https://d141pq884g4gai.cloudfront.net
+- Agent rule: if you pushed `main` and Deploy succeeded, production **was**
+  updated. Do not tell the user a separate deploy step is still required.
+- Check runs: `gh run list --repo kenneth-huebsch/locks --branch main --workflow Deploy --limit 5`
+- User approval to land on `main` counts as deploy approval for this path.
+  Still get explicit approval before local `deploy:*` or any `deploy:oidc`.
+
 ## Deployment Flows
 
 See `deploy-flows.md` for detailed instructions for each flow:
 
-| Flow | Command | When |
+| Flow | Command / trigger | When |
 |---|---|---|
-| Foundation/OIDC | `AWS_PROFILE=coding-agent npm run deploy:oidc` | IAM, roles, policies, boundary changes |
-| App infrastructure | `AWS_PROFILE=coding-agent npm run deploy:infrastructure` | New Lambda, API routes, DynamoDB, Cognito |
-| App publish + seed | `AWS_PROFILE=locks-publish npm run deploy:app` | SPA changes, static assets, runtime config, seed |
+| **0. GitHub Actions (default)** | Push/merge to `main` | Normal app + SPA production updates |
+| Foundation/OIDC | `AWS_PROFILE=coding-agent npm run deploy:oidc` | IAM, roles, policies, boundary changes (local only) |
+| App infrastructure | `AWS_PROFILE=coding-agent npm run deploy:infrastructure` | Manual/local app stack deploy |
+| App publish + seed | `AWS_PROFILE=locks-publish npm run deploy:app` | Manual/local SPA publish |
 
-**Typical app update:** `deploy:infrastructure` then `deploy:app`
-**SPA-only update:** `deploy:app` alone
-**IAM/foundation change:** `deploy:oidc` (requires explicit approval)
+**Typical app update:** push to `main` (CI runs infrastructure + app publish)
+**Manual SPA-only update:** `deploy:app` alone (explicit approval)
+**IAM/foundation change:** `deploy:oidc` (explicit approval; never via GitHub)
 
 ## Post-Deploy Verification
 
@@ -100,9 +119,13 @@ Never force a rollback without understanding what changed. Check the diff first.
 ## Hard Rules
 
 - **Explicit approval required** for any deployment. Never deploy without it.
-- **Account guard is mandatory** before any mutation.
+  For the default path, approval to **push/merge `main`** is that approval.
+  Local `deploy:*` and all `deploy:oidc` still need their own explicit approval.
+- **Account guard is mandatory** before any local mutation.
 - **Never use `cdk deploy --all`.** Always specify the exact stack.
 - **GitHub Actions deploys only `LocksAppStack`.** Foundation changes are local.
 - **`deploy:oidc` changes IAM.** Review the diff for privilege escalation.
 - **OIDC trust uses the id-qualified main `sub`**, not classic `owner/name`.
   See `managing-locks-infrastructure/runbooks.md` → "GitHub Actions OIDC assume failures".
+- **Never describe a successful `main` push as "not deployed"** without checking
+  the Deploy workflow; that path is the production release mechanism.

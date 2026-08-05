@@ -2,6 +2,46 @@
 
 Detailed instructions for each deployment type.
 
+## Flow 0: GitHub Actions from `main` (default production path)
+
+**When:** Any application change that should go live — SPA, Lambda, API routes
+wired in `LocksAppStack`, shared types used by the app, etc.
+
+**Trigger:** Push or merge to `main` (not PR open; not other branches).
+
+**Workflow:** `.github/workflows/deploy.yml` (name: **Deploy**)
+
+**What CI runs (in order):**
+
+1. Checkout + Node 22 + `aws-actions/configure-aws-credentials` → role
+   `arn:aws:iam::580956784928:role/LocksGitHubDeployRole`
+2. Assert STS account is `580956784928`
+3. `npm ci`
+4. `npm run lint` / `typecheck` / `test` / `build` / `synth`
+5. `npm run deploy:infrastructure` (`LocksAppStack` only)
+6. `npm run deploy:app` (build/publish SPA, runtime-config, foundation seed,
+   CloudFront invalidation)
+
+**Not deployed by this flow:** `LocksGitHubOidcStack` / foundation IAM. Those
+stay on Flow 1 (local `deploy:oidc`) with explicit approval.
+
+**Agent checklist after pushing `main`:**
+
+```bash
+gh run list --repo kenneth-huebsch/locks --branch main --workflow Deploy --limit 5
+gh run view <run-id> --repo kenneth-huebsch/locks  # if a run failed
+```
+
+**Approval model:** User asked to land the change on `main` (direct push or
+merge). Do not add a second "may I deploy?" unless they only approved a PR
+branch or explicitly deferred production.
+
+**Failure modes:** OIDC trust mismatch, quality gate failure, CDK/deploy
+permissions. See `managing-locks-infrastructure/runbooks.md` for OIDC assume
+failures.
+
+---
+
 ## Flow 1: Foundation/OIDC (`deploy:oidc`)
 
 **When:** IAM roles, policies, permissions boundary, OIDC trust, or deploy role
@@ -115,16 +155,23 @@ What `deploy:app` does:
 
 ## Typical Update Scenarios
 
-### Frontend-only change
+### Normal app or frontend change (preferred)
 ```bash
-# Pre-checks
+# Pre-checks locally
 npm run lint && npm run typecheck && npm test && npm run build
 
-# Just publish
+# Land on main (direct push or merge PR) — GitHub Actions deploys production
+git push origin main
+gh run list --repo kenneth-huebsch/locks --branch main --workflow Deploy --limit 3
+```
+
+### Manual frontend-only publish (local operator; needs explicit approval)
+```bash
+npm run lint && npm run typecheck && npm test && npm run build
 AWS_PROFILE=locks-publish npm run deploy:app
 ```
 
-### New API endpoint
+### Manual new API endpoint (local operator; needs explicit approval)
 ```bash
 # 1. Deploy infrastructure (new Lambda + route)
 AWS_PROFILE=coding-agent npm run deploy:infrastructure
@@ -132,6 +179,7 @@ AWS_PROFILE=coding-agent npm run deploy:infrastructure
 # 2. Publish updated SPA (if frontend calls the new endpoint)
 AWS_PROFILE=locks-publish npm run deploy:app
 ```
+# Equivalent preferred path: merge/push main and let Flow 0 run both steps.
 
 ### IAM/foundation change
 ```bash

@@ -189,6 +189,12 @@ After the one-time OIDC setup, a push to `main` runs the same checks and deploys
 only `LocksAppStack`. The workflow asserts the STS account before any
 deployment and contains no long-lived AWS credentials.
 
+**Agents and operators:** treating "merge/push `main`" as non-deploying is
+incorrect. The **Deploy** workflow is the standard production release path for
+app and SPA changes. Check recent runs with
+`gh run list --repo kenneth-huebsch/locks --branch main --workflow Deploy`.
+Detailed agent rules live in `AGENTS.md` and `.agent/skills/deploying-locks/`.
+
 ## Operational notes
 
 - Normal application deployment is `npm run deploy:infrastructure` followed by

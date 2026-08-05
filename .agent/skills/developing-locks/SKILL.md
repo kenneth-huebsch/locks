@@ -63,3 +63,29 @@ functions, API routes, CDK wiring, shared types, and frontend components.
 
 See `testing-guide.md` for patterns, what to test per layer, and how to run
 targeted tests.
+
+## Shipping and production impact
+
+**Pushing or merging to `main` deploys production automatically.**
+
+The **Deploy** GitHub Actions workflow (`.github/workflows/deploy.yml`) runs on
+every push to `main` and executes:
+
+1. `npm ci`, lint, typecheck, test, build, synth
+2. `npm run deploy:infrastructure` (`LocksAppStack` only)
+3. `npm run deploy:app` (SPA to S3, foundation seed, CloudFront invalidation)
+
+So:
+
+- Approval to **commit and push `main`** (or merge a PR to `main`) is approval
+  to change the live site at https://d141pq884g4gai.cloudfront.net
+- Do **not** plan "code only, no deploy" if the delivery path is `main`
+- Prefer a **PR** when the user has not accepted production impact yet
+- After push, verify with `gh run list --repo kenneth-huebsch/locks --branch main`
+  and/or `npx tsx scripts/verify-deployment.ts` when credentials allow
+- Manual/local deploy commands are documented in
+  `.agent/skills/deploying-locks/SKILL.md`; they still need explicit approval
+  and are not required for normal `main` app updates
+
+Foundation/OIDC changes never ride this workflow; see managing-locks-infrastructure.
+

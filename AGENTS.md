@@ -90,6 +90,13 @@ docs/                    Data model and handoff documents
   production data.**
 - **Do not commit, push, merge, publish, or open a PR unless explicitly
   requested.**
+- **A push (or merge) to `main` is a production deploy.** `.github/workflows/deploy.yml`
+  runs on every `main` push: lint, typecheck, test, build, synth, then
+  `deploy:infrastructure` and `deploy:app` (S3 + CloudFront invalidation).
+  Treat approval to commit/push to `main` as approval to ship live unless the
+  user explicitly says otherwise. Prefer a PR when the user has not approved
+  production impact. Local `deploy:*` commands still need separate explicit
+  approval.
 
 ## Engineering Workflow
 
@@ -105,6 +112,25 @@ docs/                    Data model and handoff documents
   command.
 - See `.agent/skills/developing-locks/SKILL.md` for code conventions and
   testing patterns.
+
+## How production gets deployed (read this before shipping)
+
+| Path | What happens | Approval model |
+|---|---|---|
+| **Push/merge to `main`** | GitHub Actions workflow **Deploy** (`.github/workflows/deploy.yml`) automatically deploys **only** `LocksAppStack`: quality gates → `npm run deploy:infrastructure` → `npm run deploy:app` (publish SPA, seed foundation fixture, CloudFront invalidate). Live URL: https://d141pq884g4gai.cloudfront.net | User approval to land on `main` **is** production deploy approval. Do not claim "no deploy" after pushing `main`. |
+| **Local `deploy:infrastructure` / `deploy:app`** | Same app stack / publish path run from an operator machine or Mira container | Separate explicit approval each time |
+| **Local `deploy:oidc`** | Foundation IAM/OIDC only — **not** run by GitHub Actions | Always explicit approval; higher risk |
+
+Implications for agents:
+
+1. Direct commits to `main` ship to production within a few minutes if CI is green.
+2. PRs do **not** deploy until merged to `main`.
+3. Frontend-only and backend app-stack changes both ride the same `main` workflow.
+4. Foundation/OIDC/IAM still never deploys from GitHub; those stay local + approved.
+5. After a `main` push, check `gh run list --branch main` (workflow **Deploy**) and
+   do not tell the user the site is undeployed if that run succeeded.
+6. Details: `.agent/skills/deploying-locks/SKILL.md` and `deploy-flows.md`
+   (Flow 0: GitHub Actions from `main`).
 
 ## Data and Destructive Operations
 

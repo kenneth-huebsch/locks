@@ -20,6 +20,13 @@ Fast-start guide for any agent working on this repository.
 | Cognito user pool | `us-east-1_6a7XXnD43` |
 | GitHub deploy | OIDC from `main` → `LocksAppStack` only |
 
+## 2b. Production deploy path
+
+**Push/merge to `main` = production deploy.** Workflow **Deploy** runs
+infrastructure + SPA publish automatically. PRs do not deploy until merged.
+Foundation/OIDC is never deployed by GitHub. Read `AGENTS.md` → "How production
+gets deployed" and `.agent/skills/deploying-locks/SKILL.md` before shipping.
+
 ## 3. AWS Profiles (Container)
 
 | Profile | Purpose | Identity |
