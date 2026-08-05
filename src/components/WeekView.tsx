@@ -178,7 +178,7 @@ export function WeekView({
       )}
 
       {pendingSelections.length > 0 ? (
-        <div className="sticky bottom-0 mt-8 border-t border-slate-200 bg-slate-50 py-4">
+        <div className="sticky bottom-0 mt-8 border-t border-slate-200 bg-slate-50 px-4 pb-safe pt-4 md:px-0">
           <button
             className="w-full bg-blue-950 px-5 py-3 font-bold text-white hover:bg-blue-800"
             onClick={() => setIsModalOpen(true)}

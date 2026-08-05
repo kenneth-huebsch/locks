@@ -18,12 +18,12 @@ export interface GameCardProps {
   now?: Date;
 }
 
-function teamLabel(team: string, abbr: string): string {
+function accessibleTeamLabel(team: string, abbr: string): string {
   return `${team} (${abbr})`;
 }
 
-function spreadLabel(abbr: string, spread: number): string {
-  return `${abbr} ${formatSpread(spread)}`;
+function accessiblePickLabel(team: string, abbr: string, spread: number): string {
+  return `${accessibleTeamLabel(team, abbr)} ${formatSpread(spread)}`;
 }
 
 function matchesTeam(
@@ -67,7 +67,7 @@ export function GameCard({
     matchesTeam(game.homeTeam, game.homeAbbr, existingPick.pickedTeam);
 
   return (
-    <article className="border border-slate-200 bg-white p-6 shadow-sm">
+    <article className="border border-slate-200 bg-white p-4 shadow-sm md:p-6">
       <div className="flex items-start justify-between gap-4">
         <p className="text-sm font-semibold text-slate-500">
           {formatKickoffTime(game.commenceTime)}
@@ -81,25 +81,27 @@ export function GameCard({
 
       <div className="mt-4 grid gap-3">
         <SideButton
+          abbr={game.awayAbbr}
           disabled={!selectable}
           isLocked={Boolean(lockedAway)}
           isSelected={awaySelected}
-          label={teamLabel(game.awayTeam, game.awayAbbr)}
           lockedSpread={lockedAway ? existingPick?.spreadAtPick : undefined}
           onSelect={() => onPick(game.id, game.awayTeam, game.awaySpread)}
-          spread={spreadLabel(game.awayAbbr, game.awaySpread)}
+          spread={game.awaySpread}
+          teamName={game.awayTeam}
         />
         <p className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
           at
         </p>
         <SideButton
+          abbr={game.homeAbbr}
           disabled={!selectable}
           isLocked={Boolean(lockedHome)}
           isSelected={homeSelected}
-          label={teamLabel(game.homeTeam, game.homeAbbr)}
           lockedSpread={lockedHome ? existingPick?.spreadAtPick : undefined}
           onSelect={() => onPick(game.id, game.homeTeam, game.homeSpread)}
-          spread={spreadLabel(game.homeAbbr, game.homeSpread)}
+          spread={game.homeSpread}
+          teamName={game.homeTeam}
         />
       </div>
     </article>
@@ -107,8 +109,9 @@ export function GameCard({
 }
 
 interface SideButtonProps {
-  label: string;
-  spread: string;
+  teamName: string;
+  abbr: string;
+  spread: number;
   disabled: boolean;
   isSelected: boolean;
   isLocked: boolean;
@@ -117,7 +120,8 @@ interface SideButtonProps {
 }
 
 function SideButton({
-  label,
+  teamName,
+  abbr,
   spread,
   disabled,
   isSelected,
@@ -125,6 +129,9 @@ function SideButton({
   lockedSpread,
   onSelect,
 }: SideButtonProps) {
+  const displaySpread = lockedSpread ?? spread;
+  const spreadText = `${abbr} ${formatSpread(displaySpread)}`;
+
   const stateClass = isLocked
     ? 'border-blue-950 bg-blue-50'
     : isSelected
@@ -135,24 +142,31 @@ function SideButton({
 
   return (
     <button
-      className={`w-full border px-4 py-3 text-left transition-colors ${stateClass} ${
+      aria-label={accessiblePickLabel(teamName, abbr, displaySpread)}
+      className={`w-full border px-3 py-2.5 text-left transition-colors md:px-4 md:py-3 ${stateClass} ${
         disabled && !isLocked ? 'cursor-not-allowed' : ''
       }`}
       disabled={disabled}
       onClick={onSelect}
       type="button"
     >
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="font-bold text-blue-950">{label}</p>
-          <p className="mt-1 text-sm text-slate-600">
-            {isLocked && lockedSpread !== undefined
-              ? `${spread.split(' ')[0]} ${formatSpread(lockedSpread)}`
-              : spread}
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="font-bold text-blue-950 md:hidden">{spreadText}</p>
+          <p className="truncate text-xs text-slate-500 md:hidden">{teamName}</p>
+          <p className="hidden font-bold text-blue-950 md:block">
+            {accessibleTeamLabel(teamName, abbr)}
+          </p>
+          <p className="mt-1 hidden text-sm text-slate-600 md:block">
+            {spreadText}
           </p>
         </div>
         {isLocked ? (
-          <span aria-label="Locked pick" className="text-blue-950" title="Locked">
+          <span
+            aria-label="Locked pick"
+            className="shrink-0 text-blue-950"
+            title="Locked"
+          >
             🔒
           </span>
         ) : null}

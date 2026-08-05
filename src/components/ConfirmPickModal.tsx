@@ -56,24 +56,24 @@ export function ConfirmPickModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 px-6">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 md:items-center md:px-6">
       <div
         aria-labelledby="confirm-picks-title"
         aria-modal="true"
-        className="w-full max-w-lg border-t-4 border-blue-950 bg-white p-8 shadow-lg"
+        className="w-full max-w-lg border-t-4 border-blue-950 bg-white px-4 pt-4 pb-safe shadow-lg md:rounded-none md:p-8"
         role="dialog"
       >
         <h2
-          className="text-2xl font-black text-blue-950"
+          className="text-xl font-black text-blue-950 md:text-2xl"
           id="confirm-picks-title"
         >
           Confirm pick
         </h2>
-        <p className="mt-3 text-slate-600">
+        <p className="mt-2 text-sm text-slate-600 md:mt-3 md:text-base">
           This cannot be undone. Lock in this pick?
         </p>
 
-        <ul className="mt-6 space-y-3">
+        <ul className="mt-4 space-y-2 md:mt-6 md:space-y-3">
           {picks.map((pick) => (
             <li
               className="border border-slate-200 bg-slate-50 px-4 py-3"
@@ -93,7 +93,7 @@ export function ConfirmPickModal({
           </p>
         ) : null}
 
-        <div className="mt-8 flex gap-3">
+        <div className="mt-6 flex gap-3 md:mt-8">
           <button
             className="flex-1 border border-slate-300 px-4 py-3 font-semibold text-slate-700 hover:bg-slate-50"
             disabled={isSubmitting}

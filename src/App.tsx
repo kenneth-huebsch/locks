@@ -226,20 +226,20 @@ export function App({
   return (
     <main className="min-h-screen bg-slate-50">
       <header className="bg-blue-950 text-white">
-        <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-4 px-6 py-5">
+        <div className="mx-auto flex max-w-4xl items-center justify-between gap-2 px-4 py-3 md:gap-4 md:px-6 md:py-5">
           <button
-            className="text-2xl font-black tracking-tight"
+            className="shrink-0 text-xl font-black tracking-tight md:text-2xl"
             onClick={handleLocksClick}
             type="button"
           >
             Locks
           </button>
-          <div className="flex flex-wrap items-center gap-4">
+          <div className="flex shrink-0 items-center gap-2 md:gap-4">
             {weekSummaries.length > 0 ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center">
                 <select
                   aria-label="Weeks"
-                  className="rounded bg-white px-3 py-1.5 text-sm font-semibold text-blue-950"
+                  className="max-w-[9.5rem] truncate rounded bg-white px-2 py-1 text-xs font-semibold text-blue-950 sm:max-w-none sm:px-3 sm:py-1.5 sm:text-sm"
                   id="weeks-select"
                   onChange={(event) => {
                     const [season, week] = event.target.value
@@ -273,7 +273,7 @@ export function App({
               </div>
             ) : null}
             <button
-              className="text-sm font-semibold underline underline-offset-4"
+              className="shrink-0 whitespace-nowrap text-xs font-semibold underline underline-offset-4 sm:text-sm"
               onClick={() => void auth.logout()}
               type="button"
             >

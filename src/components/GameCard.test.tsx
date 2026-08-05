@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Game, Pick } from '../../shared/types';
 import { GameCard } from './GameCard';
@@ -44,7 +44,7 @@ describe('GameCard', () => {
     render(<GameCard game={futureGame} onPick={onPick} />);
 
     const awayButton = screen.getByRole('button', {
-      name: /Dallas Cowboys \(DAL\)/i,
+      name: /Dallas Cowboys \(DAL\) -3\.5/i,
     });
     expect(awayButton).toBeEnabled();
 
@@ -67,10 +67,10 @@ describe('GameCard', () => {
 
     expect(screen.getByText(/game in progress/i)).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /Dallas Cowboys \(DAL\)/i }),
+      screen.getByRole('button', { name: /Dallas Cowboys \(DAL\) -3\.5/i }),
     ).toBeDisabled();
     expect(
-      screen.getByRole('button', { name: /Philadelphia Eagles \(PHI\)/i }),
+      screen.getByRole('button', { name: /Philadelphia Eagles \(PHI\) \+3\.5/i }),
     ).toBeDisabled();
   });
 
@@ -84,9 +84,10 @@ describe('GameCard', () => {
     );
 
     expect(screen.getByLabelText(/locked pick/i)).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /Dallas Cowboys \(DAL\)/i }),
-    ).toBeDisabled();
-    expect(screen.getByText(/DAL -3.5/i)).toBeInTheDocument();
+    const lockedButton = screen.getByRole('button', {
+      name: /Dallas Cowboys \(DAL\) -3\.5/i,
+    });
+    expect(lockedButton).toBeDisabled();
+    expect(within(lockedButton).getAllByText(/DAL -3.5/i).length).toBeGreaterThan(0);
   });
 });

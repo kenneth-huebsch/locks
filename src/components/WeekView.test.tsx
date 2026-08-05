@@ -101,7 +101,7 @@ describe('WeekView', () => {
     ).not.toBeInTheDocument();
 
     await user.click(
-      screen.getByRole('button', { name: /Dallas Cowboys \(DAL\)/i }),
+      screen.getByRole('button', { name: /Dallas Cowboys \(DAL\) -3\.5/i }),
     );
 
     expect(
@@ -114,7 +114,7 @@ describe('WeekView', () => {
     renderWeekView();
 
     const dallasButton = screen.getByRole('button', {
-      name: /Dallas Cowboys \(DAL\)/i,
+      name: /Dallas Cowboys \(DAL\) -3\.5/i,
     });
 
     await user.click(dallasButton);
@@ -133,17 +133,17 @@ describe('WeekView', () => {
     renderWeekView();
 
     await user.click(
-      screen.getByRole('button', { name: /Dallas Cowboys \(DAL\)/i }),
+      screen.getByRole('button', { name: /Dallas Cowboys \(DAL\) -3\.5/i }),
     );
     await user.click(
-      screen.getByRole('button', { name: /Philadelphia Eagles \(PHI\)/i }),
+      screen.getByRole('button', { name: /Philadelphia Eagles \(PHI\) \+3\.5/i }),
     );
 
     expect(
       screen.getByRole('button', { name: /submit pick/i }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: /Dallas Cowboys \(DAL\)/i }),
+      screen.queryByRole('button', { name: /Dallas Cowboys \(DAL\) -3\.5/i }),
     ).not.toHaveClass('border-blue-700');
   });
 
@@ -152,10 +152,10 @@ describe('WeekView', () => {
     renderWeekView();
 
     await user.click(
-      screen.getByRole('button', { name: /Dallas Cowboys \(DAL\)/i }),
+      screen.getByRole('button', { name: /Dallas Cowboys \(DAL\) -3\.5/i }),
     );
     await user.click(
-      screen.getByRole('button', { name: /New York Giants \(NYG\)/i }),
+      screen.getByRole('button', { name: /New York Giants \(NYG\) \+2\.5/i }),
     );
 
     expect(
@@ -186,7 +186,7 @@ describe('WeekView', () => {
     renderWeekView({ ...mockWeek, remainingPicks: 0 });
 
     await user.click(
-      screen.getByRole('button', { name: /Dallas Cowboys \(DAL\)/i }),
+      screen.getByRole('button', { name: /Dallas Cowboys \(DAL\) -3\.5/i }),
     );
 
     expect(
@@ -205,7 +205,7 @@ describe('WeekView', () => {
     renderWeekView(mockWeek, onRefresh);
 
     await user.click(
-      screen.getByRole('button', { name: /Dallas Cowboys \(DAL\)/i }),
+      screen.getByRole('button', { name: /Dallas Cowboys \(DAL\) -3\.5/i }),
     );
     await user.click(screen.getByRole('button', { name: /submit pick/i }));
     await user.click(screen.getByRole('button', { name: /^confirm$/i }));
@@ -238,7 +238,7 @@ describe('WeekView', () => {
     renderWeekView(mockWeek, onRefresh);
 
     await user.click(
-      screen.getByRole('button', { name: /Dallas Cowboys \(DAL\)/i }),
+      screen.getByRole('button', { name: /Dallas Cowboys \(DAL\) -3\.5/i }),
     );
     await user.click(screen.getByRole('button', { name: /submit pick/i }));
     await user.click(screen.getByRole('button', { name: /^confirm$/i }));
