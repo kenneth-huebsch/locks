@@ -158,7 +158,7 @@ describe('App', () => {
     expect(screen.getByText('DAL @ PHI')).toBeInTheDocument();
     expect(screen.getAllByText('Kenny').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Jack').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Eric').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('No pick')).not.toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
     expect(
       screen.queryByRole('heading', { name: /picks board/i }),
@@ -180,7 +180,7 @@ describe('App', () => {
     expect(await screen.findByLabelText(/standings/i)).toBeInTheDocument();
     expect(screen.getByText('1-0-0')).toBeInTheDocument();
     expect(screen.getByText('0-1-0')).toBeInTheDocument();
-    expect(screen.getByText('No pick')).toBeInTheDocument();
+    expect(screen.queryByText('No pick')).not.toBeInTheDocument();
   });
 
   it('navigates to the current week when Locks is clicked from a past week', async () => {

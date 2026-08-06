@@ -25,11 +25,7 @@ function pickChipLabel(pick: Pick): string {
   return `${abbr} ${formatSpread(pick.spreadAtPick)}`;
 }
 
-function PickChip({ pick }: { pick: Pick | undefined }) {
-  if (!pick) {
-    return <span className="text-xs text-slate-400">No pick</span>;
-  }
-
+function PickChip({ pick }: { pick: Pick }) {
   return (
     <span
       className={`inline-block rounded px-2 py-0.5 text-xs font-semibold ${RESULT_STYLES[pick.result]}`}
@@ -94,8 +90,11 @@ export function PicksBoard({
               </p>
             </div>
             <ul className="space-y-1">
-              {LEAGUE_ROSTER.map((player) => {
+              {LEAGUE_ROSTER.flatMap((player) => {
                 const pick = picksByPlayerAndGame.get(`${player.sub}:${game.id}`);
+                if (!pick) {
+                  return [];
+                }
 
                 return (
                   <li

@@ -73,7 +73,7 @@ describe('PicksBoard', () => {
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
-  it('shows exactly three roster labels Kenny, Jack, and Eric per game', () => {
+  it('shows only players who submitted a pick for each game', () => {
     render(
       <PicksBoard
         games={[game]}
@@ -85,12 +85,12 @@ describe('PicksBoard', () => {
 
     expect(screen.getAllByText('Kenny')).toHaveLength(1);
     expect(screen.getAllByText('Jack')).toHaveLength(1);
-    expect(screen.getAllByText('Eric')).toHaveLength(1);
+    expect(screen.queryByText('Eric')).not.toBeInTheDocument();
     expect(screen.queryByText('Player')).not.toBeInTheDocument();
     expect(screen.queryByText('stray-sub')).not.toBeInTheDocument();
   });
 
-  it('shows pick chips with team abbr and spread, and No pick for empty slots', () => {
+  it('shows pick chips with team abbr and spread for submitted picks', () => {
     render(
       <PicksBoard
         games={[game]}
@@ -102,6 +102,6 @@ describe('PicksBoard', () => {
 
     expect(screen.getByText('DAL -3.5')).toBeInTheDocument();
     expect(screen.getByText('PHI +3.5')).toBeInTheDocument();
-    expect(screen.getByText('No pick')).toBeInTheDocument();
+    expect(screen.queryByText('No pick')).not.toBeInTheDocument();
   });
 });
