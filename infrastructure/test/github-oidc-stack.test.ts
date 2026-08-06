@@ -548,6 +548,42 @@ describe('LocksGitHubOidcStack', () => {
     template.hasOutput('AppPublishRoleArn', {});
   });
 
+  it('grants scoped Cognito user ops on the app publish role', () => {
+    const statements = inlineRoleStatements(template, 'LocksAppPublishRole');
+    const cognitoStatement = statements.find(({ Sid }) => Sid === 'CognitoUserOps');
+    const actions = statements.flatMap(({ Action }) => toArray(Action));
+
+    expect(cognitoStatement).toBeDefined();
+    expect(cognitoStatement).toMatchObject({
+      Effect: 'Allow',
+      Sid: 'CognitoUserOps',
+      Action: expect.arrayContaining([
+        'cognito-idp:AdminCreateUser',
+        'cognito-idp:AdminGetUser',
+        'cognito-idp:ListUsers',
+        'cognito-idp:AdminDisableUser',
+        'cognito-idp:AdminEnableUser',
+        'cognito-idp:AdminSetUserPassword',
+        'cognito-idp:AdminResetUserPassword',
+      ]),
+      Resource:
+        'arn:aws:cognito-idp:us-east-1:580956784928:userpool/*',
+    });
+    expect(toArray(cognitoStatement!.Action).sort()).toEqual([
+      'cognito-idp:AdminCreateUser',
+      'cognito-idp:AdminDisableUser',
+      'cognito-idp:AdminEnableUser',
+      'cognito-idp:AdminGetUser',
+      'cognito-idp:AdminResetUserPassword',
+      'cognito-idp:AdminSetUserPassword',
+      'cognito-idp:ListUsers',
+    ]);
+    expect(actions).not.toContain('cognito-idp:AdminDeleteUser');
+    expect(actions).not.toContain('cognito-idp:CreateUserPool');
+    expect(actions).not.toContain('cognito-idp:DeleteUserPool');
+    expect(toArray(cognitoStatement!.Resource)).not.toContain('*');
+  });
+
   it('creates a coding-agent read policy for live verification', () => {
     const policies = managedPolicyStatements(template);
     const statements = policies.LocksCodingAgentReadPolicy;
@@ -618,6 +654,7 @@ interface PolicyStatementDocument {
   Condition?: Record<string, Record<string, string | string[]>>;
   Effect: string;
   Resource: string | string[];
+  Sid?: string;
 }
 
 interface RoleResource {

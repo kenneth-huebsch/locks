@@ -678,7 +678,7 @@ export class LocksGitHubOidcStack extends Stack {
         `arn:aws:iam::${TARGET_ACCOUNT}:user/coding-agent`,
       ),
       description:
-        'Publishes the Locks static site and seeds application data',
+        'Publishes the Locks static site, seeds application data, and manages Cognito users',
       maxSessionDuration: Duration.hours(1),
     });
     appPublishRole.node.addDependency(iamExecutionPolicy);
@@ -831,6 +831,23 @@ export class LocksGitHubOidcStack extends Stack {
         actions: ['cloudfront:CreateInvalidation'],
         resources: [
           `arn:aws:cloudfront::${TARGET_ACCOUNT}:distribution/*`,
+        ],
+      }),
+    );
+    appPublishRole.addToPolicy(
+      new PolicyStatement({
+        sid: 'CognitoUserOps',
+        actions: [
+          'cognito-idp:AdminCreateUser',
+          'cognito-idp:AdminGetUser',
+          'cognito-idp:ListUsers',
+          'cognito-idp:AdminDisableUser',
+          'cognito-idp:AdminEnableUser',
+          'cognito-idp:AdminSetUserPassword',
+          'cognito-idp:AdminResetUserPassword',
+        ],
+        resources: [
+          `arn:aws:cognito-idp:${TARGET_REGION}:${TARGET_ACCOUNT}:userpool/*`,
         ],
       }),
     );
