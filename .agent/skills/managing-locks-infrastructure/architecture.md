@@ -88,8 +88,13 @@ Static publishing and seeding from Mira use a separate path:
 ```text
 coding-agent
   -> LocksAppPublishRole
-  -> Locks site bucket, CloudFront invalidation, and table seed only
+  -> Locks site bucket, CloudFront invalidation, table seed, and Cognito user ops
 ```
+
+`LocksAppPublishRole` Cognito permissions live in the role inline policy
+(`CognitoUserOps`). Keep the role Description string stable in CDK: the
+foundation CloudFormation execution policy does not grant
+`iam:UpdateRoleDescription`, so Description changes fail OIDC stack updates.
 
 `LocksAppCloudFormationExecutionRole` cannot mutate foundation, GitHub, deployment, or execution identities. It may manage only `LocksAppStack-*` runtime roles.
 

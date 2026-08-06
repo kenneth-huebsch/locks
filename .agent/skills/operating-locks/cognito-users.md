@@ -98,5 +98,9 @@ AWS_PROFILE=locks-publish aws cognito-idp admin-disable-user \
 - The app maps Cognito `sub` to player identity. Do not delete and recreate
   users — this creates a new `sub` and loses the player's pick history.
 - `LocksAppPublishRole` grants create, get, list, enable, disable, set/reset
-  password on the Locks user pool. It does not grant `AdminDeleteUser` or pool
-  create/delete.
+  password on the Locks user pool via the inline `CognitoUserOps` policy
+  statement (not the role Description). It does not grant `AdminDeleteUser` or
+  pool create/delete.
+- Keep the `LocksAppPublishRole` IAM role Description stable in CDK. The
+  foundation CloudFormation execution policy does not grant
+  `iam:UpdateRoleDescription`; changing the Description blocks OIDC stack updates.

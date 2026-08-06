@@ -677,8 +677,10 @@ export class LocksGitHubOidcStack extends Stack {
       assumedBy: new ArnPrincipal(
         `arn:aws:iam::${TARGET_ACCOUNT}:user/coding-agent`,
       ),
+      // Role Description is intentionally stable; LocksCdkIamExecutionPolicy
+      // does not grant iam:UpdateRoleDescription.
       description:
-        'Publishes the Locks static site, seeds application data, and manages Cognito users',
+        'Publishes the Locks static site and seeds application data',
       maxSessionDuration: Duration.hours(1),
     });
     appPublishRole.node.addDependency(iamExecutionPolicy);

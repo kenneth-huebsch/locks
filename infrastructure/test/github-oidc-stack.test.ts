@@ -518,6 +518,9 @@ describe('LocksGitHubOidcStack', () => {
       .filter(({ Action }) => !toArray(Action).includes('sts:GetCallerIdentity'))
       .flatMap(({ Resource }) => toArray(Resource));
 
+    expect(publishRole.Properties.Description).toBe(
+      'Publishes the Locks static site and seeds application data',
+    );
     expect(trust).toContain(
       'arn:aws:iam::580956784928:user/coding-agent',
     );
@@ -661,6 +664,7 @@ interface RoleResource {
   DependsOn?: string[];
   Properties: {
     AssumeRolePolicyDocument: object;
+    Description?: string;
     Policies?: Array<{
       PolicyDocument: {
         Statement: PolicyStatementDocument[];
