@@ -1,4 +1,5 @@
 import { getTeamByAbbr } from '../../shared/teams';
+import { ERIC_SUB, JACK_SUB, KENNY_SUB } from './players';
 import {
   ErrorCodes,
   type CurrentWeekResponse,
@@ -21,10 +22,6 @@ export class MockPickError extends Error {
 }
 
 const MOCK_SEASON = 2026;
-
-const KENNY_SUB = 'kenny-sub';
-const JACK_SUB = 'jack-sub';
-const ERIC_SUB = 'eric-sub';
 
 function seasonWeekKey(week: number): string {
   return `${MOCK_SEASON}#W${String(week).padStart(2, '0')}`;

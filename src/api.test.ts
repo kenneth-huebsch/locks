@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ApiError, loadWeek, submitPick } from './api';
 import { ErrorCodes } from '../shared/types';
+import { KENNY_SUB } from './lib/players';
 import { resetMockWeeks } from './lib/mockWeeks';
 
 describe('api mock weeks', () => {
@@ -24,11 +25,11 @@ describe('api mock weeks', () => {
         spreadAtPick: 3,
       },
       '/api',
-      'kenny-sub',
+      KENNY_SUB,
     );
 
     expect(response.pick).toMatchObject({
-      playerId: 'kenny-sub',
+      playerId: KENNY_SUB,
       gameId: 'w3-g2',
       pickedTeam: 'Miami Dolphins',
       spreadAtPick: 3,
@@ -39,7 +40,7 @@ describe('api mock weeks', () => {
     expect(after.remainingPicks).toBe(1);
     expect(
       after.picks.filter(
-        (pick) => pick.playerId === 'kenny-sub' && pick.gameId === 'w3-g2',
+        (pick) => pick.playerId === KENNY_SUB && pick.gameId === 'w3-g2',
       ),
     ).toHaveLength(1);
   });
@@ -54,7 +55,7 @@ describe('api mock weeks', () => {
           spreadAtPick: -2.5,
         },
         '/api',
-        'kenny-sub',
+        KENNY_SUB,
       ),
     ).rejects.toMatchObject({
       code: ErrorCodes.DUPLICATE_PICK,
@@ -71,7 +72,7 @@ describe('api mock weeks', () => {
           spreadAtPick: 2.5,
         },
         '/api',
-        'kenny-sub',
+        KENNY_SUB,
       ),
     ).rejects.toBeInstanceOf(ApiError);
   });
@@ -97,7 +98,7 @@ describe('api mock weeks', () => {
     const after = await loadWeek('token', 2026, 3, '/api', 'other-user-sub');
     expect(after.remainingPicks).toBe(2);
 
-    const forKenny = await loadWeek('token', 2026, 3, '/api', 'kenny-sub');
+    const forKenny = await loadWeek('token', 2026, 3, '/api', KENNY_SUB);
     expect(forKenny.remainingPicks).toBe(2);
   });
 

@@ -7,7 +7,7 @@ import {
 } from './players';
 
 describe('LEAGUE_ROSTER', () => {
-  it('lists Kenny, Jack, and Eric in order with mock subs', () => {
+  it('lists Kenny, Jack, and Eric in order with league subs', () => {
     expect(LEAGUE_ROSTER).toHaveLength(3);
     expect(LEAGUE_ROSTER.map((player) => player.displayName)).toEqual([
       'Kenny',

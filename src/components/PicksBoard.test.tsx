@@ -2,6 +2,7 @@
 
 import { render, screen } from '@testing-library/react';
 import type { Game, Pick } from '../../shared/types';
+import { JACK_SUB, KENNY_SUB } from '../lib/players';
 import { PicksBoard } from './PicksBoard';
 
 const game: Game = {
@@ -20,7 +21,7 @@ const game: Game = {
 
 const picks: Pick[] = [
   {
-    playerId: 'kenny-sub',
+    playerId: KENNY_SUB,
     gameId: 'w1-g1',
     seasonWeek: '2026#W01',
     pickedTeam: 'Dallas Cowboys',
@@ -29,7 +30,7 @@ const picks: Pick[] = [
     result: 'win',
   },
   {
-    playerId: 'jack-sub',
+    playerId: JACK_SUB,
     gameId: 'w1-g1',
     seasonWeek: '2026#W01',
     pickedTeam: 'Philadelphia Eagles',
@@ -54,11 +55,11 @@ describe('PicksBoard', () => {
       <PicksBoard
         games={[game]}
         picks={picks}
-        userSub="kenny-sub"
+        userSub={KENNY_SUB}
         weekNumber={1}
         playerRecords={{
-          'kenny-sub': '1-0-0',
-          'jack-sub': '0-1-0',
+          [KENNY_SUB]: '1-0-0',
+          [JACK_SUB]: '0-1-0',
         }}
       />,
     );
@@ -78,7 +79,7 @@ describe('PicksBoard', () => {
       <PicksBoard
         games={[game]}
         picks={picks}
-        userSub="kenny-sub"
+        userSub={KENNY_SUB}
         weekNumber={1}
       />,
     );
@@ -95,7 +96,7 @@ describe('PicksBoard', () => {
       <PicksBoard
         games={[game]}
         picks={picks}
-        userSub="kenny-sub"
+        userSub={KENNY_SUB}
         weekNumber={1}
       />,
     );

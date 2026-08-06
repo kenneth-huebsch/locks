@@ -4,6 +4,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { App, type AppAuth } from './App';
 import type { CurrentWeekResponse, WeekSummary } from '../shared/types';
+import { JACK_SUB, KENNY_SUB } from './lib/players';
 
 const weekSummaries: WeekSummary[] = [
   { season: 2026, week: 3, isCurrent: true },
@@ -62,7 +63,7 @@ const pastWeek: CurrentWeekResponse = {
   ],
   picks: [
     {
-      playerId: 'kenny-sub',
+      playerId: KENNY_SUB,
       gameId: 'w1-g1',
       seasonWeek: '2026#W01',
       pickedTeam: 'Dallas Cowboys',
@@ -71,7 +72,7 @@ const pastWeek: CurrentWeekResponse = {
       result: 'win',
     },
     {
-      playerId: 'jack-sub',
+      playerId: JACK_SUB,
       gameId: 'w1-g1',
       seasonWeek: '2026#W01',
       pickedTeam: 'Philadelphia Eagles',
@@ -102,7 +103,7 @@ function renderApp(
         ...unauthenticatedAuth,
         isAuthenticated: true,
         accessToken: 'access-token',
-        userSub: 'kenny-sub',
+        userSub: KENNY_SUB,
       }}
       listWeeks={listWeeksFn}
       loadPicksThroughWeek={loadPicksThroughWeek}
@@ -260,7 +261,7 @@ describe('App', () => {
           ...unauthenticatedAuth,
           isAuthenticated: true,
           accessToken: 'access-token',
-          userSub: 'kenny-sub',
+          userSub: KENNY_SUB,
           logout,
         }}
         listWeeks={vi.fn().mockResolvedValue(weekSummaries)}

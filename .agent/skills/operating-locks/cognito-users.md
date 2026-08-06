@@ -2,11 +2,15 @@
 
 ## Current Users
 
-| User | Status |
-|---|---|
-| `kenneth.huebsch@gmail.com` | Active, password changed |
-| Jack (`Jdmanning88@gmail.com`) | Pending — invite not yet issued (awaiting IAM deploy and user creation) |
-| Eric | Pending — email address needed |
+| User | Email | Cognito `sub` | Status |
+|---|---|---|---|
+| Kenny | `kenneth.huebsch@gmail.com` | `24a8f498-30c1-70ad-4a0e-7e19c41aa52d` | Active (`CONFIRMED`) |
+| Jack | `Jdmanning88@gmail.com` | `d4786428-20f1-706e-4859-0106786a1438` | Invited (`FORCE_CHANGE_PASSWORD`) |
+| Eric | — | `eric-sub` (placeholder) | Pending — email address needed |
+
+The picks board roster maps display names to Cognito `sub` values in
+`src/lib/players.ts` (`KENNY_SUB`, `JACK_SUB`, `ERIC_SUB`). Do not change a
+live user's `sub` by deleting and recreating the Cognito user.
 
 ## User Pool Details
 
@@ -17,9 +21,9 @@
 
 ## AWS Profile for User Operations
 
-Mutating Cognito user operations require explicit approval. After the
-`LocksAppPublishRole` Cognito user-ops policy is deployed, use the Mira
-shared-credentials profile that assumes that role:
+Mutating Cognito user operations require explicit approval. Use the Mira
+shared-credentials profile that assumes `LocksAppPublishRole` (see
+`APP_PUBLISH_ROLE_NAME` in `infrastructure/lib/github-oidc-stack.ts`):
 
 ```bash
 AWS_PROFILE=locks-publish
