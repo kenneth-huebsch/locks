@@ -1,5 +1,5 @@
 import { getTeamByAbbr } from '../../shared/teams';
-import { ERIC_SUB, JACK_SUB, KENNY_SUB } from './players';
+import { JACK_SUB, KENNY_2_SUB, KENNY_SUB } from './players';
 import {
   ErrorCodes,
   type CurrentWeekResponse,
@@ -151,7 +151,7 @@ const week1: CurrentWeekResponse = {
       result: 'loss',
     },
     {
-      playerId: ERIC_SUB,
+      playerId: KENNY_2_SUB,
       gameId: 'w1-g1',
       seasonWeek: seasonWeekKey(1),
       pickedTeam: 'Dallas Cowboys',
@@ -178,7 +178,7 @@ const week1: CurrentWeekResponse = {
       result: 'loss',
     },
     {
-      playerId: ERIC_SUB,
+      playerId: KENNY_2_SUB,
       gameId: 'w1-g2',
       seasonWeek: seasonWeekKey(1),
       pickedTeam: 'Washington Commanders',
@@ -219,7 +219,7 @@ const week2: CurrentWeekResponse = {
       result: 'loss',
     },
     {
-      playerId: ERIC_SUB,
+      playerId: KENNY_2_SUB,
       gameId: 'w2-g1',
       seasonWeek: seasonWeekKey(2),
       pickedTeam: 'Buffalo Bills',
@@ -246,7 +246,7 @@ const week2: CurrentWeekResponse = {
       result: 'win',
     },
     {
-      playerId: ERIC_SUB,
+      playerId: KENNY_2_SUB,
       gameId: 'w2-g2',
       seasonWeek: seasonWeekKey(2),
       pickedTeam: 'San Francisco 49ers',

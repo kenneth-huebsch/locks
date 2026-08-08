@@ -86,7 +86,7 @@ describe('PicksBoard', () => {
 
     expect(screen.getAllByText('Kenny')).toHaveLength(1);
     expect(screen.getAllByText('Jack')).toHaveLength(1);
-    expect(screen.queryByText('Eric')).not.toBeInTheDocument();
+    expect(screen.queryByText('Kenny-2')).not.toBeInTheDocument();
     expect(screen.queryByText('Player')).not.toBeInTheDocument();
     expect(screen.queryByText('stray-sub')).not.toBeInTheDocument();
   });
