@@ -6,10 +6,10 @@
 |---|---|---|---|
 | Kenny | `kenneth.huebsch@gmail.com` | `24a8f498-30c1-70ad-4a0e-7e19c41aa52d` | Active (`CONFIRMED`) |
 | Jack | `Jdmanning88@gmail.com` | `d4786428-20f1-706e-4859-0106786a1438` | Invited (`FORCE_CHANGE_PASSWORD`) |
-| Eric | — | `eric-sub` (placeholder) | Pending — email address needed |
+| Kenny-2 | `kenny@puffin.dev` | `74886468-f081-7075-48c8-17f35e06d95e` | Invited (`FORCE_CHANGE_PASSWORD`) |
 
 The picks board roster maps display names to Cognito `sub` values in
-`src/lib/players.ts` (`KENNY_SUB`, `JACK_SUB`, `ERIC_SUB`). Do not change a
+`src/lib/players.ts` (`KENNY_SUB`, `JACK_SUB`, `KENNY_2_SUB`). Do not change a
 live user's `sub` by deleting and recreating the Cognito user.
 
 ## User Pool Details
