@@ -538,6 +538,9 @@ describe('LocksGitHubOidcStack', () => {
         'ssm:PutParameter',
         'ssm:GetParameter',
         'ssm:DeleteParameter',
+        'lambda:InvokeFunction',
+        'lambda:GetFunction',
+        'lambda:GetFunctionConfiguration',
         'sts:GetCallerIdentity',
       ]),
     );
@@ -550,9 +553,25 @@ describe('LocksGitHubOidcStack', () => {
         'arn:aws:s3:::locks-580956784928-us-east-1-site',
         'arn:aws:s3:::locks-580956784928-us-east-1-site/*',
         'arn:aws:ssm:us-east-1:580956784928:parameter/locks/odds-api-key',
+        'arn:aws:lambda:us-east-1:580956784928:function:LocksAppStack-SyncOddsFunction*',
       ]),
     );
     template.hasOutput('AppPublishRoleArn', {});
+  });
+
+  it('grants LocksAppPublishRole scoped SyncOdds Lambda invoke', () => {
+    const statements = inlineRoleStatements(template, 'LocksAppPublishRole');
+    const syncOdds = statements.find(({ Sid }) => Sid === 'SyncOddsInvoke');
+    expect(syncOdds).toMatchObject({
+      Sid: 'SyncOddsInvoke',
+      Action: expect.arrayContaining([
+        'lambda:InvokeFunction',
+        'lambda:GetFunction',
+        'lambda:GetFunctionConfiguration',
+      ]),
+      Resource:
+        'arn:aws:lambda:us-east-1:580956784928:function:LocksAppStack-SyncOddsFunction*',
+    });
   });
 
   it('grants LocksAppPublishRole scoped Odds API key SSM write', () => {

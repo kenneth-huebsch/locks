@@ -838,6 +838,19 @@ export class LocksGitHubOidcStack extends Stack {
     );
     appPublishRole.addToPolicy(
       new PolicyStatement({
+        sid: 'SyncOddsInvoke',
+        actions: [
+          'lambda:InvokeFunction',
+          'lambda:GetFunction',
+          'lambda:GetFunctionConfiguration',
+        ],
+        resources: [
+          `arn:aws:lambda:${TARGET_REGION}:${TARGET_ACCOUNT}:function:LocksAppStack-SyncOddsFunction*`,
+        ],
+      }),
+    );
+    appPublishRole.addToPolicy(
+      new PolicyStatement({
         sid: 'OddsApiKeyWrite',
         actions: ['ssm:PutParameter', 'ssm:GetParameter', 'ssm:DeleteParameter'],
         resources: [

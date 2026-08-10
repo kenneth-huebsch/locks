@@ -90,3 +90,21 @@ AWS_PROFILE=coding-agent aws dynamodb query \
   --scan-index-forward false \
   --max-items 10 --output json
 ```
+
+
+## Manual sync (operator)
+
+With `AWS_PROFILE=locks-publish` after OIDC deploy grants `SyncOddsInvoke`:
+
+```bash
+FN=$(aws lambda list-functions --query "Functions[?starts_with(FunctionName, 'LocksAppStack-SyncOddsFunction')].FunctionName | [0]" --output text)
+# or use the known physical name from CloudFormation
+aws lambda invoke \
+  --function-name LocksAppStack-SyncOddsFunctionB9942AD9-DTa4gv4jXaLm \
+  --cli-binary-format raw-in-base64-out \
+  --payload '{}' \
+  /tmp/sync-odds-out.json
+cat /tmp/sync-odds-out.json
+```
+
+`coding-agent` remains read-only and cannot invoke.
