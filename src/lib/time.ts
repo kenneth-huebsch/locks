@@ -72,15 +72,15 @@ const GAME_DAY_GROUP_ORDER: GameDayGroup[] = [
   'Other',
 ];
 
-function compareCommenceDesc(a: string, b: string): number {
-  return new Date(b).getTime() - new Date(a).getTime();
+function compareCommenceAsc(a: string, b: string): number {
+  return new Date(a).getTime() - new Date(b).getTime();
 }
 
-export function sortGamesByStartTimeDesc<T extends { commenceTime: string }>(
+export function sortGamesByStartTimeAsc<T extends { commenceTime: string }>(
   games: T[],
 ): T[] {
   return [...games].sort((left, right) =>
-    compareCommenceDesc(left.commenceTime, right.commenceTime),
+    compareCommenceAsc(left.commenceTime, right.commenceTime),
   );
 }
 
@@ -114,21 +114,21 @@ export function groupGamesByDay<T extends { commenceTime: string }>(
 ): { group: GameDayGroup; games: T[] }[] {
   const grouped = new Map<GameDayGroup, T[]>();
 
-  // Newest kickoff first overall and within each day group.
-  for (const game of sortGamesByStartTimeDesc(games)) {
+  // Earliest kickoff first overall and within each day group.
+  for (const game of sortGamesByStartTimeAsc(games)) {
     const group = getGameDayGroup(game.commenceTime);
     const existing = grouped.get(group) ?? [];
     existing.push(game);
     grouped.set(group, existing);
   }
 
-  // Order day sections by the latest kickoff in that section (descending).
+  // Order day sections by the earliest kickoff in that section (ascending).
   return [...grouped.entries()]
     .map(([group, sectionGames]) => ({ group, games: sectionGames }))
     .sort((left, right) => {
       const leftTime = left.games[0]?.commenceTime ?? '';
       const rightTime = right.games[0]?.commenceTime ?? '';
-      const byTime = compareCommenceDesc(leftTime, rightTime);
+      const byTime = compareCommenceAsc(leftTime, rightTime);
       if (byTime !== 0) {
         return byTime;
       }
