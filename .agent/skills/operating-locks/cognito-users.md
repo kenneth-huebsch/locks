@@ -2,8 +2,8 @@
 
 ## Invite plan
 
-- Kenny: live
-- Jack: invite next (email required)
+- Kenny: live (`kenneth.huebsch@gmail.com`)
+- Jack: live (`jdmanning88@gmail.com`, CONFIRMED)
 - Eric: **not inviting yet** (deferred)
 - Sportsbook preference: **DraftKings**
 
@@ -12,7 +12,7 @@
 | User | Email | Cognito `sub` | Status |
 |---|---|---|---|
 | Kenny | `kenneth.huebsch@gmail.com` | `94780408-b0d1-706f-0e5e-d4dbe28dfde0` | Active (`CONFIRMED` after first login / password set) |
-| Jack | `jdmanning88@gmail.com` | `74a854f8-20d1-70a4-7d77-d560ef23adb0` | Invited / password set after pool replacement |
+| Jack | `jdmanning88@gmail.com` | `74a854f8-20d1-70a4-7d77-d560ef23adb0` | Active (`CONFIRMED`) |
 | Kenny-2 | `kenny@puffin.dev` | `0408b498-c0b1-7017-d3f4-1a82689ab2c0` | Invited / password set after pool replacement |
 
 The picks board

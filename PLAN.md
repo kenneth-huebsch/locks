@@ -41,15 +41,14 @@ Last updated: August 10, 2026.
 - [x] Kickoff ordering ascending with preseason day groups
 - [x] DraftKings preferred sportsbook locked
 - [x] Foundation dummy game removed from publish path and cleaned from live table
-- [ ] Jack Cognito account created (need email address)
+- [x] Jack Cognito account live (`jdmanning88@gmail.com`, sub mapped in `src/lib/players.ts`)
 - [ ] Eric Cognito account deferred (not inviting yet)
 - [x] Phase 2 end-to-end validation with real preseason game data
 
 ### Current open items
 
-1. **Jack invite:** need Jack's email to create a Cognito user and map roster `sub`.
-2. **Eric invite:** deferred until Kenny asks.
-3. **Phase 3 next:** score sync, grading, standings, historical results board.
+1. **Eric invite:** deferred until Kenny asks.
+2. **Phase 3 next:** score sync, grading, standings, historical results board.
 
 ## Recommendation: AWS serverless with DynamoDB caching
 
@@ -439,7 +438,7 @@ locks/
 Approved Phase 1 deviations:
 
 - No AWS Budget alert; spending is monitored manually.
-- One Cognito account was created initially. Jack and Eric remain pending until
+- Kenny and Jack Cognito accounts are live. Eric remains deferred until
   their email addresses are supplied.
 - The Odds API parameter value is deferred until Phase 2.
 
@@ -449,7 +448,7 @@ Approved Phase 1 deviations:
   `docs/data-model.md`.
 - Add the approved Odds API key to Parameter Store without exposing it to the
   browser, logs, GitHub, or source control.
-- Create Jack and Eric's Cognito accounts when their email addresses are
+- Create Eric's Cognito account when Kenny provides an email and asks to invite
   available.
 - Implement the scheduled odds synchronization Lambda.
 - Cache games and spreads in DynamoDB.
@@ -495,7 +494,7 @@ Completed:
 Still needed for multiplayer:
 
 1. Free-tier Odds API key.
-2. Jack's email address for Cognito invitation (Eric deferred).
+2. Eric's email address if/when inviting him (Jack is live).
 3. Preferred sportsbook: **DraftKings** (confirmed).
 4. Confirm whether the real launch target is 2026 Week 1 or an earlier test
    window.
