@@ -950,7 +950,7 @@ export class LocksGitHubOidcStack extends Stack {
       {
         managedPolicyName: CODING_AGENT_READ_POLICY_NAME,
         description:
-          'Read-only access to the Locks table for the coding-agent IAM user',
+          'Read-only live verification access for the coding-agent IAM user',
         statements: [
           new PolicyStatement({
             sid: 'TableRead',
@@ -969,10 +969,71 @@ export class LocksGitHubOidcStack extends Stack {
             sid: 'StackRead',
             actions: [
               'cloudformation:DescribeStacks',
+              'cloudformation:DescribeStackResources',
+              'cloudformation:DescribeStackEvents',
               'cloudformation:GetTemplate',
+              'cloudformation:ListStackResources',
             ],
             resources: [
               `arn:aws:cloudformation:${TARGET_REGION}:${TARGET_ACCOUNT}:stack/LocksAppStack/*`,
+              `arn:aws:cloudformation:${TARGET_REGION}:${TARGET_ACCOUNT}:stack/LocksGitHubOidcStack/*`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'SchedulerRead',
+            actions: [
+              'scheduler:GetSchedule',
+              'scheduler:GetScheduleGroup',
+              'scheduler:ListSchedules',
+              'scheduler:ListScheduleGroups',
+              'scheduler:ListTagsForResource',
+            ],
+            resources: [
+              `arn:aws:scheduler:${TARGET_REGION}:${TARGET_ACCOUNT}:schedule-group/locks`,
+              `arn:aws:scheduler:${TARGET_REGION}:${TARGET_ACCOUNT}:schedule-group/default`,
+              `arn:aws:scheduler:${TARGET_REGION}:${TARGET_ACCOUNT}:schedule/locks/*`,
+              `arn:aws:scheduler:${TARGET_REGION}:${TARGET_ACCOUNT}:schedule/default/*`,
+            ],
+          }),
+          // ListSchedules/ListScheduleGroups are account-scoped list APIs; some
+          // SDK paths still require a broad resource. Keep mutations denied.
+          new PolicyStatement({
+            sid: 'SchedulerList',
+            actions: [
+              'scheduler:ListSchedules',
+              'scheduler:ListScheduleGroups',
+            ],
+            resources: ['*'],
+          }),
+          new PolicyStatement({
+            sid: 'LambdaRead',
+            actions: [
+              'lambda:GetFunction',
+              'lambda:GetFunctionConfiguration',
+              'lambda:ListFunctions',
+              'lambda:ListTags',
+            ],
+            resources: [
+              `arn:aws:lambda:${TARGET_REGION}:${TARGET_ACCOUNT}:function:LocksAppStack-*`,
+            ],
+          }),
+          // ListFunctions is account-scoped.
+          new PolicyStatement({
+            sid: 'LambdaList',
+            actions: ['lambda:ListFunctions'],
+            resources: ['*'],
+          }),
+          new PolicyStatement({
+            sid: 'LambdaLogsRead',
+            actions: [
+              'logs:DescribeLogGroups',
+              'logs:DescribeLogStreams',
+              'logs:FilterLogEvents',
+              'logs:GetLogEvents',
+            ],
+            resources: [
+              `arn:aws:logs:${TARGET_REGION}:${TARGET_ACCOUNT}:log-group:/aws/lambda/LocksAppStack-*`,
+              `arn:aws:logs:${TARGET_REGION}:${TARGET_ACCOUNT}:log-group:/aws/lambda/LocksAppStack-*:*`,
             ],
           }),
           new PolicyStatement({

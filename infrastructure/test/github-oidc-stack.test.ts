@@ -169,6 +169,10 @@ describe('LocksGitHubOidcStack', () => {
       'cloudfront:CreateFunction',
       'cloudfront:CreateOriginAccessControl',
       'cognito-idp:CreateUserPool',
+      // Account-scoped list APIs used by coding-agent live verification.
+      'lambda:ListFunctions',
+      'scheduler:ListScheduleGroups',
+      'scheduler:ListSchedules',
     ]);
     expect(wildcardActions.every((action) => !action.endsWith(':*'))).toBe(true);
   });
@@ -646,6 +650,11 @@ describe('LocksGitHubOidcStack', () => {
     expect(actions).toContain('dynamodb:GetItem');
     expect(actions).toContain('dynamodb:Query');
     expect(actions).toContain('cloudformation:DescribeStacks');
+    expect(actions).toContain('cloudformation:DescribeStackResources');
+    expect(actions).toContain('scheduler:GetSchedule');
+    expect(actions).toContain('scheduler:ListSchedules');
+    expect(actions).toContain('lambda:GetFunctionConfiguration');
+    expect(actions).toContain('logs:FilterLogEvents');
     expect(actions).toContain('sts:AssumeRole');
     expect(actions).toContain('iam:ListAttachedUserPolicies');
 
@@ -664,9 +673,16 @@ describe('LocksGitHubOidcStack', () => {
         'arn:aws:iam::580956784928:role/cdk-hnb659fds-image-publishing-role-580956784928-us-east-1',
         'arn:aws:iam::580956784928:role/cdk-hnb659fds-lookup-role-580956784928-us-east-1',
         'arn:aws:iam::580956784928:user/coding-agent',
+        'arn:aws:scheduler:us-east-1:580956784928:schedule-group/locks',
+        'arn:aws:scheduler:us-east-1:580956784928:schedule/locks/*',
+        'arn:aws:lambda:us-east-1:580956784928:function:LocksAppStack-*',
+        'arn:aws:logs:us-east-1:580956784928:log-group:/aws/lambda/LocksAppStack-*',
       ]),
     );
-    expect(policyResources.every((resource) => resource !== '*')).toBe(true);
+    // Account-scoped list APIs (scheduler/lambda list) legitimately use '*'.
+    expect(policyResources.filter((resource) => resource === '*').length).toBe(
+      2,
+    );
     expect(policyResource?.Properties.Users).toEqual(['coding-agent']);
 
     const iamExecutionStatements =
