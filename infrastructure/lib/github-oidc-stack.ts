@@ -950,7 +950,7 @@ export class LocksGitHubOidcStack extends Stack {
       {
         managedPolicyName: CODING_AGENT_READ_POLICY_NAME,
         description:
-          'Read-only live verification access for the coding-agent IAM user',
+          'Read-only access to the Locks table for the coding-agent IAM user',
         statements: [
           new PolicyStatement({
             sid: 'TableRead',
