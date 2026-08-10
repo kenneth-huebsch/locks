@@ -23,7 +23,7 @@ be replaced for case-insensitive sign-in; see the replacement subsection.
 
 - **Pool ID:** `us-east-1_6a7XXnD43`
 - **Client ID:** `7vojip3hod4ioile2vi4n4mkmj`
-- **Domain:** `https://locks-580956784928.auth.us-east-1.amazoncognito.com`
+- **Domain:** `https://locks-app-580956784928.auth.us-east-1.amazoncognito.com` (prefix changed during UserPoolV2 replacement; old `locks-580956784928` is retired with the prior pool)
 - **Registration:** Invite-only (public registration disabled)
 - **Sign-in (CDK / desired synth):** Email alias with
   `signInCaseSensitive: false` (CloudFormation

@@ -149,9 +149,12 @@ export class LocksAppStack extends Stack {
       },
       removalPolicy: RemovalPolicy.DESTROY,
     });
+    // Cognito domain prefixes are globally unique per region and cannot move
+    // between pools while the old domain still exists. Replacement uses a new
+    // prefix; the old locks-${TARGET_ACCOUNT} domain is destroyed with UserPool.
     const userPoolDomain = userPool.addDomain('ManagedLoginDomain', {
       cognitoDomain: {
-        domainPrefix: `locks-${TARGET_ACCOUNT}`,
+        domainPrefix: `locks-app-${TARGET_ACCOUNT}`,
       },
     });
     new CfnUserPoolUser(this, 'InvitedUser', {
