@@ -55,16 +55,34 @@ export function formatOddsUpdatedAt(isoTime: string): string {
 
 export type GameDayGroup =
   | 'Thursday'
+  | 'Friday'
+  | 'Saturday'
   | 'Sunday Early'
   | 'Sunday Late'
-  | 'Monday';
+  | 'Monday'
+  | 'Other';
 
 const GAME_DAY_GROUP_ORDER: GameDayGroup[] = [
   'Thursday',
+  'Friday',
+  'Saturday',
   'Sunday Early',
   'Sunday Late',
   'Monday',
+  'Other',
 ];
+
+function compareCommenceDesc(a: string, b: string): number {
+  return new Date(b).getTime() - new Date(a).getTime();
+}
+
+export function sortGamesByStartTimeDesc<T extends { commenceTime: string }>(
+  games: T[],
+): T[] {
+  return [...games].sort((left, right) =>
+    compareCommenceDesc(left.commenceTime, right.commenceTime),
+  );
+}
 
 export function getGameDayGroup(commenceTime: string): GameDayGroup {
   const { weekday, hour, minute } = getEasternParts(commenceTime);
@@ -72,7 +90,12 @@ export function getGameDayGroup(commenceTime: string): GameDayGroup {
   if (weekday === 'Thu') {
     return 'Thursday';
   }
-
+  if (weekday === 'Fri') {
+    return 'Friday';
+  }
+  if (weekday === 'Sat') {
+    return 'Saturday';
+  }
   if (weekday === 'Mon') {
     return 'Monday';
   }
@@ -83,7 +106,7 @@ export function getGameDayGroup(commenceTime: string): GameDayGroup {
     return minutesSinceMidnight >= lateKickoff ? 'Sunday Late' : 'Sunday Early';
   }
 
-  return 'Sunday Early';
+  return 'Other';
 }
 
 export function groupGamesByDay<T extends { commenceTime: string }>(
@@ -91,19 +114,29 @@ export function groupGamesByDay<T extends { commenceTime: string }>(
 ): { group: GameDayGroup; games: T[] }[] {
   const grouped = new Map<GameDayGroup, T[]>();
 
-  for (const game of games) {
+  // Newest kickoff first overall and within each day group.
+  for (const game of sortGamesByStartTimeDesc(games)) {
     const group = getGameDayGroup(game.commenceTime);
     const existing = grouped.get(group) ?? [];
     existing.push(game);
     grouped.set(group, existing);
   }
 
-  return GAME_DAY_GROUP_ORDER.filter((group) => grouped.has(group)).map(
-    (group) => ({
-      group,
-      games: grouped.get(group) ?? [],
-    }),
-  );
+  // Order day sections by the latest kickoff in that section (descending).
+  return [...grouped.entries()]
+    .map(([group, sectionGames]) => ({ group, games: sectionGames }))
+    .sort((left, right) => {
+      const leftTime = left.games[0]?.commenceTime ?? '';
+      const rightTime = right.games[0]?.commenceTime ?? '';
+      const byTime = compareCommenceDesc(leftTime, rightTime);
+      if (byTime !== 0) {
+        return byTime;
+      }
+      return (
+        GAME_DAY_GROUP_ORDER.indexOf(left.group) -
+        GAME_DAY_GROUP_ORDER.indexOf(right.group)
+      );
+    });
 }
 
 export function hasGameStarted(

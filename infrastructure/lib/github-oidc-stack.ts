@@ -844,7 +844,7 @@ export class LocksGitHubOidcStack extends Stack {
     );
     appPublishRole.addToPolicy(
       new PolicyStatement({
-        sid: 'SyncOddsInvoke',
+        sid: 'OperatorLambdaInvoke',
         actions: [
           'lambda:InvokeFunction',
           'lambda:GetFunction',
@@ -852,6 +852,7 @@ export class LocksGitHubOidcStack extends Stack {
         ],
         resources: [
           `arn:aws:lambda:${TARGET_REGION}:${TARGET_ACCOUNT}:function:LocksAppStack-SyncOddsFunction*`,
+          `arn:aws:lambda:${TARGET_REGION}:${TARGET_ACCOUNT}:function:LocksAppStack-SubmitPickFunction*`,
         ],
       }),
     );

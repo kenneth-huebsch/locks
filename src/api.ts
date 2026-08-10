@@ -30,7 +30,15 @@ export class ApiError extends Error {
 }
 
 async function parseResponse<T>(response: Response): Promise<T> {
-  const body: unknown = await response.json();
+  let body: unknown = null;
+  const text = await response.text();
+  if (text) {
+    try {
+      body = JSON.parse(text) as unknown;
+    } catch {
+      body = null;
+    }
+  }
 
   if (!response.ok) {
     if (
@@ -43,7 +51,9 @@ async function parseResponse<T>(response: Response): Promise<T> {
       throw new ApiError(apiError.error.code, apiError.error.message);
     }
 
-    throw new Error('Request failed');
+    throw new Error(
+      `Request failed (${response.status}${response.statusText ? ` ${response.statusText}` : ''})`,
+    );
   }
 
   return body as T;

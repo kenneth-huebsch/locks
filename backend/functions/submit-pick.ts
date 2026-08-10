@@ -152,25 +152,68 @@ async function resolveActiveWeek(
     typeof seasonResult.Item?.season === 'number'
       ? seasonResult.Item.season
       : fallbackSeason;
-  const week =
-    typeof process.env.ACTIVE_WEEK === 'string'
+  // Prefer explicit env, then SEASON#ACTIVE.week, then fallback.
+  const weekFromEnv =
+    typeof process.env.ACTIVE_WEEK === 'string' &&
+    process.env.ACTIVE_WEEK.trim().length > 0
       ? Number(process.env.ACTIVE_WEEK)
+      : Number.NaN;
+  const weekFromItem =
+    typeof seasonResult.Item?.week === 'number'
+      ? seasonResult.Item.week
+      : Number.NaN;
+  const week = Number.isFinite(weekFromEnv)
+    ? weekFromEnv
+    : Number.isFinite(weekFromItem)
+      ? weekFromItem
       : fallbackWeek;
 
   return { season, week };
 }
 
-function isTransactionCanceledError(
+type CancellationReason = { Code?: string; code?: string };
+
+function getCancellationReasons(
   error: unknown,
-): error is {
-  name: 'TransactionCanceledException';
-  CancellationReasons?: Array<{ Code?: string }>;
-} {
+): CancellationReason[] {
+  if (!error || typeof error !== 'object') {
+    return [];
+  }
+  const candidate = error as {
+    CancellationReasons?: CancellationReason[];
+    cancellationReasons?: CancellationReason[];
+  };
   return (
-    error instanceof Error &&
-    error.name === 'TransactionCanceledException' &&
-    'CancellationReasons' in error
+    candidate.CancellationReasons ??
+    candidate.cancellationReasons ??
+    []
   );
+}
+
+function isTransactionCanceledError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const candidate = error as {
+    name?: string;
+    __type?: string;
+  };
+  const name = candidate.name ?? candidate.__type ?? '';
+  // AWS SDK v3 uses camelCase cancellationReasons; v2 used CancellationReasons.
+  if (
+    name === 'TransactionCanceledException' ||
+    name.endsWith('#TransactionCanceledException') ||
+    name.includes('TransactionCanceled')
+  ) {
+    return true;
+  }
+
+  return getCancellationReasons(error).length > 0;
+}
+
+function cancellationReasonCode(reason: CancellationReason | undefined): string | undefined {
+  return reason?.Code ?? reason?.code;
 }
 
 async function classifyGameCheckFailure(
@@ -218,9 +261,9 @@ async function mapTransactionFailure(
     throw error;
   }
 
-  const reasons = error.CancellationReasons ?? [];
+  const reasons = getCancellationReasons(error);
 
-  if (reasons[0]?.Code === 'ConditionalCheckFailed') {
+  if (cancellationReasonCode(reasons[0]) === 'ConditionalCheckFailed') {
     const classified = await classifyGameCheckFailure(
       dynamoClient,
       tableName,
@@ -234,7 +277,7 @@ async function mapTransactionFailure(
     return errorResponse(409, classified, conflictMessage(classified));
   }
 
-  if (reasons[1]?.Code === 'ConditionalCheckFailed') {
+  if (cancellationReasonCode(reasons[1]) === 'ConditionalCheckFailed') {
     return errorResponse(
       409,
       ErrorCodes.DUPLICATE_PICK,
@@ -242,7 +285,7 @@ async function mapTransactionFailure(
     );
   }
 
-  if (reasons[2]?.Code === 'ConditionalCheckFailed') {
+  if (cancellationReasonCode(reasons[2]) === 'ConditionalCheckFailed') {
     return errorResponse(
       409,
       ErrorCodes.WEEKLY_LIMIT,
@@ -401,9 +444,15 @@ export function createSubmitPickHandler(
             error,
           );
         } catch (mappingError) {
-          logger.error('Failed to map pick submission transaction error', mappingError);
+          logger.error('Failed to map pick submission transaction error', {
+            mappingError,
+            cancellationReasons:
+              error && typeof error === 'object'
+                ? (error as { CancellationReasons?: unknown }).CancellationReasons
+                : undefined,
+          });
         }
-      } else if (!isTransactionCanceledError(error)) {
+      } else {
         logger.error('Failed to submit pick', error);
       }
 
