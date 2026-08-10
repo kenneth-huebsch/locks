@@ -10,14 +10,37 @@
 
 The picks board roster maps display names to Cognito `sub` values in
 `src/lib/players.ts` (`KENNY_SUB`, `JACK_SUB`, `KENNY_2_SUB`). Do not change a
-live user's `sub` by deleting and recreating the Cognito user.
+live user's `sub` by casually deleting and recreating the Cognito user. The
+only approved exception is intentional UserPool replacement (see
+[Case sensitivity and pool replacement](#case-sensitivity-and-pool-replacement)):
+after an approved apply that replaces the pool, recreate invited users and
+remap `src/lib/players.ts` (and any pick data keyed by `sub`).
 
 ## User Pool Details
+
+Live IDs below are the current production pool. They are **not** yet known to
+be replaced for case-insensitive sign-in; see the replacement subsection.
 
 - **Pool ID:** `us-east-1_6a7XXnD43`
 - **Client ID:** `7vojip3hod4ioile2vi4n4mkmj`
 - **Domain:** `https://locks-580956784928.auth.us-east-1.amazoncognito.com`
 - **Registration:** Invite-only (public registration disabled)
+- **Sign-in (CDK / desired synth):** Email alias with
+  `signInCaseSensitive: false` (CloudFormation
+  `UsernameConfiguration.CaseSensitive=false`). That setting is not live until
+  the pool is replaced (below). Store admin-created usernames and emails in
+  **lowercase** as best practice.
+
+### Case sensitivity and pool replacement
+
+Username case sensitivity is **create-time immutable** on an existing Cognito
+user pool. Applying `signInCaseSensitive: false` to a live pool that was
+created with the default (case-sensitive) replaces the pool. With
+`RemovalPolicy.DESTROY`, replacement **wipes all users**. After an approved
+AWS apply, recreate invited users and remap Cognito `sub` values in
+`src/lib/players.ts` (and any pick data keyed by `sub`). Do not assume the
+live pool IDs above are already replaced until that apply and migration have
+completed.
 
 ## AWS Profile for User Operations
 
@@ -39,11 +62,11 @@ IAM inspection. It does not grant Cognito permissions — use `locks-publish` fo
 `LocksAppPublishRole`) once the Cognito user-ops IAM change is live:
 
 ```bash
-# Create user with temporary password
+# Create user with temporary password (use lowercase email for username/email)
 AWS_PROFILE=locks-publish aws cognito-idp admin-create-user \
   --user-pool-id us-east-1_6a7XXnD43 \
-  --username "<email>" \
-  --user-attributes Name=email,Value="<email>" Name=email_verified,Value=true \
+  --username "<lowercase-email>" \
+  --user-attributes Name=email,Value="<lowercase-email>" Name=email_verified,Value=true \
   --temporary-password "<temp-password>" \
   --message-action SUPPRESS \
   --region us-east-1
@@ -54,8 +77,8 @@ Or send an invitation email (Cognito sends it):
 ```bash
 AWS_PROFILE=locks-publish aws cognito-idp admin-create-user \
   --user-pool-id us-east-1_6a7XXnD43 \
-  --username "<email>" \
-  --user-attributes Name=email,Value="<email>" Name=email_verified,Value=true \
+  --username "<lowercase-email>" \
+  --user-attributes Name=email,Value="<lowercase-email>" Name=email_verified,Value=true \
   --region us-east-1
 ```
 
@@ -66,7 +89,7 @@ AWS_PROFILE=locks-publish aws cognito-idp admin-create-user \
 ```bash
 AWS_PROFILE=locks-publish aws cognito-idp admin-set-user-password \
   --user-pool-id us-east-1_6a7XXnD43 \
-  --username "<email>" \
+  --username "<lowercase-email>" \
   --password "<new-password>" \
   --permanent \
   --region us-east-1
@@ -89,7 +112,7 @@ AWS_PROFILE=locks-publish aws cognito-idp list-users \
 ```bash
 AWS_PROFILE=locks-publish aws cognito-idp admin-disable-user \
   --user-pool-id us-east-1_6a7XXnD43 \
-  --username "<email>" \
+  --username "<lowercase-email>" \
   --region us-east-1
 ```
 
@@ -99,8 +122,11 @@ AWS_PROFILE=locks-publish aws cognito-idp admin-disable-user \
   is irreversible.
 - Public registration is disabled. All users must be admin-created.
 - Users must change their temporary password on first login.
-- The app maps Cognito `sub` to player identity. Do not delete and recreate
-  users — this creates a new `sub` and loses the player's pick history.
+- The app maps Cognito `sub` to player identity. Outside intentional UserPool
+  replacement (see [Case sensitivity and pool replacement](#case-sensitivity-and-pool-replacement)),
+  do not delete and recreate users — that creates a new `sub` and loses the
+  player's pick history. After an approved pool-replacement apply, recreate
+  invited users and remap `src/lib/players.ts` (and sub-keyed picks).
 - `LocksAppPublishRole` grants create, get, list, enable, disable, set/reset
   password on the Locks user pool via the inline `CognitoUserOps` policy
   statement (not the role Description). It does not grant `AdminDeleteUser` or

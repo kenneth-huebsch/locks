@@ -132,6 +132,10 @@ export class LocksAppStack extends Stack {
       userPoolName: 'locks',
       selfSignUpEnabled: false,
       signInAliases: { email: true },
+      // Username case sensitivity is immutable on an existing pool; flipping
+      // signInCaseSensitive replaces the pool. RemovalPolicy.DESTROY wipes
+      // users; parent migrates users/subs after AWS apply.
+      signInCaseSensitive: false,
       standardAttributes: {
         email: { required: true, mutable: false },
       },

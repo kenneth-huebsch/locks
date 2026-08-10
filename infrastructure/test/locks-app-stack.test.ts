@@ -86,6 +86,9 @@ describe('LocksAppStack', () => {
       AdminCreateUserConfig: {
         AllowAdminCreateUserOnly: true,
       },
+      UsernameConfiguration: {
+        CaseSensitive: false,
+      },
     });
     template.resourceCountIs('AWS::Cognito::UserPoolUser', 1);
     template.hasResourceProperties('AWS::Cognito::UserPoolUser', {
