@@ -4,10 +4,11 @@
 
 | User | Email | Cognito `sub` | Status |
 |---|---|---|---|
-| Kenny | `kenneth.huebsch@gmail.com` | `24a8f498-30c1-70ad-4a0e-7e19c41aa52d` | Active (`CONFIRMED`) |
-| Jack | `Jdmanning88@gmail.com` | `d4786428-20f1-706e-4859-0106786a1438` | Invited (`FORCE_CHANGE_PASSWORD`) |
-| Kenny-2 | `kenny@puffin.dev` | `74886468-f081-7075-48c8-17f35e06d95e` | Invited (`FORCE_CHANGE_PASSWORD`) |
+| Kenny | `kenneth.huebsch@gmail.com` | `94780408-b0d1-706f-0e5e-d4dbe28dfde0` | Active (`CONFIRMED` after first login / password set) |
+| Jack | `jdmanning88@gmail.com` | `74a854f8-20d1-70a4-7d77-d560ef23adb0` | Invited / password set after pool replacement |
+| Kenny-2 | `kenny@puffin.dev` | `0408b498-c0b1-7017-d3f4-1a82689ab2c0` | Invited / password set after pool replacement |
 
+The picks board
 The picks board roster maps display names to Cognito `sub` values in
 `src/lib/players.ts` (`KENNY_SUB`, `JACK_SUB`, `KENNY_2_SUB`). Do not change a
 live user's `sub` by casually deleting and recreating the Cognito user. The
@@ -18,11 +19,11 @@ remap `src/lib/players.ts` (and any pick data keyed by `sub`).
 
 ## User Pool Details
 
-Live IDs below are the current production pool. They are **not** yet known to
-be replaced for case-insensitive sign-in; see the replacement subsection.
+Live IDs below are the **post-replacement** case-insensitive pool (`UserPoolV2`,
+`signInCaseSensitive: false`). Prior pool `us-east-1_6a7XXnD43` was destroyed.
 
-- **Pool ID:** `us-east-1_6a7XXnD43`
-- **Client ID:** `7vojip3hod4ioile2vi4n4mkmj`
+- **Pool ID:** `us-east-1_yNKgsyVvF`
+- **Client ID:** `6uhu0ra87p90ll44ch6cm241tv`
 - **Domain:** `https://locks-app-580956784928.auth.us-east-1.amazoncognito.com` (prefix changed during UserPoolV2 replacement; old `locks-580956784928` is retired with the prior pool)
 - **Registration:** Invite-only (public registration disabled)
 - **Sign-in (CDK / desired synth):** Email alias with
@@ -65,7 +66,7 @@ IAM inspection. It does not grant Cognito permissions — use `locks-publish` fo
 ```bash
 # Create user with temporary password (use lowercase email for username/email)
 AWS_PROFILE=locks-publish aws cognito-idp admin-create-user \
-  --user-pool-id us-east-1_6a7XXnD43 \
+  --user-pool-id us-east-1_yNKgsyVvF \
   --username "<lowercase-email>" \
   --user-attributes Name=email,Value="<lowercase-email>" Name=email_verified,Value=true \
   --temporary-password "<temp-password>" \
@@ -77,7 +78,7 @@ Or send an invitation email (Cognito sends it):
 
 ```bash
 AWS_PROFILE=locks-publish aws cognito-idp admin-create-user \
-  --user-pool-id us-east-1_6a7XXnD43 \
+  --user-pool-id us-east-1_yNKgsyVvF \
   --username "<lowercase-email>" \
   --user-attributes Name=email,Value="<lowercase-email>" Name=email_verified,Value=true \
   --region us-east-1
@@ -89,7 +90,7 @@ AWS_PROFILE=locks-publish aws cognito-idp admin-create-user \
 
 ```bash
 AWS_PROFILE=locks-publish aws cognito-idp admin-set-user-password \
-  --user-pool-id us-east-1_6a7XXnD43 \
+  --user-pool-id us-east-1_yNKgsyVvF \
   --username "<lowercase-email>" \
   --password "<new-password>" \
   --permanent \
@@ -102,7 +103,7 @@ Read-only (use `locks-publish` — `coding-agent` has no Cognito permissions):
 
 ```bash
 AWS_PROFILE=locks-publish aws cognito-idp list-users \
-  --user-pool-id us-east-1_6a7XXnD43 \
+  --user-pool-id us-east-1_yNKgsyVvF \
   --output json
 ```
 
@@ -112,7 +113,7 @@ AWS_PROFILE=locks-publish aws cognito-idp list-users \
 
 ```bash
 AWS_PROFILE=locks-publish aws cognito-idp admin-disable-user \
-  --user-pool-id us-east-1_6a7XXnD43 \
+  --user-pool-id us-east-1_yNKgsyVvF \
   --username "<lowercase-email>" \
   --region us-east-1
 ```

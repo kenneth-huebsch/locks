@@ -3,9 +3,9 @@ export interface BoardPlayer {
   displayName: string;
 }
 
-export const KENNY_SUB = '24a8f498-30c1-70ad-4a0e-7e19c41aa52d';
-export const JACK_SUB = 'd4786428-20f1-706e-4859-0106786a1438';
-export const KENNY_2_SUB = '74886468-f081-7075-48c8-17f35e06d95e';
+export const KENNY_SUB = '94780408-b0d1-706f-0e5e-d4dbe28dfde0';
+export const JACK_SUB = '74a854f8-20d1-70a4-7d77-d560ef23adb0';
+export const KENNY_2_SUB = '0408b498-c0b1-7017-d3f4-1a82689ab2c0';
 
 /** Fixed league roster in display order: Kenny, Jack, Kenny-2. */
 export const LEAGUE_ROSTER: readonly BoardPlayer[] = [

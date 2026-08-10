@@ -66,7 +66,7 @@ docs/                    Data model and handoff documents
 | AWS account | `580956784928` |
 | AWS region | `us-east-1` |
 | Production branch | `main` |
-| Cognito user pool | `us-east-1_6a7XXnD43` |
+| Cognito user pool | `us-east-1_yNKgsyVvF` |
 | DynamoDB table | `locks` |
 | Current users | `kenneth.huebsch@gmail.com` (Jack and Eric pending) |
 
