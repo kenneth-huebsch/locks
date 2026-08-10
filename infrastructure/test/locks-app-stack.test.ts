@@ -107,12 +107,12 @@ describe('LocksAppStack', () => {
     template.resourceCountIs('AWS::Scheduler::Schedule', 2);
     template.hasResourceProperties('AWS::Scheduler::Schedule', {
       Name: 'sync-odds-morning',
-      State: 'DISABLED',
+      State: 'ENABLED',
       ScheduleExpression: 'cron(0 12 * * ? *)',
     });
     template.hasResourceProperties('AWS::Scheduler::Schedule', {
       Name: 'sync-odds-afternoon',
-      State: 'DISABLED',
+      State: 'ENABLED',
       ScheduleExpression: 'cron(0 20 * * ? *)',
     });
     template.hasResourceProperties('AWS::IAM::Policy', {

@@ -535,6 +535,9 @@ describe('LocksGitHubOidcStack', () => {
         's3:DeleteObject',
         's3:ListBucket',
         's3:PutObject',
+        'ssm:PutParameter',
+        'ssm:GetParameter',
+        'ssm:DeleteParameter',
         'sts:GetCallerIdentity',
       ]),
     );
@@ -546,9 +549,24 @@ describe('LocksGitHubOidcStack', () => {
         'arn:aws:dynamodb:us-east-1:580956784928:table/locks',
         'arn:aws:s3:::locks-580956784928-us-east-1-site',
         'arn:aws:s3:::locks-580956784928-us-east-1-site/*',
+        'arn:aws:ssm:us-east-1:580956784928:parameter/locks/odds-api-key',
       ]),
     );
     template.hasOutput('AppPublishRoleArn', {});
+  });
+
+  it('grants LocksAppPublishRole scoped Odds API key SSM write', () => {
+    const statements = inlineRoleStatements(template, 'LocksAppPublishRole');
+    const oddsKey = statements.find(({ Sid }) => Sid === 'OddsApiKeyWrite');
+    expect(oddsKey).toMatchObject({
+      Sid: 'OddsApiKeyWrite',
+      Action: expect.arrayContaining([
+        'ssm:PutParameter',
+        'ssm:GetParameter',
+        'ssm:DeleteParameter',
+      ]),
+      Resource: 'arn:aws:ssm:us-east-1:580956784928:parameter/locks/odds-api-key',
+    });
   });
 
   it('grants scoped Cognito user ops on the app publish role', () => {

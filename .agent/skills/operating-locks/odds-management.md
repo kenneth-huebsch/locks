@@ -8,11 +8,10 @@ and scores. The API key lives in SSM Parameter Store at
 
 ## Current State
 
-- **API key:** NOT SET. The SSM parameter does not have a value yet. Kenny
-  must provide a free-tier Odds API key before odds sync can run.
-- **Scheduler:** The EventBridge schedule for `sync-odds` exists but the
-  `ODDS_API_ENABLED` env var on the Lambda is set to `true`. Once the key is
-  set, the scheduler will start calling the API.
+- **API key:** Set as SecureString at `/locks/odds-api-key` by an approved
+  operator via `locks-publish` (`ssm:PutParameter` on that parameter only).
+- **Scheduler:** EventBridge schedules `sync-odds-morning` / `sync-odds-afternoon`
+  in group `locks` are ENABLED. `ODDS_API_ENABLED` on the Lambda is `true`.
 - **Kill switch:** Set `ODDS_API_ENABLED=false` on the Lambda to disable
   sync without removing the key or schedule.
 
@@ -21,13 +20,12 @@ and scores. The API key lives in SSM Parameter Store at
 **Requires explicit approval from Kenny.** Never set this without approval.
 
 ```bash
-# From the host (coding-agent doesn't have SSM PutParameter permission)
-# The key must be provided by Kenny directly
-
-aws ssm put-parameter \
+# locks-publish may write only this parameter (never commit the key)
+AWS_PROFILE=locks-publish aws ssm put-parameter \
   --name /locks/odds-api-key \
   --value "<KEY_VALUE>" \
   --type SecureString \
+  --overwrite \
   --region us-east-1
 ```
 

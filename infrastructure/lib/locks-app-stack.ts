@@ -367,7 +367,7 @@ function handler(event) {
     const scheduleProps = {
       groupName: 'locks',
       flexibleTimeWindow: { mode: 'OFF' },
-      state: 'DISABLED',
+      state: 'ENABLED',
       target: {
         arn: syncOddsFunction.functionArn,
         roleArn: schedulerInvokeRole.roleArn,

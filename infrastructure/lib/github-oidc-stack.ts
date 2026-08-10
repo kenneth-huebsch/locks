@@ -838,6 +838,15 @@ export class LocksGitHubOidcStack extends Stack {
     );
     appPublishRole.addToPolicy(
       new PolicyStatement({
+        sid: 'OddsApiKeyWrite',
+        actions: ['ssm:PutParameter', 'ssm:GetParameter', 'ssm:DeleteParameter'],
+        resources: [
+          `arn:aws:ssm:${TARGET_REGION}:${TARGET_ACCOUNT}:parameter/locks/odds-api-key`,
+        ],
+      }),
+    );
+    appPublishRole.addToPolicy(
+      new PolicyStatement({
         sid: 'CognitoUserOps',
         actions: [
           'cognito-idp:AdminCreateUser',
