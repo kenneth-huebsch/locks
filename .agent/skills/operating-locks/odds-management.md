@@ -8,6 +8,9 @@ and scores. The API key lives in SSM Parameter Store at
 
 ## Current State
 
+- Preferred sportsbook: **DraftKings** (`draftkings`).
+
+
 - **API key:** Set as SecureString at `/locks/odds-api-key` by an approved
   operator via `locks-publish` (`ssm:PutParameter` on that parameter only).
 - **Scheduler:** EventBridge schedules `sync-odds-morning` / `sync-odds-afternoon`

@@ -19,7 +19,7 @@ wired in `LocksAppStack`, shared types used by the app, etc.
 3. `npm ci`
 4. `npm run lint` / `typecheck` / `test` / `build` / `synth`
 5. `npm run deploy:infrastructure` (`LocksAppStack` only)
-6. `npm run deploy:app` (build/publish SPA, runtime-config, foundation seed,
+6. `npm run deploy:app` (build/publish SPA, runtime-config,
    CloudFront invalidation)
 
 **Not deployed by this flow:** `LocksGitHubOidcStack` / foundation IAM. Those
@@ -145,7 +145,7 @@ What `deploy:app` does:
 2. Builds the SPA (`vite build`)
 3. Generates `runtime-config.json` with same-origin config
 4. Syncs `dist/` to the S3 site bucket
-5. Idempotently writes the canonical foundation game to DynamoDB
+5. Does **not** re-seed the foundation dummy game (removed from publish path)
 6. Creates a CloudFront invalidation
 
 **Post-deploy:**

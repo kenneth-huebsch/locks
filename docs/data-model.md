@@ -88,7 +88,7 @@ Cached NFL slate from The Odds API. One item per event in a week partition.
 | awayScore | Number or null — set when final |
 | homeScore | Number or null — set when final |
 | status | String — `scheduled`, `in_progress`, or `final` |
-| bookmaker | String — e.g. `draftkings` |
+| bookmaker | String — preferred `draftkings` (DraftKings); mapper falls back only if missing |
 | oddsUpdatedAt | String — ISO UTC when this game row was last written |
 
 Games are upserted by odds sync. Sync must not modify pick items or player counters.
@@ -233,5 +233,5 @@ SK = GAME#foundation-week-1-game
 
 Phase 2 odds sync writes the canonical partition `WEEK#2026#W01`. The seed script
 and current-week Lambda are updated in later phases to read `SEASON#ACTIVE` and the
-`W`-prefixed week key. The old foundation item may be deleted after the first
+`W`-prefixed week key. The old foundation item should be deleted after the first
 successful sync or left orphaned; it is not read once consumers migrate.

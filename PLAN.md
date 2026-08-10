@@ -2,51 +2,54 @@
 
 ## Project status
 
-Last updated: August 3, 2026.
+Last updated: August 10, 2026.
 
 - **Phase 1 is complete and deployed.**
-- **Phase 2 is substantially complete and deployed.**
+- **Phase 2 is complete and deployed for preseason Week 1.**
 - Production application: https://d141pq884g4gai.cloudfront.net
 - AWS account: `580956784928`
 - AWS region: `us-east-1`
-- Cognito login, required password change, authenticated API access, seeded
-  game retrieval, and browser display have been validated end to end.
+- Cognito login, authenticated APIs, live odds sync, pick submission, and the
+  current-week UI have been validated end to end.
 - GitHub Actions deploys `LocksAppStack` from `main` through short-lived OIDC
   credentials.
 - Foundation and application deployments use separate, least-privilege roles
   and runtime permissions boundaries.
 - The current Cognito user is `kenneth.huebsch@gmail.com`.
+- Preferred sportsbook: **DraftKings** (`draftkings` bookmaker key).
 - No AWS Budget exists by user choice; spending is monitored manually.
 - AWS CLI v2 and CDK are available in Mira's container; deployment uses
   `coding-agent` and `locks-publish` IAM profiles.
-- `LocksAppPublishRole` enables container-based static publishing and seeding.
-- `LocksCodingAgentReadPolicy` grants read-only DynamoDB, CloudFormation, and
-  IAM inspection from the container.
+- `LocksAppPublishRole` enables container-based static publishing and operator
+  data/Cognito tasks.
+- `LocksCodingAgentReadPolicy` grants read-only DynamoDB, CloudFormation,
+  Scheduler, Lambda config, logs, and IAM inspection from the container.
 
 ### Phase 2 completion status
 
 - [x] DynamoDB data model documented in `docs/data-model.md`
 - [x] Shared types, NFL team mappings, and DynamoDB key patterns
 - [x] Odds API client with quota tracking and circuit breaker
-- [x] `sync-odds` Lambda with EventBridge schedule (disabled until API key set)
-- [x] `current-week` API endpoint (GET /api/week/current)
-- [x] Atomic pick submission (POST /api/picks) with validation
+- [x] Odds API key set in SSM Parameter Store
+- [x] `sync-odds` Lambda with EventBridge schedules enabled
+  (`sync-odds-morning` 12:00 UTC / `sync-odds-afternoon` 20:00 UTC)
+- [x] Live preseason source: `americanfootball_nfl_preseason`
+- [x] `current-week` API endpoint (`GET /api/week/current`)
+- [x] Atomic pick submission (`POST /api/picks`) with validation
 - [x] Frontend: game cards, pick flow, confirmation modal, picks board
 - [x] Auto-refresh of picks board
-- [x] All 89 tests passing, lint/typecheck/build green
-- [ ] Odds API key set in SSM Parameter Store (needs Kenny to provide key)
-- [ ] Jack and Eric Cognito accounts created (need email addresses)
-- [ ] Odds sync schedule enabled and validated against live API
-- [ ] Phase 2 end-to-end validation with real game data
+- [x] Kickoff ordering ascending with preseason day groups
+- [x] DraftKings preferred sportsbook locked
+- [x] Foundation dummy game removed from publish path and cleaned from live table
+- [ ] Jack Cognito account created (need email address)
+- [ ] Eric Cognito account deferred (not inviting yet)
+- [x] Phase 2 end-to-end validation with real preseason game data
 
-### Current blockers
+### Current open items
 
-1. **Odds API key:** Kenny needs to provide a free-tier Odds API key. Without
-   it, `sync-odds` Lambda will fail. The SSM parameter `/locks/odds-api-key`
-   must be set with Kenny's explicit approval.
-2. **Jack and Eric emails:** Needed to create Cognito user accounts for the
-   other two players.
-3. **Sportsbook preference:** DraftKings is the default; Kenny should confirm.
+1. **Jack invite:** need Jack's email to create a Cognito user and map roster `sub`.
+2. **Eric invite:** deferred until Kenny asks.
+3. **Phase 3 next:** score sync, grading, standings, historical results board.
 
 ## Recommendation: AWS serverless with DynamoDB caching
 
@@ -440,7 +443,7 @@ Approved Phase 1 deviations:
   their email addresses are supplied.
 - The Odds API parameter value is deferred until Phase 2.
 
-### Phase 2: Picks and odds — next
+### Phase 2: Picks and odds — complete
 
 - Document final DynamoDB keys, indexes, transactions, and TTL records in
   `docs/data-model.md`.
@@ -489,11 +492,11 @@ Completed:
 4. Kenny's invite-only Cognito account and login validation.
 5. Offseason/foundation validation using a dummy 2026 Week 1 game.
 
-Needed for Phase 2:
+Still needed for multiplayer:
 
 1. Free-tier Odds API key.
-2. Jack and Eric's email addresses for Cognito invitations.
-3. Preferred sportsbook; DraftKings remains the default recommendation.
+2. Jack's email address for Cognito invitation (Eric deferred).
+3. Preferred sportsbook: **DraftKings** (confirmed).
 4. Confirm whether the real launch target is 2026 Week 1 or an earlier test
    window.
 

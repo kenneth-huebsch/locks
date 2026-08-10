@@ -1,3 +1,4 @@
+<!-- Status: Phase 2 complete for preseason; Eric invite deferred; DraftKings locked. -->
 # Phase 2 Handoff: Picks and Odds
 
 ## Mission

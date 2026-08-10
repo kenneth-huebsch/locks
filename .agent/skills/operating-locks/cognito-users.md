@@ -1,5 +1,12 @@
 # Managing Cognito Users
 
+## Invite plan
+
+- Kenny: live
+- Jack: invite next (email required)
+- Eric: **not inviting yet** (deferred)
+- Sportsbook preference: **DraftKings**
+
 ## Current Users
 
 | User | Email | Cognito `sub` | Status |

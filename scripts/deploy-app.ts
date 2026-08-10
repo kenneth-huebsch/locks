@@ -96,7 +96,9 @@ await publishInSafeOrder(
   },
 );
 
-runNpmScript('seed');
+// Foundation dummy seed is no longer part of publish. Live weeks come from
+// sync-odds / operator seed scripts. Keep npm run seed available for local
+// offseason recovery only.
 await new CloudFrontClient({ region: TARGET_REGION }).send(
   new CreateInvalidationCommand({
     DistributionId: distributionId,

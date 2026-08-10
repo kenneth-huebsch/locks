@@ -4,7 +4,7 @@
 
 | Script | Command | What It Does |
 |---|---|---|
-| `seed-foundation.ts` | `npm run seed` | Writes the canonical Week 1 foundation game to DynamoDB (idempotent PutItem) |
+| `seed-foundation.ts` | `npm run seed` | **Offseason recovery only.** Writes the dummy foundation Week 1 game. Not run on publish. |
 | `seed-active-week.ts` | `npx tsx scripts/seed-active-week.ts` | Seeds active week metadata + a fake game slate (idempotent) |
 | `seed-week.ts` | `npx tsx scripts/seed-week.ts` | Seeds a fake game slate for a specific week (idempotent) |
 
@@ -60,3 +60,10 @@ AWS_PROFILE=coding-agent aws dynamodb query \
   --expression-attribute-values '{":pk":{"S":"ACTIVE_SEASON"}}' \
   --output json
 ```
+
+
+## Publish path
+
+`npm run deploy:app` no longer runs foundation seed. Live slates come from
+`sync-odds` (and optional operator seed scripts). Prefer deleting any leftover
+`GAME#foundation-week-1-game` item after a real odds sync.
