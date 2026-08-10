@@ -128,13 +128,14 @@ export class LocksAppStack extends Stack {
     // grantReadData includes base-table and GSI reads (GSI1 picks query).
     table.grantReadData(currentWeekFunction);
 
-    const userPool = new UserPool(this, 'UserPool', {
+    const userPool = new UserPool(this, 'UserPoolV2', {
       userPoolName: 'locks',
       selfSignUpEnabled: false,
       signInAliases: { email: true },
-      // Username case sensitivity is immutable on an existing pool; flipping
-      // signInCaseSensitive replaces the pool. RemovalPolicy.DESTROY wipes
-      // users; parent migrates users/subs after AWS apply.
+      // Username case sensitivity is create-time only. CloudFormation rejects
+      // in-place UsernameConfiguration updates, so this pool uses construct id
+      // UserPoolV2 to replace the original pool. RemovalPolicy.DESTROY wipes
+      // users; migrate users/subs after AWS apply.
       signInCaseSensitive: false,
       standardAttributes: {
         email: { required: true, mutable: false },

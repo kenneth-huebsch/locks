@@ -34,8 +34,9 @@ be replaced for case-insensitive sign-in; see the replacement subsection.
 ### Case sensitivity and pool replacement
 
 Username case sensitivity is **create-time immutable** on an existing Cognito
-user pool. Applying `signInCaseSensitive: false` to a live pool that was
-created with the default (case-sensitive) replaces the pool. With
+user pool. CloudFormation rejects in-place `UsernameConfiguration` updates.
+Locks forces replacement via CDK construct id `UserPoolV2` (not a no-op
+property flip on the original logical id). With
 `RemovalPolicy.DESTROY`, replacement **wipes all users**. After an approved
 AWS apply, recreate invited users and remap Cognito `sub` values in
 `src/lib/players.ts` (and any pick data keyed by `sub`). Do not assume the
