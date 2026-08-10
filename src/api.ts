@@ -15,9 +15,9 @@ import {
   submitMockPick,
 } from './lib/mockWeeks';
 
-// Demo path: mock 3-week season until week-history API routes ship.
-// Set VITE_USE_MOCK_WEEKS=false to use the live current-week endpoint only.
-const USE_MOCK_WEEKS = import.meta.env.VITE_USE_MOCK_WEEKS !== 'false';
+// Live current-week API by default for preseason/production testing.
+// Set VITE_USE_MOCK_WEEKS=true to force the local mock 3-week demo path.
+const USE_MOCK_WEEKS = import.meta.env.VITE_USE_MOCK_WEEKS === 'true';
 
 export class ApiError extends Error {
   readonly code: ErrorCode;

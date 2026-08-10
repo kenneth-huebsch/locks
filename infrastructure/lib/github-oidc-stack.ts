@@ -803,9 +803,15 @@ export class LocksGitHubOidcStack extends Stack {
     appPublishRole.addToPolicy(
       new PolicyStatement({
         sid: 'SeedLocksTable',
-        actions: ['dynamodb:PutItem'],
+        actions: [
+          'dynamodb:PutItem',
+          'dynamodb:DeleteItem',
+          'dynamodb:Query',
+          'dynamodb:GetItem',
+        ],
         resources: [
           `arn:aws:dynamodb:${TARGET_REGION}:${TARGET_ACCOUNT}:table/locks`,
+          `arn:aws:dynamodb:${TARGET_REGION}:${TARGET_ACCOUNT}:table/locks/index/*`,
         ],
       }),
     );

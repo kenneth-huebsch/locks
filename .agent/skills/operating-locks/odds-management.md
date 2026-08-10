@@ -108,3 +108,11 @@ cat /tmp/sync-odds-out.json
 ```
 
 `coding-agent` remains read-only and cannot invoke.
+
+
+## Preseason vs regular season
+
+`SyncOddsFunction` reads `ODDS_API_SPORT` (CDK default during preseason testing:
+`americanfootball_nfl_preseason`). Set to `americanfootball_nfl` for the regular
+season and redeploy `LocksAppStack`. Active week comes from `SEASON#ACTIVE.week`
+(and optional `ACTIVE_WEEK` on the Lambda).

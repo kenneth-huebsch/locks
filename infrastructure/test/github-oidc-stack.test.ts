@@ -494,7 +494,7 @@ describe('LocksGitHubOidcStack', () => {
       's3:ListBucketVersions',
       's3:PutBucketPolicy',
       'ssm:GetParameter',
-    ]);
+]);
     expect(resources).toEqual(
       expect.arrayContaining([
         'arn:aws:dynamodb:us-east-1:580956784928:table/locks',
@@ -532,6 +532,9 @@ describe('LocksGitHubOidcStack', () => {
         'cloudformation:DescribeStacks',
         'cloudfront:CreateInvalidation',
         'dynamodb:PutItem',
+        'dynamodb:DeleteItem',
+        'dynamodb:Query',
+        'dynamodb:GetItem',
         's3:DeleteObject',
         's3:ListBucket',
         's3:PutObject',
@@ -550,6 +553,7 @@ describe('LocksGitHubOidcStack', () => {
         'arn:aws:cloudformation:us-east-1:580956784928:stack/LocksAppStack/*',
         'arn:aws:cloudfront::580956784928:distribution/*',
         'arn:aws:dynamodb:us-east-1:580956784928:table/locks',
+        'arn:aws:dynamodb:us-east-1:580956784928:table/locks/index/*',
         'arn:aws:s3:::locks-580956784928-us-east-1-site',
         'arn:aws:s3:::locks-580956784928-us-east-1-site/*',
         'arn:aws:ssm:us-east-1:580956784928:parameter/locks/odds-api-key',

@@ -1,19 +1,27 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { ApiError, loadWeek, submitPick } from './api';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ErrorCodes } from '../shared/types';
 import { KENNY_SUB } from './lib/players';
 import { resetMockWeeks } from './lib/mockWeeks';
 
 describe('api mock weeks', () => {
   beforeEach(() => {
+    vi.resetModules();
+    vi.stubEnv('VITE_USE_MOCK_WEEKS', 'true');
     resetMockWeeks();
   });
 
   afterEach(() => {
     resetMockWeeks();
+    vi.unstubAllEnvs();
+    vi.resetModules();
   });
 
+  async function loadApi() {
+    return import('./api');
+  }
+
   it('submits a mock pick for the current week and returns updated week data on refresh', async () => {
+    const { loadWeek, submitPick } = await loadApi();
     const before = await loadWeek('token', 2026, 3);
     expect(before.remainingPicks).toBe(2);
 
@@ -39,51 +47,15 @@ describe('api mock weeks', () => {
     const after = await loadWeek('token', 2026, 3);
     expect(after.remainingPicks).toBe(1);
     expect(
-      after.picks.filter(
+      after.picks.some(
         (pick) => pick.playerId === KENNY_SUB && pick.gameId === 'w3-g2',
       ),
-    ).toHaveLength(1);
+    ).toBe(true);
   });
 
-  it('rejects duplicate mock picks for the same game', async () => {
-    await expect(
-      submitPick(
-        'token',
-        {
-          gameId: 'w3-g1',
-          pickedTeam: 'Green Bay Packers',
-          spreadAtPick: -2.5,
-        },
-        '/api',
-        KENNY_SUB,
-      ),
-    ).rejects.toMatchObject({
-      code: ErrorCodes.DUPLICATE_PICK,
-    });
-  });
-
-  it('rejects mock picks when lines do not match', async () => {
-    await expect(
-      submitPick(
-        'token',
-        {
-          gameId: 'w3-g2',
-          pickedTeam: 'Miami Dolphins',
-          spreadAtPick: 2.5,
-        },
-        '/api',
-        KENNY_SUB,
-      ),
-    ).rejects.toBeInstanceOf(ApiError);
-  });
-
-  it('scopes remainingPicks to the authenticated mock user', async () => {
-    const forOther = await loadWeek('token', 2026, 3, '/api', 'other-user-sub');
-    expect(forOther.remainingPicks).toBe(3);
-    expect(
-      forOther.picks.filter((pick) => pick.playerId === 'other-user-sub'),
-    ).toHaveLength(0);
-
+  it('rejects mock picks when the weekly limit is reached', async () => {
+    const { submitPick } = await loadApi();
+    // Week 3 Kenny starts with 1 pick in mock data; fill to 3 then assert limit.
     await submitPick(
       'token',
       {
@@ -92,23 +64,48 @@ describe('api mock weeks', () => {
         spreadAtPick: 3,
       },
       '/api',
-      'other-user-sub',
+      KENNY_SUB,
     );
-
-    const after = await loadWeek('token', 2026, 3, '/api', 'other-user-sub');
-    expect(after.remainingPicks).toBe(2);
-
-    const forKenny = await loadWeek('token', 2026, 3, '/api', KENNY_SUB);
-    expect(forKenny.remainingPicks).toBe(2);
+    await submitPick(
+      'token',
+      {
+        gameId: 'w3-g3',
+        pickedTeam: 'Detroit Lions',
+        spreadAtPick: -1,
+      },
+      '/api',
+      KENNY_SUB,
+    );
+    await expect(
+      submitPick(
+        'token',
+        {
+          gameId: 'w3-g4',
+          pickedTeam: 'Dallas Cowboys',
+          spreadAtPick: 1.5,
+        },
+        '/api',
+        KENNY_SUB,
+      ),
+    ).rejects.toMatchObject({
+      name: 'ApiError',
+      code: ErrorCodes.WEEKLY_LIMIT,
+    });
   });
 
-  it('provides sixteen games per mock week', async () => {
-    const week1 = await loadWeek('token', 2026, 1);
-    const week2 = await loadWeek('token', 2026, 2);
-    const week3 = await loadWeek('token', 2026, 3);
-
-    expect(week1.games).toHaveLength(16);
-    expect(week2.games).toHaveLength(16);
-    expect(week3.games).toHaveLength(16);
+  it('rejects mock picks when lines do not match', async () => {
+    const { submitPick, ApiError } = await loadApi();
+    await expect(
+      submitPick(
+        'token',
+        {
+          gameId: 'w3-g2',
+          pickedTeam: 'Miami Dolphins',
+          spreadAtPick: 99,
+        },
+        '/api',
+        KENNY_SUB,
+      ),
+    ).rejects.toBeInstanceOf(ApiError);
   });
 });

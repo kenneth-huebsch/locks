@@ -7,10 +7,21 @@ import type {
 } from './odds-api-types.js';
 
 export const ODDS_API_CREDIT_RESERVE = 50;
-export const ODDS_API_SPREADS_PATH =
-  '/v4/sports/americanfootball_nfl/odds';
-export const ODDS_API_EVENTS_PATH =
-  '/v4/sports/americanfootball_nfl/events';
+/** Default NFL sport key; override with ODDS_API_SPORT (e.g. preseason). */
+export const DEFAULT_ODDS_API_SPORT = 'americanfootball_nfl';
+export function oddsApiSportKey(): string {
+  const fromEnv = process.env.ODDS_API_SPORT?.trim();
+  return fromEnv && fromEnv.length > 0 ? fromEnv : DEFAULT_ODDS_API_SPORT;
+}
+export function oddsApiSpreadsPath(sport = oddsApiSportKey()): string {
+  return `/v4/sports/${sport}/odds`;
+}
+export function oddsApiEventsPath(sport = oddsApiSportKey()): string {
+  return `/v4/sports/${sport}/events`;
+}
+/** @deprecated use oddsApiSpreadsPath() — kept for tests that import the constant shape */
+export const ODDS_API_SPREADS_PATH = oddsApiSpreadsPath(DEFAULT_ODDS_API_SPORT);
+export const ODDS_API_EVENTS_PATH = oddsApiEventsPath(DEFAULT_ODDS_API_SPORT);
 const ODDS_API_BASE_URL = 'https://api.the-odds-api.com';
 
 export interface HttpResponse {
@@ -143,7 +154,7 @@ export function createOddsApiClient(
         oddsFormat: 'american',
       });
       const response = await httpClient.get(
-        buildUrl(ODDS_API_SPREADS_PATH, apiKey, query),
+        buildUrl(oddsApiSpreadsPath(), apiKey, query),
       );
 
       if (!response.ok) {
@@ -165,7 +176,7 @@ export function createOddsApiClient(
       assertEnabled(enabled);
 
       const response = await httpClient.get(
-        buildUrl(ODDS_API_EVENTS_PATH, apiKey),
+        buildUrl(oddsApiEventsPath(), apiKey),
       );
 
       if (!response.ok) {
