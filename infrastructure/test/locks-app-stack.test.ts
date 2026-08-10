@@ -136,6 +136,24 @@ describe('LocksAppStack', () => {
     });
   });
 
+  it('grants SubmitPick the Dynamo actions needed for pick transactions', () => {
+    template.hasResourceProperties('AWS::IAM::Policy', {
+      PolicyDocument: {
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Action: Match.arrayWith([
+              'dynamodb:ConditionCheckItem',
+              'dynamodb:GetItem',
+              'dynamodb:PutItem',
+              'dynamodb:UpdateItem',
+              'dynamodb:TransactWriteItems',
+            ]),
+          }),
+        ]),
+      },
+    });
+  });
+
   it('allows POST through CloudFront for future pick submission', () => {
     template.hasResourceProperties('AWS::CloudFront::Distribution', {
       DistributionConfig: {

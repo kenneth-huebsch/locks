@@ -269,11 +269,18 @@ function handler(event) {
     submitPickFunctionRole.addToPolicy(
       new PolicyStatement({
         actions: [
+          // TransactWriteItems still requires the underlying item actions.
           'dynamodb:ConditionCheckItem',
           'dynamodb:GetItem',
+          'dynamodb:PutItem',
+          'dynamodb:UpdateItem',
           'dynamodb:TransactWriteItems',
         ],
-        resources: [table.tableArn],
+        resources: [
+          table.tableArn,
+          // GSI attributes are written on the base table; keep index ARN for future queries.
+          `${table.tableArn}/index/*`,
+        ],
       }),
     );
 
