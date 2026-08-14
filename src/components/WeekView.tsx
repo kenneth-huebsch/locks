@@ -48,6 +48,19 @@ export function WeekView({
     return map;
   }, [playerPicks]);
 
+  const revealedPicksByGameId = useMemo(() => {
+    const map = new Map<string, typeof currentWeek.picks>();
+    for (const pick of currentWeek.picks ?? []) {
+      if (pick.playerId === userSub) {
+        continue;
+      }
+      const existing = map.get(pick.gameId) ?? [];
+      existing.push(pick);
+      map.set(pick.gameId, existing);
+    }
+    return map;
+  }, [currentWeek.picks ?? [], userSub]);
+
   const groupedGames = useMemo(
     () => groupGamesByDay((currentWeek.games ?? [])),
     [(currentWeek.games ?? [])],
@@ -160,6 +173,7 @@ export function WeekView({
                       existingPick={picksByGameId.get(game.id)}
                       game={game}
                       onPick={handlePick}
+                      revealedPicks={revealedPicksByGameId.get(game.id) ?? []}
                       selectedSide={
                         pendingSelection?.gameId === game.id
                           ? {

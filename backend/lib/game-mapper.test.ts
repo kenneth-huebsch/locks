@@ -58,6 +58,8 @@ describe('game-mapper', () => {
       commenceTime: '2026-09-10T00:20:00.000Z',
       awaySpread: 4,
       homeSpread: -4,
+      awayScore: null,
+      homeScore: null,
       status: 'scheduled',
       bookmaker: 'draftkings',
       oddsUpdatedAt,

@@ -131,8 +131,9 @@ directly to DynamoDB or The Odds API. Cognito JWTs protect every API route.
 2. Each game has its own deadline.
    - A game becomes unavailable when its kickoff time passes.
    - Players can still choose later games if earlier games have started.
-3. Submitted picks are immediately visible.
-   - Every logged-in player can see a pick as soon as it is submitted.
+3. Submitted picks are revealed at kickoff.
+   - A player can always see their own picks.
+   - Other players’ picks for a game become visible once that game’s kickoff time has passed.
 4. Submitted picks are final.
    - A pick cannot be changed or deleted.
    - A player can submit additional picks later until reaching three.
@@ -272,7 +273,7 @@ After submission:
 
 - Shown when a past week is selected in the Weeks dropdown.
 - Multi-player table of submitted picks for that week’s games.
-- All submitted picks visible immediately.
+- All submitted picks for past weeks are visible.
 - Result colors:
   - Win: green
   - Loss: red

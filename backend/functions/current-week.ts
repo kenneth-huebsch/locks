@@ -41,6 +41,10 @@ interface LambdaResponse {
   body: string;
 }
 
+export interface Clock {
+  now(): Date;
+}
+
 export interface DynamoCurrentWeekClient {
   send(command: GetCommand): Promise<GetCommandOutput>;
   send(command: QueryCommand): Promise<QueryCommandOutput>;
@@ -49,12 +53,17 @@ export interface DynamoCurrentWeekClient {
 interface CurrentWeekDependencies {
   dynamoClient: DynamoCurrentWeekClient;
   tableName: string;
+  clock?: Clock;
   logger?: Pick<Console, 'error'>;
 }
 
 const JSON_HEADERS = { 'content-type': 'application/json' };
 const MAX_WEEKLY_PICKS = 3;
 const GSI1_INDEX_NAME = 'GSI1';
+
+function toNullableScore(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
 
 function toGame(item: Record<string, unknown>): Game {
   return {
@@ -66,10 +75,37 @@ function toGame(item: Record<string, unknown>): Game {
     commenceTime: item.commenceTime as string,
     awaySpread: (item.awaySpread as number) ?? 0,
     homeSpread: (item.homeSpread as number) ?? 0,
+    awayScore: toNullableScore(item.awayScore),
+    homeScore: toNullableScore(item.homeScore),
     status: item.status as Game['status'],
     bookmaker: (item.bookmaker as string) ?? '',
     oddsUpdatedAt: (item.oddsUpdatedAt as string) ?? '',
   };
+}
+
+export function filterPicksForViewer(
+  picks: PickRecord[],
+  games: Game[],
+  viewerSub: string,
+  now: Date,
+): PickRecord[] {
+  const commenceTimeByGameId = new Map(
+    games.map((game) => [game.id, game.commenceTime]),
+  );
+  const nowMs = now.getTime();
+
+  return picks.filter((pick) => {
+    if (pick.playerId === viewerSub) {
+      return true;
+    }
+
+    const commenceTime = commenceTimeByGameId.get(pick.gameId);
+    if (!commenceTime) {
+      return false;
+    }
+
+    return new Date(commenceTime).getTime() <= nowMs;
+  });
 }
 
 function toPick(item: Record<string, unknown>): PickRecord {
@@ -169,6 +205,7 @@ export function createCurrentWeekHandler(
   dependencies: CurrentWeekDependencies,
 ): (event: ApiGatewayJwtEvent) => Promise<LambdaResponse> {
   const logger = dependencies.logger ?? console;
+  const clock = dependencies.clock ?? { now: () => new Date() };
 
   return async (event) => {
     const playerSub = getPlayerSub(event);
@@ -270,7 +307,7 @@ export function createCurrentWeekHandler(
       const response: CurrentWeekResponse = {
         week: weekResponse,
         games,
-        picks,
+        picks: filterPicksForViewer(picks, games, playerSub, clock.now()),
         remainingPicks: remainingPicksFromCounter(counterResult.Item),
         oddsUpdatedAt,
       };

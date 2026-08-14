@@ -35,6 +35,8 @@ interface MatchupSpec {
   awaySpread: number;
   status: Game['status'];
   oddsUpdatedAt: string;
+  awayScore?: number | null;
+  homeScore?: number | null;
 }
 
 function buildGame(spec: MatchupSpec): Game {
@@ -43,6 +45,17 @@ function buildGame(spec: MatchupSpec): Game {
   if (!away || !home) {
     throw new Error(`Unknown team in mock matchup: ${spec.away} @ ${spec.home}`);
   }
+
+  const scored =
+    spec.status === 'final'
+      ? {
+          awayScore: spec.awayScore ?? 17,
+          homeScore: spec.homeScore ?? 24,
+        }
+      : {
+          awayScore: spec.awayScore ?? null,
+          homeScore: spec.homeScore ?? null,
+        };
 
   return {
     id: spec.id,
@@ -53,6 +66,8 @@ function buildGame(spec: MatchupSpec): Game {
     commenceTime: spec.commenceTime,
     awaySpread: spec.awaySpread,
     homeSpread: -spec.awaySpread,
+    awayScore: scored.awayScore,
+    homeScore: scored.homeScore,
     status: spec.status,
     bookmaker: 'draftkings',
     oddsUpdatedAt: spec.oddsUpdatedAt,
@@ -105,7 +120,15 @@ const week2Games = buildGames([
 
 const week3OddsUpdatedAt = '2099-09-23T12:00:00.000Z';
 const week3Games = buildGames([
-  { id: 'w3-g1', away: 'GB', home: 'CHI', commenceTime: '2099-09-24T17:00:00.000Z', awaySpread: -2.5, status: 'scheduled', oddsUpdatedAt: week3OddsUpdatedAt },
+  {
+    id: 'w3-g1',
+    away: 'GB',
+    home: 'CHI',
+    commenceTime: '2020-09-24T17:00:00.000Z',
+    awaySpread: -1.5,
+    status: 'in_progress',
+    oddsUpdatedAt: week3OddsUpdatedAt,
+  },
   { id: 'w3-g2', away: 'MIA', home: 'NE', commenceTime: '2099-09-25T17:00:00.000Z', awaySpread: 3, status: 'scheduled', oddsUpdatedAt: week3OddsUpdatedAt },
   { id: 'w3-g3', away: 'DET', home: 'MIN', commenceTime: '2099-09-26T17:00:00.000Z', awaySpread: -1, status: 'scheduled', oddsUpdatedAt: week3OddsUpdatedAt },
   { id: 'w3-g4', away: 'DAL', home: 'PHI', commenceTime: '2099-09-27T17:00:00.000Z', awaySpread: 1.5, status: 'scheduled', oddsUpdatedAt: week3OddsUpdatedAt },
@@ -277,6 +300,15 @@ const week3: CurrentWeekResponse = {
       submittedAt: '2099-09-23T14:00:00.000Z',
       result: 'pending',
     },
+    {
+      playerId: JACK_SUB,
+      gameId: 'w3-g1',
+      seasonWeek: seasonWeekKey(3),
+      pickedTeam: 'Chicago Bears',
+      spreadAtPick: 2.5,
+      submittedAt: '2099-09-23T14:30:00.000Z',
+      result: 'pending',
+    },
   ],
   remainingPicks: 2,
   oddsUpdatedAt: week3OddsUpdatedAt,
@@ -344,6 +376,31 @@ export function listMockPicksThroughWeek(
   return picks;
 }
 
+function filterPicksForViewer(
+  picks: Pick[],
+  games: Game[],
+  viewerSub?: string,
+  now: Date = new Date(),
+): Pick[] {
+  const commenceTimeByGameId = new Map(
+    games.map((game) => [game.id, game.commenceTime]),
+  );
+  const nowMs = now.getTime();
+
+  return picks.filter((pick) => {
+    if (!viewerSub || pick.playerId === viewerSub) {
+      return true;
+    }
+
+    const commenceTime = commenceTimeByGameId.get(pick.gameId);
+    if (!commenceTime) {
+      return false;
+    }
+
+    return new Date(commenceTime).getTime() <= nowMs;
+  });
+}
+
 export function loadMockWeek(
   season: number,
   week: number,
@@ -354,7 +411,11 @@ export function loadMockWeek(
   }
 
   if (week === 3) {
-    return withUserScopedRemainingPicks(currentWeekState, userSub);
+    const scoped = withUserScopedRemainingPicks(currentWeekState, userSub);
+    return {
+      ...scoped,
+      picks: filterPicksForViewer(scoped.picks, scoped.games, userSub),
+    };
   }
 
   const payload = staticMockWeeksByNumber[week];

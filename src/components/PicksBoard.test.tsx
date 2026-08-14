@@ -14,6 +14,8 @@ const game: Game = {
   commenceTime: '2026-09-10T17:00:00.000Z',
   awaySpread: -3.5,
   homeSpread: 3.5,
+  awayScore: 20,
+  homeScore: 24,
   status: 'final',
   bookmaker: 'draftkings',
   oddsUpdatedAt: '2026-09-09T12:00:00.000Z',

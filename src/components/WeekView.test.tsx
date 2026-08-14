@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { CurrentWeekResponse } from '../../shared/types';
 import { ApiError } from '../api';
 import { ErrorCodes } from '../../shared/types';
+import { JACK_SUB } from '../lib/players';
 import { WeekView } from './WeekView';
 
 vi.mock('../api', () => ({
@@ -38,6 +39,8 @@ const mockWeek: CurrentWeekResponse = {
       commenceTime: '2099-09-10T17:00:00.000Z',
       awaySpread: -3.5,
       homeSpread: 3.5,
+      awayScore: null,
+      homeScore: null,
       status: 'scheduled',
       bookmaker: 'draftkings',
       oddsUpdatedAt: '2099-09-09T12:00:00.000Z',
@@ -51,6 +54,8 @@ const mockWeek: CurrentWeekResponse = {
       commenceTime: '2099-09-11T17:00:00.000Z',
       awaySpread: 2.5,
       homeSpread: -2.5,
+      awayScore: null,
+      homeScore: null,
       status: 'scheduled',
       bookmaker: 'draftkings',
       oddsUpdatedAt: '2099-09-09T12:00:00.000Z',
@@ -250,5 +255,46 @@ describe('WeekView', () => {
     expect(
       screen.queryByRole('button', { name: /submit pick/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it('shows revealed picks returned by the API for a started game', () => {
+    const startedWeek: CurrentWeekResponse = {
+      ...mockWeek,
+      games: [
+        {
+          ...mockWeek.games[0],
+          commenceTime: '2020-09-10T17:00:00.000Z',
+          status: 'in_progress',
+        },
+        mockWeek.games[1],
+      ],
+      picks: [
+        {
+          playerId: 'user-sub',
+          gameId: 'game-1',
+          seasonWeek: '2026#W01',
+          pickedTeam: 'Dallas Cowboys',
+          spreadAtPick: -3.5,
+          submittedAt: '2099-09-09T12:00:00.000Z',
+          result: 'pending',
+        },
+        {
+          playerId: JACK_SUB,
+          gameId: 'game-1',
+          seasonWeek: '2026#W01',
+          pickedTeam: 'Philadelphia Eagles',
+          spreadAtPick: 3.5,
+          submittedAt: '2099-09-09T12:30:00.000Z',
+          result: 'pending',
+        },
+      ],
+      remainingPicks: 2,
+    };
+
+    renderWeekView(startedWeek);
+
+    const revealed = screen.getByLabelText(/revealed picks/i);
+    expect(within(revealed).getByText('Jack')).toBeInTheDocument();
+    expect(within(revealed).getByText('PHI +3.5')).toBeInTheDocument();
   });
 });

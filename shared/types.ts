@@ -7,6 +7,8 @@ export interface Game {
   commenceTime: string;
   awaySpread: number;
   homeSpread: number;
+  awayScore: number | null;
+  homeScore: number | null;
   status: 'scheduled' | 'in_progress' | 'final';
   bookmaker: string;
   oddsUpdatedAt: string;

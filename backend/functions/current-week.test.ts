@@ -19,15 +19,20 @@ import {
 import {
   createCurrentWeekHandler,
   type ApiGatewayJwtEvent,
+  type Clock,
   type DynamoCurrentWeekClient,
 } from './current-week.js';
 
 const TABLE_NAME = 'locks-table';
 const PLAYER_SUB = 'cognito-sub-123';
+const OTHER_PLAYER_SUB = 'cognito-sub-456';
 const SEASON = 2026;
 const WEEK = 1;
 const WEEK_PK = weekPartitionKey(SEASON, WEEK);
 const ODDS_UPDATED_AT = '2026-09-09T10:00:00.000Z';
+const BEFORE_KICKOFF = new Date('2026-09-09T12:00:00.000Z');
+const AT_KICKOFF = new Date('2026-09-10T00:20:00.000Z');
+const AFTER_KICKOFF = new Date('2026-09-10T00:20:01.000Z');
 
 const baseGame = {
   PK: WEEK_PK,
@@ -45,6 +50,13 @@ const baseGame = {
   oddsUpdatedAt: ODDS_UPDATED_AT,
 };
 
+const finalGame = {
+  ...baseGame,
+  status: 'final',
+  awayScore: 17,
+  homeScore: 24,
+};
+
 const basePick = {
   PK: playerPartitionKey(PLAYER_SUB),
   SK: pickSortKey(SEASON, WEEK, 'seed-game-1'),
@@ -56,6 +68,20 @@ const basePick = {
   pickedTeam: 'Dallas Cowboys',
   spreadAtPick: 3.5,
   submittedAt: '2026-09-09T11:00:00.000Z',
+  result: 'pending',
+};
+
+const otherPlayerPick = {
+  PK: playerPartitionKey(OTHER_PLAYER_SUB),
+  SK: pickSortKey(SEASON, WEEK, 'seed-game-1'),
+  GSI1PK: pickGsi1PartitionKey(SEASON, WEEK),
+  GSI1SK: pickGsi1SortKey(OTHER_PLAYER_SUB, 'seed-game-1'),
+  playerId: OTHER_PLAYER_SUB,
+  gameId: 'seed-game-1',
+  seasonWeek: seasonWeekToken(SEASON, WEEK),
+  pickedTeam: 'Philadelphia Eagles',
+  spreadAtPick: -3.5,
+  submittedAt: '2026-09-09T11:30:00.000Z',
   result: 'pending',
 };
 
@@ -71,11 +97,15 @@ function createEvent(sub: string = PLAYER_SUB): ApiGatewayJwtEvent {
   };
 }
 
-function createHandler(send: ReturnType<typeof vi.fn>) {
+function createHandler(
+  send: ReturnType<typeof vi.fn>,
+  clock: Clock = { now: () => BEFORE_KICKOFF },
+) {
   const client = { send } as DynamoCurrentWeekClient;
   return createCurrentWeekHandler({
     dynamoClient: client,
     tableName: TABLE_NAME,
+    clock,
     logger: { error: vi.fn() },
   });
 }
@@ -118,6 +148,18 @@ function counterGet(pickCount: number) {
   };
 }
 
+function expectedPick(pick: typeof basePick) {
+  return {
+    playerId: pick.playerId,
+    gameId: pick.gameId,
+    seasonWeek: pick.seasonWeek,
+    pickedTeam: pick.pickedTeam,
+    spreadAtPick: pick.spreadAtPick,
+    submittedAt: pick.submittedAt,
+    result: pick.result,
+  };
+}
+
 describe('current-week handler', () => {
   it('returns games, picks, remainingPicks, and oddsUpdatedAt when active week is seeded', async () => {
     const send = vi
@@ -149,22 +191,14 @@ describe('current-week handler', () => {
           commenceTime: baseGame.commenceTime,
           awaySpread: baseGame.awaySpread,
           homeSpread: baseGame.homeSpread,
+          awayScore: null,
+          homeScore: null,
           status: baseGame.status,
           bookmaker: baseGame.bookmaker,
           oddsUpdatedAt: baseGame.oddsUpdatedAt,
         },
       ],
-      picks: [
-        {
-          playerId: basePick.playerId,
-          gameId: basePick.gameId,
-          seasonWeek: basePick.seasonWeek,
-          pickedTeam: basePick.pickedTeam,
-          spreadAtPick: basePick.spreadAtPick,
-          submittedAt: basePick.submittedAt,
-          result: basePick.result,
-        },
-      ],
+      picks: [expectedPick(basePick)],
       remainingPicks: 2,
       oddsUpdatedAt: ODDS_UPDATED_AT,
     });
@@ -184,6 +218,68 @@ describe('current-week handler', () => {
       },
     });
   });
+
+  it('includes final scores when a game has been scored', async () => {
+    const send = vi
+      .fn()
+      .mockResolvedValueOnce(activeSeasonGet())
+      .mockResolvedValueOnce(weekMetaGet())
+      .mockResolvedValueOnce({ Items: [finalGame] })
+      .mockResolvedValueOnce({ Items: [basePick] })
+      .mockResolvedValueOnce(counterGet(1));
+    const handler = createHandler(send, { now: () => AFTER_KICKOFF });
+
+    const response = await handler(createEvent());
+
+    expect(response.statusCode).toBe(200);
+    expect(JSON.parse(response.body).games[0]).toMatchObject({
+      id: finalGame.id,
+      status: 'final',
+      awayScore: 17,
+      homeScore: 24,
+    });
+  });
+
+  it('always returns the caller pick before kickoff and hides other players', async () => {
+    const send = vi
+      .fn()
+      .mockResolvedValueOnce(activeSeasonGet())
+      .mockResolvedValueOnce(weekMetaGet())
+      .mockResolvedValueOnce({ Items: [baseGame] })
+      .mockResolvedValueOnce({ Items: [basePick, otherPlayerPick] })
+      .mockResolvedValueOnce(counterGet(1));
+    const handler = createHandler(send, { now: () => BEFORE_KICKOFF });
+
+    const response = await handler(createEvent());
+
+    expect(response.statusCode).toBe(200);
+    expect(JSON.parse(response.body).picks).toEqual([expectedPick(basePick)]);
+  });
+
+  it.each([
+    ['at kickoff', AT_KICKOFF],
+    ['after kickoff', AFTER_KICKOFF],
+  ])(
+    'reveals other players picks %s',
+    async (_label, now) => {
+      const send = vi
+        .fn()
+        .mockResolvedValueOnce(activeSeasonGet())
+        .mockResolvedValueOnce(weekMetaGet())
+        .mockResolvedValueOnce({ Items: [baseGame] })
+        .mockResolvedValueOnce({ Items: [basePick, otherPlayerPick] })
+        .mockResolvedValueOnce(counterGet(1));
+      const handler = createHandler(send, { now: () => now });
+
+      const response = await handler(createEvent());
+
+      expect(response.statusCode).toBe(200);
+      expect(JSON.parse(response.body).picks).toEqual([
+        expectedPick(basePick),
+        expectedPick(otherPlayerPick),
+      ]);
+    },
+  );
 
   it('falls back to foundation behavior when no active week item exists', async () => {
     const send = vi
@@ -212,6 +308,8 @@ describe('current-week handler', () => {
           homeAbbr: '',
           awaySpread: 0,
           homeSpread: 0,
+          awayScore: null,
+          homeScore: null,
           bookmaker: '',
           oddsUpdatedAt: '',
         },

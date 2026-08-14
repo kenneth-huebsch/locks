@@ -77,6 +77,8 @@ export function mapOddsEventToGame(
     commenceTime: event.commence_time,
     awaySpread: spreadForTeam(event, event.away_team),
     homeSpread: spreadForTeam(event, event.home_team),
+    awayScore: null,
+    homeScore: null,
     status: 'scheduled',
     bookmaker: selectBookmaker(event).key,
     oddsUpdatedAt,
