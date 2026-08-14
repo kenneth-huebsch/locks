@@ -119,7 +119,7 @@ describe('LocksGitHubOidcStack', () => {
     expect(JSON.stringify(policies)).not.toContain('"scheduler:*"');
   });
 
-  it('invokes only Locks custom-resource functions', () => {
+  it('invokes only Locks custom-resource and app runtime functions', () => {
     const invokeStatements = Object.values(managedPolicyStatements(template))
       .flat()
       .filter(({ Action }) =>
@@ -129,6 +129,13 @@ describe('LocksGitHubOidcStack', () => {
       );
 
     expect(invokeStatements).toEqual([
+      {
+        Action: 'lambda:InvokeFunction',
+        Effect: 'Allow',
+        Resource:
+          'arn:aws:lambda:us-east-1:580956784928:function:LocksAppStack-*',
+        Sid: 'SchedulerInvokeTargets',
+      },
       {
         Action: 'lambda:InvokeFunction',
         Effect: 'Allow',
@@ -488,6 +495,7 @@ describe('LocksGitHubOidcStack', () => {
       'dynamodb:Scan',
       'dynamodb:TransactWriteItems',
       'dynamodb:UpdateItem',
+      'lambda:InvokeFunction',
       'logs:CreateLogGroup',
       'logs:CreateLogStream',
       'logs:PutLogEvents',
@@ -498,7 +506,7 @@ describe('LocksGitHubOidcStack', () => {
       's3:ListBucketVersions',
       's3:PutBucketPolicy',
       'ssm:GetParameter',
-]);
+    ]);
     expect(resources).toEqual(
       expect.arrayContaining([
         'arn:aws:dynamodb:us-east-1:580956784928:table/locks',
@@ -506,6 +514,7 @@ describe('LocksGitHubOidcStack', () => {
         'arn:aws:s3:::locks-580956784928-us-east-1-site',
         'arn:aws:s3:::locks-580956784928-us-east-1-site/*',
         'arn:aws:logs:us-east-1:580956784928:log-group:/aws/lambda/LocksAppStack-*',
+        'arn:aws:lambda:us-east-1:580956784928:function:LocksAppStack-*',
       ]),
     );
     expect(resources.every((resource) => resource !== '*')).toBe(true);
@@ -563,6 +572,7 @@ describe('LocksGitHubOidcStack', () => {
         'arn:aws:ssm:us-east-1:580956784928:parameter/locks/odds-api-key',
         'arn:aws:lambda:us-east-1:580956784928:function:LocksAppStack-SyncOddsFunction*',
         'arn:aws:lambda:us-east-1:580956784928:function:LocksAppStack-SubmitPickFunction*',
+        'arn:aws:lambda:us-east-1:580956784928:function:LocksAppStack-GradeGamesFunction*',
         'arn:aws:cognito-idp:us-east-1:580956784928:userpool/*',
 ]),
     );
@@ -582,6 +592,7 @@ describe('LocksGitHubOidcStack', () => {
       Resource: expect.arrayContaining([
         'arn:aws:lambda:us-east-1:580956784928:function:LocksAppStack-SyncOddsFunction*',
         'arn:aws:lambda:us-east-1:580956784928:function:LocksAppStack-SubmitPickFunction*',
+        'arn:aws:lambda:us-east-1:580956784928:function:LocksAppStack-GradeGamesFunction*',
       ]),
     });
   });

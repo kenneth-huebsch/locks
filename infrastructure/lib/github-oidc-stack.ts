@@ -116,6 +116,15 @@ export class LocksGitHubOidcStack extends Stack {
               `arn:aws:logs:${TARGET_REGION}:${TARGET_ACCOUNT}:log-group:/aws/lambda/LocksAppStack-*:*`,
             ],
           }),
+          // Required so EventBridge Scheduler invoke roles (permissions-boundary
+          // capped) can use grantInvoke identity policies for sync-odds/grade-games.
+          new PolicyStatement({
+            sid: 'SchedulerInvokeTargets',
+            actions: ['lambda:InvokeFunction'],
+            resources: [
+              `arn:aws:lambda:${TARGET_REGION}:${TARGET_ACCOUNT}:function:LocksAppStack-*`,
+            ],
+          }),
         ],
       },
     );
@@ -853,6 +862,7 @@ export class LocksGitHubOidcStack extends Stack {
         resources: [
           `arn:aws:lambda:${TARGET_REGION}:${TARGET_ACCOUNT}:function:LocksAppStack-SyncOddsFunction*`,
           `arn:aws:lambda:${TARGET_REGION}:${TARGET_ACCOUNT}:function:LocksAppStack-SubmitPickFunction*`,
+          `arn:aws:lambda:${TARGET_REGION}:${TARGET_ACCOUNT}:function:LocksAppStack-GradeGamesFunction*`,
         ],
       }),
     );

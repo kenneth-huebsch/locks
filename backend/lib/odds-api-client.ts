@@ -2,11 +2,20 @@ import type {
   OddsApiEventsResponse,
   OddsApiEventsResult,
   OddsApiQuotaHeaders,
+  OddsApiScoresResponse,
+  OddsApiScoresResult,
   OddsApiSpreadsResponse,
   OddsApiSpreadsResult,
 } from './odds-api-types.js';
 
 export const ODDS_API_CREDIT_RESERVE = 50;
+/**
+ * Include completed games from the past N days on the scores endpoint.
+ * Vendor allows 1–3; 3 covers TNF through Monday grading windows in one
+ * metered call (2 credits when daysFrom is set). Prefer one bulk call over
+ * narrower windows that would miss late finals.
+ */
+export const ODDS_API_SCORES_DAYS_FROM = 3;
 /** Default NFL sport key; override with ODDS_API_SPORT (e.g. preseason). */
 export const DEFAULT_ODDS_API_SPORT = 'americanfootball_nfl';
 export function oddsApiSportKey(): string {
@@ -19,9 +28,13 @@ export function oddsApiSpreadsPath(sport = oddsApiSportKey()): string {
 export function oddsApiEventsPath(sport = oddsApiSportKey()): string {
   return `/v4/sports/${sport}/events`;
 }
+export function oddsApiScoresPath(sport = oddsApiSportKey()): string {
+  return `/v4/sports/${sport}/scores`;
+}
 /** @deprecated use oddsApiSpreadsPath() — kept for tests that import the constant shape */
 export const ODDS_API_SPREADS_PATH = oddsApiSpreadsPath(DEFAULT_ODDS_API_SPORT);
 export const ODDS_API_EVENTS_PATH = oddsApiEventsPath(DEFAULT_ODDS_API_SPORT);
+export const ODDS_API_SCORES_PATH = oddsApiScoresPath(DEFAULT_ODDS_API_SPORT);
 const ODDS_API_BASE_URL = 'https://api.the-odds-api.com';
 
 export interface HttpResponse {
@@ -44,6 +57,7 @@ export interface Clock {
 export interface OddsApiClient {
   fetchNflSpreads(creditsRemaining: number | null): Promise<OddsApiSpreadsResult>;
   fetchNflEvents(): Promise<OddsApiEventsResult>;
+  fetchNflScores(creditsRemaining: number | null): Promise<OddsApiScoresResult>;
 }
 
 export interface OddsApiClientConfig {
@@ -127,6 +141,14 @@ function parseEventsPayload(payload: unknown): OddsApiEventsResponse {
   return payload as OddsApiEventsResponse;
 }
 
+function parseScoresPayload(payload: unknown): OddsApiScoresResponse {
+  if (!Array.isArray(payload)) {
+    throw new OddsApiResponseError('Odds API scores response is not an array');
+  }
+
+  return payload as OddsApiScoresResponse;
+}
+
 function buildUrl(path: string, apiKey: string, query?: URLSearchParams): string {
   const url = new URL(path, ODDS_API_BASE_URL);
   url.searchParams.set('apiKey', apiKey);
@@ -190,6 +212,32 @@ export function createOddsApiClient(
 
       return {
         data: parseEventsPayload(payload),
+        quota,
+      };
+    },
+
+    async fetchNflScores(creditsRemaining) {
+      assertEnabled(enabled);
+      assertQuotaReserve(creditsRemaining);
+
+      const query = new URLSearchParams({
+        daysFrom: String(ODDS_API_SCORES_DAYS_FROM),
+      });
+      const response = await httpClient.get(
+        buildUrl(oddsApiScoresPath(), apiKey, query),
+      );
+
+      if (!response.ok) {
+        throw new OddsApiResponseError(
+          `Odds API scores request failed with status ${response.status}`,
+        );
+      }
+
+      const payload = await response.json();
+      const quota = parseQuotaHeaders(response);
+
+      return {
+        data: parseScoresPayload(payload),
         quota,
       };
     },

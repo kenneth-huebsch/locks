@@ -49,6 +49,32 @@ export interface WeekSummary {
   isCurrent: boolean;
 }
 
+export interface WinLossTie {
+  wins: number;
+  losses: number;
+  pushes: number;
+}
+
+export interface PlayerWeekStandings {
+  season: number;
+  week: number;
+  seasonWeek: string;
+  isCurrent: boolean;
+  record: WinLossTie;
+}
+
+export interface PlayerStandings {
+  playerId: string;
+  season: WinLossTie;
+  weeks: PlayerWeekStandings[];
+}
+
+export interface StandingsResponse {
+  season: number;
+  currentWeek: number;
+  players: PlayerStandings[];
+}
+
 export interface CurrentWeekResponse {
   week: Week;
   games: Game[];

@@ -100,6 +100,8 @@ foundation CloudFormation execution policy does not grant
 
 Every runtime role receives `LocksAppRuntimeBoundary`. Role creation requires that exact boundary; boundary removal is not allowed; managed-policy attachments and `iam:PassRole` are allowlisted.
 
+The boundary includes scoped `lambda:InvokeFunction` on `LocksAppStack-*` so EventBridge Scheduler invoke roles (for example `SyncOddsSchedulerInvokeRole`) can actually invoke sync-odds and grade-games targets. Identity policies from `grantInvoke` alone are ineffective under a boundary that omits invoke. Operator invoke via `LocksAppPublishRole` is outside this boundary.
+
 ## Application resources
 
 `LocksAppStack` owns:

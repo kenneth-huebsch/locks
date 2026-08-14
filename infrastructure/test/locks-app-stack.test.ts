@@ -59,6 +59,38 @@ describe('LocksAppStack', () => {
       AuthorizationType: 'JWT',
       RouteKey: 'POST /api/picks',
     });
+    template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
+      AuthorizationType: 'JWT',
+      RouteKey: 'GET /api/standings',
+    });
+  });
+
+  it('creates a standings Lambda with read access to the table', () => {
+    const lambdas = template.findResources('AWS::Lambda::Function');
+    const standingsLambdas = Object.entries(lambdas).filter(([id]) =>
+      id.includes('StandingsFunction'),
+    );
+    expect(standingsLambdas).toHaveLength(1);
+    expect(standingsLambdas[0]?.[1].Properties).toMatchObject({
+      Handler: 'index.handler',
+      Runtime: 'nodejs22.x',
+      Architectures: ['arm64'],
+      Timeout: 10,
+      MemorySize: 256,
+    });
+    expect(
+      standingsLambdas[0]?.[1].Properties.Environment.Variables.TABLE_NAME,
+    ).toBeDefined();
+    template.hasResourceProperties('AWS::IAM::Policy', {
+      PolicyDocument: {
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Action: Match.arrayWith(['dynamodb:Query', 'dynamodb:GetItem']),
+            Effect: 'Allow',
+          }),
+        ]),
+      },
+    });
   });
 
   it('grants submit-pick transactional DynamoDB access within the runtime boundary', () => {
@@ -104,7 +136,11 @@ describe('LocksAppStack', () => {
     });
     template.resourceCountIs('AWS::Scheduler::ScheduleGroup', 1);
     template.resourceCountIs('AWS::SSM::Parameter', 0);
-    template.resourceCountIs('AWS::Scheduler::Schedule', 2);
+    template.resourceCountIs('AWS::Scheduler::Schedule', 7);
+    // Description must stay unchanged (AppIamExecutionPolicy lacks UpdateRoleDescription).
+    template.hasResourceProperties('AWS::IAM::Role', {
+      Description: 'Allows EventBridge Scheduler to invoke sync-odds',
+    });
     template.hasResourceProperties('AWS::Scheduler::Schedule', {
       Name: 'sync-odds-morning',
       State: 'ENABLED',
@@ -114,6 +150,36 @@ describe('LocksAppStack', () => {
       Name: 'sync-odds-afternoon',
       State: 'ENABLED',
       ScheduleExpression: 'cron(0 20 * * ? *)',
+    });
+    template.hasResourceProperties('AWS::Scheduler::Schedule', {
+      Name: 'grade-games-thursday-tnf',
+      State: 'ENABLED',
+      ScheduleExpression: 'cron(45 23 ? * THU *)',
+      ScheduleExpressionTimezone: 'America/New_York',
+    });
+    template.hasResourceProperties('AWS::Scheduler::Schedule', {
+      Name: 'grade-games-sunday-early',
+      State: 'ENABLED',
+      ScheduleExpression: 'cron(15 16 ? * SUN *)',
+      ScheduleExpressionTimezone: 'America/New_York',
+    });
+    template.hasResourceProperties('AWS::Scheduler::Schedule', {
+      Name: 'grade-games-sunday-late',
+      State: 'ENABLED',
+      ScheduleExpression: 'cron(0 20 ? * SUN *)',
+      ScheduleExpressionTimezone: 'America/New_York',
+    });
+    template.hasResourceProperties('AWS::Scheduler::Schedule', {
+      Name: 'grade-games-sunday-snf',
+      State: 'ENABLED',
+      ScheduleExpression: 'cron(45 23 ? * SUN *)',
+      ScheduleExpressionTimezone: 'America/New_York',
+    });
+    template.hasResourceProperties('AWS::Scheduler::Schedule', {
+      Name: 'grade-games-monday-mnf',
+      State: 'ENABLED',
+      ScheduleExpression: 'cron(45 23 ? * MON *)',
+      ScheduleExpressionTimezone: 'America/New_York',
     });
     template.hasResourceProperties('AWS::IAM::Policy', {
       PolicyDocument: {
@@ -134,6 +200,59 @@ describe('LocksAppStack', () => {
         ]),
       },
     });
+  });
+
+  it('defines grade-games Lambda with odds/score IAM and Node 22 ARM', () => {
+    // Unique vs sync-odds: no ACTIVE_WEEK env; dedicated role Description.
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      Handler: 'index.handler',
+      Runtime: 'nodejs22.x',
+      Architectures: ['arm64'],
+      Timeout: 30,
+      MemorySize: 256,
+      Environment: {
+        Variables: Match.objectLike({
+          ODDS_API_ENABLED: 'true',
+          ODDS_API_SPORT: 'americanfootball_nfl_preseason',
+          ACTIVE_WEEK: Match.absent(),
+        }),
+      },
+    });
+    const gradeGamesLambdas = Object.values(
+      template.findResources('AWS::Lambda::Function'),
+    ).filter((resource) => {
+      const vars = resource.Properties.Environment?.Variables ?? {};
+      return (
+        vars.ODDS_API_ENABLED === 'true' &&
+        vars.ODDS_API_SPORT === 'americanfootball_nfl_preseason' &&
+        vars.ACTIVE_WEEK === undefined
+      );
+    });
+    expect(gradeGamesLambdas).toHaveLength(1);
+    template.hasResourceProperties('AWS::IAM::Role', {
+      Description: 'Execution role for scheduled score sync and pick grading',
+    });
+    template.hasResourceProperties('AWS::IAM::Policy', {
+      PolicyDocument: {
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Action: 'ssm:GetParameter',
+            Effect: 'Allow',
+            Resource:
+              'arn:aws:ssm:us-east-1:580956784928:parameter/locks/odds-api-key',
+          }),
+          Match.objectLike({
+            Action: Match.arrayWith([
+              'dynamodb:GetItem',
+              'dynamodb:PutItem',
+              'dynamodb:Query',
+              'dynamodb:UpdateItem',
+            ]),
+          }),
+        ]),
+      },
+    });
+    template.hasOutput('GradeGamesFunctionName', {});
   });
 
   it('grants SubmitPick the Dynamo actions needed for pick transactions', () => {

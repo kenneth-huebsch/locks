@@ -1,0 +1,94 @@
+import { parseSeasonWeekToken, seasonWeekToken } from './dynamo.js';
+import type { Pick, PlayerStandings, StandingsResponse, WinLossTie } from './types.js';
+
+export function computePlayerRecord(picks: Pick[]): WinLossTie {
+  const record: WinLossTie = { wins: 0, losses: 0, pushes: 0 };
+
+  for (const pick of picks) {
+    switch (pick.result) {
+      case 'win':
+        record.wins += 1;
+        break;
+      case 'loss':
+        record.losses += 1;
+        break;
+      case 'push':
+        record.pushes += 1;
+        break;
+      case 'pending':
+        break;
+    }
+  }
+
+  return record;
+}
+
+export function formatPlayerRecord(record: WinLossTie): string {
+  return `${record.wins}-${record.losses}-${record.pushes}`;
+}
+
+export function computePlayerRecordsById(picks: Pick[]): Record<string, string> {
+  const picksByPlayer = new Map<string, Pick[]>();
+
+  for (const pick of picks) {
+    const playerPicks = picksByPlayer.get(pick.playerId) ?? [];
+    playerPicks.push(pick);
+    picksByPlayer.set(pick.playerId, playerPicks);
+  }
+
+  const records: Record<string, string> = {};
+  for (const [playerId, playerPicks] of picksByPlayer) {
+    records[playerId] = formatPlayerRecord(computePlayerRecord(playerPicks));
+  }
+
+  return records;
+}
+
+export function computeStandingsFromPicks(
+  picks: Pick[],
+  season: number,
+  currentWeek: number,
+): StandingsResponse {
+  const picksByPlayer = new Map<string, Pick[]>();
+  for (const pick of picks) {
+    const playerPicks = picksByPlayer.get(pick.playerId) ?? [];
+    playerPicks.push(pick);
+    picksByPlayer.set(pick.playerId, playerPicks);
+  }
+
+  const playerIds = [...picksByPlayer.keys()].sort();
+  const players: PlayerStandings[] = playerIds.map((playerId) => {
+    const playerPicks = picksByPlayer.get(playerId) ?? [];
+    const picksByWeek = new Map<string, Pick[]>();
+    for (const pick of playerPicks) {
+      const weekPicks = picksByWeek.get(pick.seasonWeek) ?? [];
+      weekPicks.push(pick);
+      picksByWeek.set(pick.seasonWeek, weekPicks);
+    }
+
+    const weeks = Array.from({ length: currentWeek }, (_, index) => {
+      const week = index + 1;
+      const token = seasonWeekToken(season, week);
+      const { season: weekSeason, week: weekNumber } = parseSeasonWeekToken(token);
+      return {
+        season: weekSeason,
+        week: weekNumber,
+        seasonWeek: token,
+        isCurrent: week === currentWeek,
+        record: computePlayerRecord(picksByWeek.get(token) ?? []),
+      };
+    });
+
+    return {
+      playerId,
+      season: computePlayerRecord(playerPicks),
+      weeks,
+    };
+  });
+
+  return {
+    season,
+    currentWeek,
+    players,
+  };
+}

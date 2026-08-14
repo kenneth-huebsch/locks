@@ -149,4 +149,123 @@ describe('odds-api-client', () => {
       OddsApiResponseError,
     );
   });
+
+  it('throws without HTTP when scores fetch is disabled', async () => {
+    const httpClient: HttpClient = {
+      get: vi.fn(),
+    };
+    const client = createOddsApiClient({
+      apiKey,
+      httpClient,
+      clock,
+      enabled: false,
+    });
+
+    await expect(client.fetchNflScores(null)).rejects.toBeInstanceOf(
+      OddsApiDisabledError,
+    );
+    expect(httpClient.get).not.toHaveBeenCalled();
+  });
+
+  it('enforces the credit reserve before fetching scores', async () => {
+    const httpClient: HttpClient = {
+      get: vi.fn(),
+    };
+    const client = createOddsApiClient({
+      apiKey,
+      httpClient,
+      clock,
+      enabled: true,
+    });
+
+    await expect(client.fetchNflScores(49)).rejects.toBeInstanceOf(
+      OddsApiQuotaReserveError,
+    );
+    expect(httpClient.get).not.toHaveBeenCalled();
+  });
+
+  it('captures quota headers from scores responses and requests daysFrom', async () => {
+    const httpClient: HttpClient = {
+      get: vi.fn().mockResolvedValue(
+        mockResponse({
+          jsonPayload: [
+            {
+              id: 'event-1',
+              sport_key: 'americanfootball_nfl',
+              sport_title: 'NFL',
+              commence_time: '2026-09-10T00:20:00.000Z',
+              completed: true,
+              home_team: 'Philadelphia Eagles',
+              away_team: 'Dallas Cowboys',
+              scores: [
+                { name: 'Dallas Cowboys', score: '17' },
+                { name: 'Philadelphia Eagles', score: '24' },
+              ],
+              last_update: '2026-09-10T03:30:00.000Z',
+            },
+          ],
+          headerValues: {
+            'x-requests-used': '12',
+            'x-requests-remaining': '488',
+          },
+        }),
+      ),
+    };
+    const client = createOddsApiClient({
+      apiKey,
+      httpClient,
+      clock,
+      enabled: true,
+    });
+
+    const result = await client.fetchNflScores(100);
+
+    expect(result.quota).toEqual({
+      creditsUsed: 12,
+      creditsRemaining: 488,
+    });
+    expect(result.data).toHaveLength(1);
+    expect(httpClient.get).toHaveBeenCalledOnce();
+    expect(httpClient.get).toHaveBeenCalledWith(
+      expect.stringContaining('/scores'),
+    );
+    expect(httpClient.get).toHaveBeenCalledWith(
+      expect.stringContaining('daysFrom=3'),
+    );
+  });
+
+  it('rejects malformed scores payloads and missing quota headers', async () => {
+    const httpClient: HttpClient = {
+      get: vi
+        .fn()
+        .mockResolvedValueOnce(
+          mockResponse({
+            jsonPayload: { invalid: true },
+            headerValues: {
+              'x-requests-used': '2',
+              'x-requests-remaining': '498',
+            },
+          }),
+        )
+        .mockResolvedValueOnce(
+          mockResponse({
+            jsonPayload: [],
+            headerValues: {},
+          }),
+        ),
+    };
+    const client = createOddsApiClient({
+      apiKey,
+      httpClient,
+      clock,
+      enabled: true,
+    });
+
+    await expect(client.fetchNflScores(null)).rejects.toBeInstanceOf(
+      OddsApiResponseError,
+    );
+    await expect(client.fetchNflScores(null)).rejects.toBeInstanceOf(
+      OddsApiResponseError,
+    );
+  });
 });

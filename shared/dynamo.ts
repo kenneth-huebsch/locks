@@ -6,6 +6,26 @@ export function seasonWeekToken(season: number, week: number): string {
   return `${season}#W${formatWeekNumber(week)}`;
 }
 
+const SEASON_WEEK_TOKEN_PATTERN = /^(\d{4})#W(\d{2})$/;
+
+/** Parse a canonical season-week token such as `2026#W01`. */
+export function parseSeasonWeekToken(token: string): {
+  season: number;
+  week: number;
+} {
+  const match = SEASON_WEEK_TOKEN_PATTERN.exec(token);
+  if (!match) {
+    throw new Error(
+      `Invalid seasonWeek token "${token}"; expected YYYY#Wnn (e.g. 2026#W01)`,
+    );
+  }
+
+  return {
+    season: Number(match[1]),
+    week: Number(match[2]),
+  };
+}
+
 export function weekPartitionKey(season: number, week: number): string {
   return `WEEK#${seasonWeekToken(season, week)}`;
 }

@@ -4,7 +4,8 @@
 
 The Locks app uses [The Odds API](https://the-odds-api.com/) for NFL spreads
 and scores. The API key lives in SSM Parameter Store at
-`/locks/odds-api-key`. Only the `sync-odds` Lambda role can read it.
+`/locks/odds-api-key`. The `sync-odds` and `grade-games` Lambda roles can
+read it.
 
 ## Current State
 
@@ -13,10 +14,11 @@ and scores. The API key lives in SSM Parameter Store at
 
 - **API key:** Set as SecureString at `/locks/odds-api-key` by an approved
   operator via `locks-publish` (`ssm:PutParameter` on that parameter only).
-- **Scheduler:** EventBridge schedules `sync-odds-morning` / `sync-odds-afternoon`
-  in group `locks` are ENABLED. `ODDS_API_ENABLED` on the Lambda is `true`.
+- **Scheduler:** EventBridge schedules in group `locks` are ENABLED for both
+  odds sync and grade-games (preseason dry run). `ODDS_API_ENABLED` on both
+  Lambdas is `true`.
 - **Kill switch:** Set `ODDS_API_ENABLED=false` on the Lambda to disable
-  sync without removing the key or schedule.
+  sync/grading without removing the key or schedule.
 
 ## Setting the Odds API Key
 
@@ -51,11 +53,28 @@ AWS_PROFILE=coding-agent aws logs describe-log-groups \
 ### Sync Schedule (Defined in CDK)
 - Tuesday-Wednesday: once daily
 - Thursday-Monday: twice daily (morning + ~2h before first kickoff)
+- Expressions use timezone `UTC` (see `locks-app-stack.ts` comments for ET)
 
-### Score Schedule (Phase 3 — not yet implemented)
-- Sunday: after early games, late games, SNF
-- Monday: after MNF
-- Thursday: after TNF
+### Score Schedule (Defined in CDK, timezone `America/New_York`)
+
+| Schedule name | Cron | Local meaning |
+|---|---|---|
+| `grade-games-thursday-tnf` | `cron(45 23 ? * THU *)` | Thu 11:45pm ET after TNF |
+| `grade-games-sunday-early` | `cron(15 16 ? * SUN *)` | Sun 4:15pm ET after early games |
+| `grade-games-sunday-late` | `cron(0 20 ? * SUN *)` | Sun 8:00pm ET after late games |
+| `grade-games-sunday-snf` | `cron(45 23 ? * SUN *)` | Sun 11:45pm ET after SNF |
+| `grade-games-monday-mnf` | `cron(45 23 ? * MON *)` | Mon 11:45pm ET after MNF |
+
+Schedules are ENABLED to match odds sync for the preseason dry run. Disable
+both schedule families in the offseason.
+
+Both schedule families target Lambdas through the shared
+`SyncOddsSchedulerInvokeRole` (Description stays
+`Allows EventBridge Scheduler to invoke sync-odds` — do not change it;
+`AppIamExecutionPolicy` lacks `iam:UpdateRoleDescription`). `grantInvoke`
+covers sync-odds and grade-games. Effective invoke also requires
+`LocksAppRuntimeBoundary` to allow `lambda:InvokeFunction` on
+`LocksAppStack-*` (deploy foundation/OIDC before relying on ENABLED schedules).
 
 ## Disabling Odds Sync
 
@@ -97,7 +116,7 @@ AWS_PROFILE=coding-agent aws dynamodb query \
 
 ## Manual sync (operator)
 
-With `AWS_PROFILE=locks-publish` after OIDC deploy grants `SyncOddsInvoke`:
+With `AWS_PROFILE=locks-publish` after OIDC deploy grants `OperatorLambdaInvoke`:
 
 ```bash
 FN=$(aws lambda list-functions --query "Functions[?starts_with(FunctionName, 'LocksAppStack-SyncOddsFunction')].FunctionName | [0]" --output text)
@@ -111,6 +130,22 @@ cat /tmp/sync-odds-out.json
 ```
 
 `coding-agent` remains read-only and cannot invoke.
+
+## Manual grade (operator)
+
+After `LocksAppStack` exposes `GradeGamesFunctionName` and OIDC publish role
+includes `LocksAppStack-GradeGamesFunction*`:
+
+```bash
+# Active week from SEASON#ACTIVE
+AWS_PROFILE=locks-publish npx tsx scripts/invoke-grade-games.ts
+
+# Optional season-week override (same payload as Lambda event)
+AWS_PROFILE=locks-publish npx tsx scripts/invoke-grade-games.ts 2026#W01
+```
+
+The script asserts account `580956784928`, resolves the function from stack
+outputs, and invokes Lambda only — it does not run CDK synth/deploy.
 
 
 ## Preseason vs regular season

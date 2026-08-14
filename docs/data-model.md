@@ -46,13 +46,16 @@ Week numbers are zero-padded to two digits. The season-week token is
 
 ### Active season pointer
 
-Points at the current NFL season year. Updated when operators advance seasons.
+Points at the current NFL season year and competition week. Operators advance
+`week` (and eventually `season`) deliberately; automatic Tuesday 02:00
+America/New_York rollover is product policy only and is not implemented here.
 
 | Attribute | Value |
 |---|---|
 | PK | `SEASON#ACTIVE` |
 | SK | `META` |
 | season | Number — active season year (e.g. `2026`) |
+| week | Number — active competition week (1–18); read by current-week, picks, and grading |
 | updatedAt | String — ISO UTC timestamp |
 
 ### Week metadata
@@ -197,8 +200,27 @@ Sync may batch writes but must never delete or overwrite pick or counter items.
 
 ### Grading (Phase 3)
 
-Update game scores/status and pick `result` fields in separate writes. Grading does
-not use the pick-submission transaction.
+Update game scores/status and pick `result` fields in **separate** writes
+(`UpdateItem` / `PutItem`). Grading does **not** use the pick-submission
+transaction and must not alter pick identity fields (`pickedTeam`,
+`spreadAtPick`, `submittedAt`, keys).
+
+Rules:
+
+- Grade only picks whose `result` is currently `pending`. Use a conditional
+  update (`result = pending`) so terminal `win` / `loss` / `push` values are
+  never overwritten. Score corrections after a game is final are out of scope.
+- Write final `awayScore` / `homeScore` and `status = final` on the game item
+  when The Odds API reports a completed event with both team scores present.
+- Skip incomplete, in-progress, or missing-score events; leave those picks
+  `pending`.
+- Do **not** write aggregate standings items in the grading Lambda (Phase 3b+).
+- Competition week product rule (documented only; no auto-advance here): a
+  competition week starts **Tuesday 02:00 America/New_York**. Current-week
+  selection remains `SEASON#ACTIVE` until an operator advances it.
+
+Quota diagnostic records for the scores endpoint use the same
+`QUOTA#ODDS_API` TTL pattern as odds sync (30 days).
 
 ## Conditional expressions (summary)
 

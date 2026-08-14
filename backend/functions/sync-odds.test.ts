@@ -65,6 +65,7 @@ function createHandler(
           quota: { creditsUsed: 11, creditsRemaining: 489 },
         }),
         fetchNflEvents: vi.fn(),
+        fetchNflScores: vi.fn(),
       } satisfies OddsApiClient),
     clock,
     tableName,
@@ -172,6 +173,7 @@ describe('sync-odds handler', () => {
           .fn()
           .mockRejectedValue(new Error('vendor unavailable')),
         fetchNflEvents: vi.fn(),
+        fetchNflScores: vi.fn(),
       } satisfies OddsApiClient,
     });
 

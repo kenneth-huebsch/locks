@@ -128,6 +128,23 @@ export class LocksAppStack extends Stack {
     // grantReadData includes base-table and GSI reads (GSI1 picks query).
     table.grantReadData(currentWeekFunction);
 
+    const standingsFunction = new NodejsFunction(this, 'StandingsFunction', {
+      entry: 'backend/functions/standings.ts',
+      handler: 'handler',
+      runtime: Runtime.NODEJS_22_X,
+      architecture: Architecture.ARM_64,
+      timeout: Duration.seconds(10),
+      memorySize: 256,
+      environment: {
+        TABLE_NAME: table.tableName,
+      },
+      bundling: {
+        minify: true,
+        sourceMap: true,
+      },
+    });
+    table.grantReadData(standingsFunction);
+
     const userPool = new UserPool(this, 'UserPoolV2', {
       userPoolName: 'locks',
       selfSignUpEnabled: false,
@@ -257,6 +274,16 @@ function handler(event) {
       authorizer,
     });
 
+    httpApi.addRoutes({
+      path: '/api/standings',
+      methods: [HttpMethod.GET],
+      integration: new HttpLambdaIntegration(
+        'StandingsIntegration',
+        standingsFunction,
+      ),
+      authorizer,
+    });
+
     const submitPickFunctionRole = new Role(this, 'SubmitPickFunctionRole', {
       assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
       description: 'Execution role for authenticated pick submission',
@@ -364,17 +391,75 @@ function handler(event) {
       },
     });
 
+    const gradeGamesFunctionRole = new Role(this, 'GradeGamesFunctionRole', {
+      assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
+      description: 'Execution role for scheduled score sync and pick grading',
+      managedPolicies: [
+        ManagedPolicy.fromAwsManagedPolicyName(
+          'service-role/AWSLambdaBasicExecutionRole',
+        ),
+      ],
+    });
+    gradeGamesFunctionRole.addToPolicy(
+      new PolicyStatement({
+        actions: ['ssm:GetParameter'],
+        resources: [
+          `arn:aws:ssm:${TARGET_REGION}:${TARGET_ACCOUNT}:parameter/locks/odds-api-key`,
+        ],
+      }),
+    );
+    gradeGamesFunctionRole.addToPolicy(
+      new PolicyStatement({
+        actions: [
+          'dynamodb:GetItem',
+          'dynamodb:PutItem',
+          'dynamodb:Query',
+          'dynamodb:UpdateItem',
+        ],
+        resources: [
+          table.tableArn,
+          `${table.tableArn}/index/*`,
+        ],
+      }),
+    );
+
+    const gradeGamesFunction = new NodejsFunction(this, 'GradeGamesFunction', {
+      entry: 'backend/functions/grade-games.ts',
+      handler: 'handler',
+      runtime: Runtime.NODEJS_22_X,
+      architecture: Architecture.ARM_64,
+      timeout: Duration.seconds(30),
+      memorySize: 256,
+      role: gradeGamesFunctionRole,
+      environment: {
+        TABLE_NAME: table.tableName,
+        ODDS_API_ENABLED: 'true',
+        // Preseason dry run: match sync-odds sport key. Flip to americanfootball_nfl for regular season.
+        ODDS_API_SPORT: 'americanfootball_nfl_preseason',
+      },
+      bundling: {
+        minify: true,
+        sourceMap: true,
+      },
+    });
+
+    // Shared scheduler invoke role for sync-odds and grade-games (grantInvoke
+    // below). Keep Description stable: AppIamExecutionPolicy does not grant
+    // iam:UpdateRoleDescription (same footgun as LocksAppPublishRole).
     const schedulerInvokeRole = new Role(this, 'SyncOddsSchedulerInvokeRole', {
       assumedBy: new ServicePrincipal('scheduler.amazonaws.com'),
       description: 'Allows EventBridge Scheduler to invoke sync-odds',
     });
     syncOddsFunction.grantInvoke(schedulerInvokeRole);
+    gradeGamesFunction.grantInvoke(schedulerInvokeRole);
 
     new CfnScheduleGroup(this, 'ScheduledFunctionsGroup', {
       name: 'locks',
     });
 
-    const scheduleProps = {
+    // Match existing odds schedules: ENABLED for preseason dry run. Disable
+    // both families during the offseason (see odds-management.md).
+    const syncOddsScheduleProps = {
       groupName: 'locks',
       flexibleTimeWindow: { mode: 'OFF' },
       state: 'ENABLED',
@@ -392,14 +477,70 @@ function handler(event) {
       scheduleExpression: 'cron(0 12 * * ? *)',
       scheduleExpressionTimezone: 'UTC',
       description: 'Morning NFL odds sync (8am ET, Tue-Mon during season)',
-      ...scheduleProps,
+      ...syncOddsScheduleProps,
     });
     new CfnSchedule(this, 'SyncOddsAfternoonSchedule', {
       name: 'sync-odds-afternoon',
       scheduleExpression: 'cron(0 20 * * ? *)',
       scheduleExpressionTimezone: 'UTC',
       description: 'Afternoon NFL odds sync (4pm ET, Tue-Mon during season)',
-      ...scheduleProps,
+      ...syncOddsScheduleProps,
+    });
+
+    // Score windows (PLAN): after TNF / early / late / SNF / MNF.
+    // Timezone America/New_York so expressions track ET across DST.
+    const gradeGamesScheduleProps = {
+      groupName: 'locks',
+      flexibleTimeWindow: { mode: 'OFF' },
+      state: 'ENABLED',
+      target: {
+        arn: gradeGamesFunction.functionArn,
+        roleArn: schedulerInvokeRole.roleArn,
+        retryPolicy: {
+          maximumRetryAttempts: 2,
+        },
+      },
+    } as const;
+
+    new CfnSchedule(this, 'GradeGamesThursdayTnfSchedule', {
+      name: 'grade-games-thursday-tnf',
+      // Thu 11:45 PM ET — after Thursday Night Football
+      scheduleExpression: 'cron(45 23 ? * THU *)',
+      scheduleExpressionTimezone: 'America/New_York',
+      description: 'Grade after TNF (Thu 11:45pm America/New_York)',
+      ...gradeGamesScheduleProps,
+    });
+    new CfnSchedule(this, 'GradeGamesSundayEarlySchedule', {
+      name: 'grade-games-sunday-early',
+      // Sun 4:15 PM ET — after the early Sunday window
+      scheduleExpression: 'cron(15 16 ? * SUN *)',
+      scheduleExpressionTimezone: 'America/New_York',
+      description: 'Grade after early Sunday games (Sun 4:15pm America/New_York)',
+      ...gradeGamesScheduleProps,
+    });
+    new CfnSchedule(this, 'GradeGamesSundayLateSchedule', {
+      name: 'grade-games-sunday-late',
+      // Sun 8:00 PM ET — after the late afternoon window
+      scheduleExpression: 'cron(0 20 ? * SUN *)',
+      scheduleExpressionTimezone: 'America/New_York',
+      description: 'Grade after late Sunday games (Sun 8:00pm America/New_York)',
+      ...gradeGamesScheduleProps,
+    });
+    new CfnSchedule(this, 'GradeGamesSundaySnfSchedule', {
+      name: 'grade-games-sunday-snf',
+      // Sun 11:45 PM ET — after Sunday Night Football
+      scheduleExpression: 'cron(45 23 ? * SUN *)',
+      scheduleExpressionTimezone: 'America/New_York',
+      description: 'Grade after SNF (Sun 11:45pm America/New_York)',
+      ...gradeGamesScheduleProps,
+    });
+    new CfnSchedule(this, 'GradeGamesMondayMnfSchedule', {
+      name: 'grade-games-monday-mnf',
+      // Mon 11:45 PM ET — after Monday Night Football
+      scheduleExpression: 'cron(45 23 ? * MON *)',
+      scheduleExpressionTimezone: 'America/New_York',
+      description: 'Grade after MNF (Mon 11:45pm America/New_York)',
+      ...gradeGamesScheduleProps,
     });
 
     output(this, 'ApiEndpoint', httpApi.apiEndpoint);
@@ -407,6 +548,7 @@ function handler(event) {
     output(this, 'CognitoDomain', userPoolDomain.baseUrl());
     output(this, 'DistributionDomainName', distribution.distributionDomainName);
     output(this, 'DistributionId', distribution.distributionId);
+    output(this, 'GradeGamesFunctionName', gradeGamesFunction.functionName);
     output(this, 'SiteBucketName', siteBucket.bucketName);
     output(this, 'TableName', table.tableName);
     output(this, 'UserPoolClientId', userPoolClient.userPoolClientId);
