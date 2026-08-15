@@ -27,6 +27,29 @@ export function formatPlayerRecord(record: WinLossTie): string {
   return `${record.wins}-${record.losses}-${record.pushes}`;
 }
 
+export function recordsThroughWeek(
+  standings: StandingsResponse,
+  throughWeek: number,
+): Record<string, string> {
+  const records: Record<string, string> = {};
+
+  for (const player of standings.players) {
+    const record = player.weeks
+      .filter((week) => week.week <= throughWeek)
+      .reduce<WinLossTie>(
+        (total, week) => ({
+          wins: total.wins + week.record.wins,
+          losses: total.losses + week.record.losses,
+          pushes: total.pushes + week.record.pushes,
+        }),
+        { wins: 0, losses: 0, pushes: 0 },
+      );
+    records[player.playerId] = formatPlayerRecord(record);
+  }
+
+  return records;
+}
+
 export function computePlayerRecordsById(picks: Pick[]): Record<string, string> {
   const picksByPlayer = new Map<string, Pick[]>();
 

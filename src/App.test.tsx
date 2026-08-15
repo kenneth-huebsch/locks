@@ -3,7 +3,11 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { App, type AppAuth } from './App';
-import type { CurrentWeekResponse, WeekSummary } from '../shared/types';
+import type {
+  CurrentWeekResponse,
+  StandingsResponse,
+  WeekSummary,
+} from '../shared/types';
 import { JACK_SUB, KENNY_SUB } from './lib/players';
 
 const weekSummaries: WeekSummary[] = [
@@ -89,6 +93,67 @@ const pastWeek: CurrentWeekResponse = {
   oddsUpdatedAt: '2026-09-09T12:00:00.000Z',
 };
 
+const standings: StandingsResponse = {
+  season: 2026,
+  currentWeek: 3,
+  players: [
+    {
+      playerId: KENNY_SUB,
+      season: { wins: 1, losses: 0, pushes: 0 },
+      weeks: [
+        {
+          season: 2026,
+          week: 1,
+          seasonWeek: '2026#W01',
+          isCurrent: false,
+          record: { wins: 1, losses: 0, pushes: 0 },
+        },
+        {
+          season: 2026,
+          week: 2,
+          seasonWeek: '2026#W02',
+          isCurrent: false,
+          record: { wins: 0, losses: 0, pushes: 0 },
+        },
+        {
+          season: 2026,
+          week: 3,
+          seasonWeek: '2026#W03',
+          isCurrent: true,
+          record: { wins: 0, losses: 0, pushes: 0 },
+        },
+      ],
+    },
+    {
+      playerId: JACK_SUB,
+      season: { wins: 0, losses: 1, pushes: 0 },
+      weeks: [
+        {
+          season: 2026,
+          week: 1,
+          seasonWeek: '2026#W01',
+          isCurrent: false,
+          record: { wins: 0, losses: 1, pushes: 0 },
+        },
+        {
+          season: 2026,
+          week: 2,
+          seasonWeek: '2026#W02',
+          isCurrent: false,
+          record: { wins: 0, losses: 0, pushes: 0 },
+        },
+        {
+          season: 2026,
+          week: 3,
+          seasonWeek: '2026#W03',
+          isCurrent: true,
+          record: { wins: 0, losses: 0, pushes: 0 },
+        },
+      ],
+    },
+  ],
+};
+
 const unauthenticatedAuth: AppAuth = {
   isAuthenticated: false,
   isLoading: false,
@@ -99,7 +164,7 @@ const unauthenticatedAuth: AppAuth = {
 function renderApp(
   loadWeek = vi.fn().mockResolvedValue(currentWeek),
   listWeeksFn = vi.fn().mockResolvedValue(weekSummaries),
-  loadPicksThroughWeek = vi.fn().mockReturnValue(pastWeek.picks),
+  loadStandings = vi.fn().mockResolvedValue(standings),
 ) {
   return render(
     <App
@@ -110,7 +175,7 @@ function renderApp(
         userSub: KENNY_SUB,
       }}
       listWeeks={listWeeksFn}
-      loadPicksThroughWeek={loadPicksThroughWeek}
+      loadStandings={loadStandings}
       loadWeek={loadWeek}
     />,
   );
@@ -122,6 +187,7 @@ describe('App', () => {
       <App
         auth={unauthenticatedAuth}
         listWeeks={vi.fn()}
+        loadStandings={vi.fn()}
         loadWeek={vi.fn()}
       />,
     );
@@ -269,6 +335,7 @@ describe('App', () => {
           logout,
         }}
         listWeeks={vi.fn().mockResolvedValue(weekSummaries)}
+        loadStandings={vi.fn().mockResolvedValue(standings)}
         loadWeek={vi.fn().mockResolvedValue({
           ...currentWeek,
           games: [],

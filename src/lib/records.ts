@@ -3,4 +3,5 @@ export {
   computePlayerRecordsById,
   computeStandingsFromPicks,
   formatPlayerRecord,
+  recordsThroughWeek,
 } from '../../shared/records.js';

@@ -2,11 +2,11 @@ import type {
   ApiErrorResponse,
   CurrentWeekResponse,
   ErrorCode,
+  StandingsResponse,
   SubmitPickRequest,
   SubmitPickResponse,
   WeekSummary,
 } from '../shared/types';
-import type { Pick } from '../shared/types';
 import {
   listMockPicksThroughWeek,
   listMockWeeks,
@@ -15,6 +15,7 @@ import {
   submitMockPick,
 } from './lib/mockWeeks';
 import { seasonWeekToken } from '../shared/dynamo';
+import { computeStandingsFromPicks } from '../shared/records';
 
 // Live current-week API by default for preseason/production testing.
 // Set VITE_USE_MOCK_WEEKS=true to force the local mock 3-week demo path.
@@ -92,15 +93,28 @@ export async function listWeeks(
   return parseResponse<WeekSummary[]>(response);
 }
 
-export function loadPicksThroughWeek(
-  season: number,
-  throughWeek: number,
-): Pick[] {
+export async function loadStandings(
+  accessToken: string,
+  apiBaseUrl = '/api',
+): Promise<StandingsResponse> {
   if (USE_MOCK_WEEKS) {
-    return listMockPicksThroughWeek(season, throughWeek);
+    const weeks = listMockWeeks();
+    const current = weeks.find((week) => week.isCurrent) ?? weeks[0];
+    if (!current) {
+      return { season: 0, currentWeek: 0, players: [] };
+    }
+
+    return computeStandingsFromPicks(
+      listMockPicksThroughWeek(current.season, current.week),
+      current.season,
+      current.week,
+    );
   }
 
-  return [];
+  const response = await fetch(`${apiBaseUrl}/standings`, {
+    headers: authHeaders(accessToken),
+  });
+  return parseResponse<StandingsResponse>(response);
 }
 
 export async function loadWeek(

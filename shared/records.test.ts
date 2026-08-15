@@ -5,6 +5,7 @@ import {
   computePlayerRecordsById,
   computeStandingsFromPicks,
   formatPlayerRecord,
+  recordsThroughWeek,
 } from './records.js';
 
 function pick(
@@ -52,6 +53,39 @@ describe('computePlayerRecord', () => {
 describe('formatPlayerRecord', () => {
   it('formats as W-L-T', () => {
     expect(formatPlayerRecord({ wins: 2, losses: 1, pushes: 0 })).toBe('2-1-0');
+  });
+});
+
+describe('recordsThroughWeek', () => {
+  it('formats cumulative records through the selected week', () => {
+    const standings = computeStandingsFromPicks(
+      [
+        pick('kenny', 'win', '2026#W01', 'w1-g1'),
+        pick('kenny', 'push', '2026#W02', 'w2-g1'),
+        pick('kenny', 'loss', '2026#W03', 'w3-g1'),
+        pick('jack', 'loss', '2026#W01', 'w1-g1'),
+        pick('jack', 'win', '2026#W02', 'w2-g1'),
+      ],
+      2026,
+      3,
+    );
+
+    expect(recordsThroughWeek(standings, 2)).toEqual({
+      jack: '1-1-0',
+      kenny: '1-0-1',
+    });
+  });
+
+  it('includes players with no graded picks through the selected week', () => {
+    const standings = computeStandingsFromPicks(
+      [pick('kenny', 'win', '2026#W03', 'w3-g1')],
+      2026,
+      3,
+    );
+
+    expect(recordsThroughWeek(standings, 2)).toEqual({
+      kenny: '0-0-0',
+    });
   });
 });
 

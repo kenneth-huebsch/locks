@@ -2,10 +2,12 @@
 
 ## Project status
 
-Last updated: August 14, 2026.
+Last updated: August 15, 2026.
 
 - **Phase 1 is complete and deployed.**
 - **Phase 2 is complete and deployed for preseason Week 1.**
+- **Phase 3 implementation is complete locally; deployment and live validation
+  remain.**
 - Production application: https://locks.inov8.cc
 - CloudFront fallback: https://d141pq884g4gai.cloudfront.net
 - AWS account: `580956784928`
@@ -49,7 +51,10 @@ Last updated: August 14, 2026.
 ### Current open items
 
 1. **Eric invite:** deferred until Kenny asks.
-2. **Phase 3 next:** score sync, grading, standings, historical results board.
+2. **Phase 3 release:** deploy and validate grading, standings, and historical
+   results in production.
+3. **Phase 4 next:** mobile polish, empty states, immutable-pick messaging, and
+   admin grading overrides.
 
 ## Recommendation: AWS serverless with DynamoDB caching
 
@@ -466,12 +471,13 @@ Approved Phase 1 deviations:
   - Three-pick weekly maximum
 - Refresh shared picks after submission, on window focus, and at a short interval.
 
-### Phase 3: Grading and standings — planned
+### Phase 3: Grading and standings — implementation complete
 
-- Implement scheduled score synchronization.
-- Implement W-L-P grading.
-- Build season and weekly standings.
-- Build the historical picks board.
+- [x] Implement scheduled score synchronization.
+- [x] Implement W-L-P grading.
+- [x] Build season and weekly standings.
+- [x] Build the historical picks board.
+- [ ] Deploy and validate Phase 3 end to end in production.
 
 ### Phase 4: Polish and final release — planned
 

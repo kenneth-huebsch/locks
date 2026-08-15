@@ -108,6 +108,18 @@ describe('api mock weeks', () => {
       ),
     ).rejects.toBeInstanceOf(ApiError);
   });
+
+  it('derives standings from all mock weeks through the current week', async () => {
+    const { loadStandings } = await loadApi();
+
+    const standings = await loadStandings('token');
+
+    expect(standings).toMatchObject({
+      season: 2026,
+      currentWeek: 3,
+    });
+    expect(standings.players.length).toBeGreaterThan(0);
+  });
 });
 
 describe('api live weeks', () => {
@@ -169,6 +181,30 @@ describe('api live weeks', () => {
 
     await expect(loadWeek('token', 2026, 1, '/api')).resolves.toEqual(payload);
     expect(fetchMock).toHaveBeenCalledWith('/api/week/2026%23W01', {
+      headers: {
+        authorization: 'Bearer token',
+        'content-type': 'application/json',
+      },
+    });
+  });
+
+  it('loads standings from the authenticated standings endpoint', async () => {
+    const payload = {
+      season: 2026,
+      currentWeek: 2,
+      players: [],
+    };
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const { loadStandings } = await import('./api');
+
+    await expect(loadStandings('token', '/api')).resolves.toEqual(payload);
+    expect(fetchMock).toHaveBeenCalledWith('/api/standings', {
       headers: {
         authorization: 'Bearer token',
         'content-type': 'application/json',

@@ -1,4 +1,6 @@
-<!-- Status: Phase 3a backend grading foundation; CDK schedule wiring deferred. -->
+<!-- Status: Historical Phase 3a handoff. Its deferred schedule, standings API,
+and historical board work has since landed; SPA standings wiring completed in
+the Phase 3 closeout. -->
 # Phase 3a Handoff: Score Fetch and ATS Grading Core
 
 ## Mission
@@ -50,13 +52,18 @@ in this slice (Phase 3b).
 TNF through Monday finals for the planned grading windows without extra
 metered requests.
 
-## Out of scope (later phases)
+## Out of scope at the time
 
 - CDK `NodejsFunction`, IAM, and EventBridge schedule for `grade-games`
 - Standings HTTP API and Dynamo aggregate items
 - Historical picks board / UI result rendering
 - Admin grading overrides
 - Automatic Tuesday 02:00 ET week rollover
+
+The schedule wiring, on-demand standings API, historical week APIs and board,
+and Tuesday rollover subsequently landed. Standings are computed from retained
+picks rather than stored as aggregate DynamoDB items. Admin grading overrides
+remain Phase 4 work.
 
 ## Verification
 

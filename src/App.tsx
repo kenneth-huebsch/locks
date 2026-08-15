@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { CurrentWeekResponse, Pick, WeekSummary } from '../shared/types';
-import { loadPicksThroughWeek as defaultLoadPicksThroughWeek } from './api';
+import type {
+  CurrentWeekResponse,
+  StandingsResponse,
+  WeekSummary,
+} from '../shared/types';
 import { PicksBoard } from './components/PicksBoard';
 import { WeekView } from './components/WeekView';
-import { computePlayerRecordsById } from './lib/records';
+import { recordsThroughWeek } from './lib/records';
 
 export interface AppAuth {
   isAuthenticated: boolean;
@@ -24,7 +27,7 @@ interface AppProps {
     week: number,
     userSub?: string,
   ) => Promise<CurrentWeekResponse>;
-  loadPicksThroughWeek?: (season: number, throughWeek: number) => Pick[];
+  loadStandings: (accessToken: string) => Promise<StandingsResponse>;
 }
 
 const REFRESH_INTERVAL_MS = 30_000;
@@ -57,11 +60,12 @@ export function App({
   auth,
   listWeeks,
   loadWeek,
-  loadPicksThroughWeek = defaultLoadPicksThroughWeek,
+  loadStandings,
 }: AppProps) {
   const [weekSummaries, setWeekSummaries] = useState<WeekSummary[]>([]);
   const [selectedWeek, setSelectedWeek] = useState<WeekSummary>();
   const [weekData, setWeekData] = useState<CurrentWeekResponse>();
+  const [standings, setStandings] = useState<StandingsResponse>();
   const [loadError, setLoadError] = useState<string>();
 
   const refreshSelectedWeek = useCallback(async (): Promise<void> => {
@@ -177,17 +181,58 @@ export function App({
   ]);
 
   const showingCurrentWeek = selectedWeek?.isCurrent ?? false;
+  useEffect(() => {
+    if (
+      !auth.isAuthenticated ||
+      !auth.accessToken ||
+      !selectedWeek ||
+      showingCurrentWeek
+    ) {
+      setStandings(undefined);
+      return;
+    }
+
+    let active = true;
+    setStandings(undefined);
+    void loadStandings(auth.accessToken)
+      .then((response) => {
+        if (active) {
+          setStandings(response);
+        }
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setLoadError(
+            error instanceof Error
+              ? error.message
+              : 'Unable to load standings',
+          );
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [
+    auth.accessToken,
+    auth.isAuthenticated,
+    loadStandings,
+    selectedWeek,
+    showingCurrentWeek,
+  ]);
+
   const playerRecords = useMemo(() => {
-    if (!selectedWeek || showingCurrentWeek) {
+    if (
+      !selectedWeek ||
+      showingCurrentWeek ||
+      !standings ||
+      standings.season !== selectedWeek.season
+    ) {
       return undefined;
     }
 
-    const cumulativePicks = loadPicksThroughWeek(
-      selectedWeek.season,
-      selectedWeek.week,
-    );
-    return computePlayerRecordsById(cumulativePicks);
-  }, [loadPicksThroughWeek, selectedWeek, showingCurrentWeek]);
+    return recordsThroughWeek(standings, selectedWeek.week);
+  }, [selectedWeek, showingCurrentWeek, standings]);
 
   if (auth.isLoading) {
     return <StatusPage message="Checking your session…" />;
