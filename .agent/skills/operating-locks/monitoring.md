@@ -126,11 +126,11 @@ Quick read-only health check script:
 
 ```bash
 echo "=== SPA ==="
-curl -s -o /dev/null -w "HTTP %{http_code}" https://d141pq884g4gai.cloudfront.net/
+curl -s -o /dev/null -w "HTTP %{http_code}" https://locks.inov8.cc/
 echo ""
 
 echo "=== API ==="
-curl -s -o /dev/null -w "HTTP %{http_code}" https://d141pq884g4gai.cloudfront.net/api/week/current
+curl -s -o /dev/null -w "HTTP %{http_code}" https://locks.inov8.cc/api/week/current
 echo ""
 
 echo "=== Stack ==="

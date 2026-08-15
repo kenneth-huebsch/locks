@@ -11,12 +11,12 @@
 # Check if runtime-config.json exists in S3
 AWS_PROFILE=locks-publish aws s3 ls s3://locks-580956784928-us-east-1-site/runtime-config.json
 
-# Check CloudFront is serving it
-curl -s https://d141pq884g4gai.cloudfront.net/runtime-config.json
+# Check the custom domain is serving it
+curl -s https://locks.inov8.cc/runtime-config.json
 
 # Check JS assets are present
-curl -s https://d141pq884g4gai.cloudfront.net/ | grep -o '/assets/[^"]*'
-curl -s -o /dev/null -w "%{http_code}" https://d141pq884g4gai.cloudfront.net/assets/index-ljXytRbw.js
+curl -s https://locks.inov8.cc/ | grep -o '/assets/[^"]*'
+curl -s -o /dev/null -w "%{http_code}" https://locks.inov8.cc/assets/index-ljXytRbw.js
 ```
 
 **Fix:** If runtime-config.json is missing, redeploy: `AWS_PROFILE=locks-publish npm run deploy:app`
@@ -29,8 +29,10 @@ If assets are missing, the build may have changed — redeploy app.
 **Diagnosis:**
 ```bash
 # Correct paths:
-# GET  /api/week/current   — current week games + picks
-# POST /api/picks          — submit picks
+# GET  /api/week/current        — current week games + picks
+# GET  /api/weeks               — week summaries for the dropdown
+# GET  /api/week/{seasonWeek}   — selected week (encode `#` as `%23`)
+# POST /api/picks               — submit picks
 
 # Test directly against API Gateway
 curl -s https://0blz753no0.execute-api.us-east-1.amazonaws.com/api/week/current
@@ -51,7 +53,28 @@ routes. If getting 401 with a valid token:
 
 - Check Cognito user pool is active
 - Check token hasn't expired
-- Check the `aud` claim matches the client ID (`7vojip3hod4ioile2vi4n4mkmj`)
+- Check the `aud` claim matches the client ID (`6uhu0ra87p90ll44ch6cm241tv`)
+
+### Login succeeds but returns to CloudFront instead of locks.inov8.cc
+
+**Cause:** Cognito callback/logout URLs missing the custom domain, or the
+browser still has an old redirect URI cached.
+
+**Diagnosis:**
+```bash
+# Custom domain health
+curl -s -o /dev/null -w "%{http_code}" https://locks.inov8.cc/
+# Expect: 200
+
+# Cognito accepts the custom redirect_uri (302 to /login means accepted)
+curl -s -o /dev/null -w "%{http_code}" \
+  "https://locks-app-580956784928.auth.us-east-1.amazoncognito.com/oauth2/authorize?client_id=6uhu0ra87p90ll44ch6cm241tv&response_type=code&scope=openid%20email&redirect_uri=https%3A%2F%2Flocks.inov8.cc"
+# Expect: 302
+```
+
+**Fix:** Cognito callback and logout URLs are managed in `LocksAppStack`.
+Redeploy infrastructure if they drifted. Do not patch only in the Cognito
+console — the next stack update overwrites those values.
 
 ### CloudFront serving stale content
 

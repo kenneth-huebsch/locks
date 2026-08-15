@@ -61,7 +61,8 @@ docs/                    Data model and handoff documents
 
 | Item | Value |
 |---|---|
-| Application URL | https://d141pq884g4gai.cloudfront.net |
+| Application URL | https://locks.inov8.cc |
+| CloudFront fallback | https://d141pq884g4gai.cloudfront.net |
 | API Gateway | https://0blz753no0.execute-api.us-east-1.amazonaws.com |
 | AWS account | `580956784928` |
 | AWS region | `us-east-1` |
@@ -117,7 +118,7 @@ docs/                    Data model and handoff documents
 
 | Path | What happens | Approval model |
 |---|---|---|
-| **Push/merge to `main`** | GitHub Actions workflow **Deploy** (`.github/workflows/deploy.yml`) automatically deploys **only** `LocksAppStack`: quality gates → `npm run deploy:infrastructure` → `npm run deploy:app` (publish SPA, seed foundation fixture, CloudFront invalidate). Live URL: https://d141pq884g4gai.cloudfront.net | User approval to land on `main` **is** production deploy approval. Do not claim "no deploy" after pushing `main`. |
+| **Push/merge to `main`** | GitHub Actions workflow **Deploy** (`.github/workflows/deploy.yml`) automatically deploys **only** `LocksAppStack`: quality gates → `npm run deploy:infrastructure` → `npm run deploy:app` (publish SPA, seed foundation fixture, CloudFront invalidate). Live URL: https://locks.inov8.cc | User approval to land on `main` **is** production deploy approval. Do not claim "no deploy" after pushing `main`. |
 | **Local `deploy:infrastructure` / `deploy:app`** | Same app stack / publish path run from an operator machine or Mira container | Separate explicit approval each time |
 | **Local `deploy:oidc`** | Foundation IAM/OIDC only — **not** run by GitHub Actions | Always explicit approval; higher risk |
 

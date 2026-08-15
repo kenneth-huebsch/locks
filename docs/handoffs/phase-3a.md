@@ -15,7 +15,9 @@ in this slice (Phase 3b).
 - Grade only picks where `result` is `pending`. Do not re-grade terminal
   results. Do not design for post-final score corrections.
 - Current-week selection remains `SEASON#ACTIVE`. Document only: competition
-  week starts Tuesday 02:00 America/New_York. Do not implement auto-advance.
+  week starts Tuesday 02:00 America/New_York. A later phase implemented
+  idempotent Tuesday auto-advance in `sync-odds`; this handoff records the
+  original Phase 3a scope.
 - Do not write aggregate standings items.
 - Pick-submission immutability is unchanged (no update/delete of pick identity).
 

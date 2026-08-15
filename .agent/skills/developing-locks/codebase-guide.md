@@ -25,11 +25,12 @@ client ID, and authority URL.
 ### Components
 | Component | Purpose |
 |---|---|
-| `App.tsx` | Auth gate, loads WeekView when authenticated |
-| `WeekView.tsx` | Main page: game cards + picks board + remaining picks |
-| `GameCard.tsx` | Single game display with pick selection |
-| `ConfirmPickModal.tsx | Confirmation dialog before locking picks |
-| `PicksBoard.tsx` | Shows all players' submitted picks |
+| `App.tsx` | Auth gate, week dropdown, current WeekView or past PicksBoard |
+| `WeekView.tsx` | Current week: game cards + remaining picks |
+| `GameCard.tsx` | Single game display with pick selection, scores, and revealed picks |
+| `ConfirmPickModal.tsx` | Confirmation dialog before locking picks |
+| `PicksBoard.tsx` | Past-week board of all players' submitted picks |
+| `PickResultChip.tsx` | Shared win/loss/push pick chip |
 
 ### Utilities
 - `src/lib/players.ts` — Player display helpers
@@ -43,9 +44,13 @@ Each function is a Node.js Lambda bundled by CDK's `NodejsFunction`.
 
 | Function | Route | Method | Purpose |
 |---|---|---|---|
-| `current-week.ts` | `/api/week/current` | GET | Returns current week's games and all picks |
+| `current-week.ts` | `/api/week/current` | GET | Returns current week's games and picks |
+| `current-week.ts` | `/api/weeks` | GET | Week summaries (`1…active`) for the dropdown |
+| `current-week.ts` | `/api/week/{seasonWeek}` | GET | Selected week games + picks (`YYYY#Wnn`, URL-encoded) |
 | `submit-pick.ts` | `/api/picks` | POST | Atomic pick submission with validation |
-| `sync-odds.ts` | (scheduled) | — | Fetches odds from The Odds API, caches in DynamoDB |
+| `standings.ts` | `/api/standings` | GET | Season standings through the active week |
+| `sync-odds.ts` | (scheduled) | — | Fetches odds; Tuesday 2am may advance `SEASON#ACTIVE` |
+| `grade-games.ts` | (scheduled) | — | Fetches scores and grades pending picks |
 
 ### Handler Structure
 Each handler:

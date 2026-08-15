@@ -44,6 +44,12 @@ npm run deploy:app
 
 The publisher uploads hashed assets first, mutable files second, and deletes stale objects last.
 
+After deploy, prefer health checks against `https://locks.inov8.cc`. The
+CloudFront hostname remains a fallback. Custom-domain cert, Route53 alias, and
+Cognito callback URLs belong in `LocksAppStack`; ACM/Route53 execution grants
+belong in `LocksGitHubOidcStack` and must deploy before app changes that need
+them.
+
 ## Foundation or IAM update
 
 Foundation updates are local-only:
@@ -277,7 +283,7 @@ CloudTrail for this diagnosis.
 Basic probes:
 
 ```powershell
-$Site = "https://d141pq884g4gai.cloudfront.net"
+$Site = "https://locks.inov8.cc"
 curl.exe -s -o NUL -w "%{http_code}" "$Site/"
 curl.exe -s -o NUL -w "%{http_code}" "$Site/a/deep/route"
 curl.exe -s -o NUL -w "%{http_code}" "$Site/api/week/current"
@@ -362,8 +368,8 @@ in `aws-context.ts` runs automatically before any mutation.
 
 ```bash
 # Site and API probes (no AWS credentials needed)
-curl -s -o /dev/null -w "%{http_code}" https://d141pq884g4gai.cloudfront.net/
-curl -s -o /dev/null -w "%{http_code}" https://d141pq884g4gai.cloudfront.net/api/week/current
+curl -s -o /dev/null -w "%{http_code}" https://locks.inov8.cc/
+curl -s -o /dev/null -w "%{http_code}" https://locks.inov8.cc/api/week/current
 # Expected: 200 and 401
 
 # Stack outputs

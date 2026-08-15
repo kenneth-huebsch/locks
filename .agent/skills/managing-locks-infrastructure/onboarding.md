@@ -12,7 +12,8 @@ Fast-start guide for any agent working on this repository.
 
 | Resource | Value |
 |---|---|
-| SPA | https://d141pq884g4gai.cloudfront.net |
+| SPA | https://locks.inov8.cc |
+| CloudFront fallback | https://d141pq884g4gai.cloudfront.net |
 | API Gateway | https://0blz753no0.execute-api.us-east-1.amazonaws.com |
 | AWS account | `580956784928` |
 | Region | `us-east-1` |
@@ -44,11 +45,11 @@ AWS_PROFILE=coding-agent aws sts get-caller-identity --query 'Account' --output 
 # Must output: 580956784928
 
 # SPA is serving
-curl -s -o /dev/null -w "%{http_code}" https://d141pq884g4gai.cloudfront.net/
+curl -s -o /dev/null -w "%{http_code}" https://locks.inov8.cc/
 # Must output: 200
 
 # API is wired (401 = route exists, JWT authorizer active)
-curl -s -o /dev/null -w "%{http_code}" https://d141pq884g4gai.cloudfront.net/api/week/current
+curl -s -o /dev/null -w "%{http_code}" https://locks.inov8.cc/api/week/current
 # Must output: 401
 
 # App stack status

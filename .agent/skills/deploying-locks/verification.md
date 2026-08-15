@@ -4,15 +4,15 @@
 
 ```bash
 # SPA serving
-curl -s -o /dev/null -w "%{http_code}" https://d141pq884g4gai.cloudfront.net/
+curl -s -o /dev/null -w "%{http_code}" https://locks.inov8.cc/
 # Expect: 200
 
 # API route exists (401 = route + JWT authorizer active)
-curl -s -o /dev/null -w "%{http_code}" https://d141pq884g4gai.cloudfront.net/api/week/current
+curl -s -o /dev/null -w "%{http_code}" https://locks.inov8.cc/api/week/current
 # Expect: 401
 
 # Pick submission route (404 on GET = correct, it's POST-only)
-curl -s -o /dev/null -w "%{http_code}" https://d141pq884g4gai.cloudfront.net/api/picks
+curl -s -o /dev/null -w "%{http_code}" https://locks.inov8.cc/api/picks
 # Expect: 404 (GET not allowed)
 ```
 
@@ -41,8 +41,9 @@ AWS_PROFILE=locks-publish aws cloudformation describe-stacks \
 ```
 
 Key outputs to verify:
+- `CustomDomainName` — production app hostname (`locks.inov8.cc`)
+- `DistributionDomainName` — CloudFront fallback hostname
 - `ApiEndpoint` — API Gateway URL
-- `DistributionDomainName` — CloudFront URL (the app URL)
 - `DistributionId` — CloudFront distribution ID
 - `TableName` — DynamoDB table name (`locks`)
 - `UserPoolId` — Cognito user pool

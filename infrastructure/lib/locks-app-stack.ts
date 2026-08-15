@@ -14,6 +14,10 @@ import {
 import { HttpJwtAuthorizer } from 'aws-cdk-lib/aws-apigatewayv2-authorizers';
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import {
+  Certificate,
+  CertificateValidation,
+} from 'aws-cdk-lib/aws-certificatemanager';
+import {
   AllowedMethods,
   CachePolicy,
   Distribution,
@@ -56,6 +60,12 @@ import {
   BucketEncryption,
 } from 'aws-cdk-lib/aws-s3';
 import {
+  ARecord,
+  HostedZone,
+  RecordTarget,
+} from 'aws-cdk-lib/aws-route53';
+import { CloudFrontTarget } from 'aws-cdk-lib/aws-route53-targets';
+import {
   CfnSchedule,
   CfnScheduleGroup,
 } from 'aws-cdk-lib/aws-scheduler';
@@ -70,6 +80,9 @@ import {
 } from './github-oidc-stack.js';
 
 const INVITED_EMAIL = 'kenneth.huebsch@gmail.com';
+const CUSTOM_DOMAIN_NAME = 'locks.inov8.cc';
+const HOSTED_ZONE_ID = 'Z0077616YT47LAXJAQQ6';
+const HOSTED_ZONE_NAME = 'inov8.cc';
 
 export class LocksAppStack extends Stack {
   constructor(scope: Construct, id: string, props: StackProps) {
@@ -197,6 +210,14 @@ export class LocksAppStack extends Stack {
       autoDeleteObjects: true,
       removalPolicy: RemovalPolicy.DESTROY,
     });
+    const hostedZone = HostedZone.fromHostedZoneAttributes(this, 'HostedZone', {
+      hostedZoneId: HOSTED_ZONE_ID,
+      zoneName: HOSTED_ZONE_NAME,
+    });
+    const certificate = new Certificate(this, 'SiteCertificate', {
+      domainName: CUSTOM_DOMAIN_NAME,
+      validation: CertificateValidation.fromDns(hostedZone),
+    });
 
     const spaRewrite = new CloudFrontFunction(this, 'SpaRewrite', {
       runtime: FunctionRuntime.JS_2_0,
@@ -213,6 +234,8 @@ function handler(event) {
     });
 
     const distribution = new Distribution(this, 'Distribution', {
+      certificate,
+      domainNames: [CUSTOM_DOMAIN_NAME],
       defaultRootObject: 'index.html',
       defaultBehavior: {
         origin: S3BucketOrigin.withOriginAccessControl(siteBucket),
@@ -238,8 +261,14 @@ function handler(event) {
         },
       },
     });
+    new ARecord(this, 'SiteAliasRecord', {
+      zone: hostedZone,
+      recordName: CUSTOM_DOMAIN_NAME,
+      target: RecordTarget.fromAlias(new CloudFrontTarget(distribution)),
+    });
 
-    const siteUrl = `https://${distribution.distributionDomainName}`;
+    const siteUrl = `https://${CUSTOM_DOMAIN_NAME}`;
+    const cloudFrontSiteUrl = `https://${distribution.distributionDomainName}`;
     const userPoolClient = userPool.addClient('WebClient', {
       userPoolClientName: 'locks-web',
       authFlows: {
@@ -252,8 +281,8 @@ function handler(event) {
       oAuth: {
         flows: { authorizationCodeGrant: true },
         scopes: [OAuthScope.OPENID, OAuthScope.EMAIL],
-        callbackUrls: [siteUrl],
-        logoutUrls: [siteUrl],
+        callbackUrls: [siteUrl, cloudFrontSiteUrl],
+        logoutUrls: [siteUrl, cloudFrontSiteUrl],
       },
     });
     const authorizer = new HttpJwtAuthorizer(
@@ -269,6 +298,24 @@ function handler(event) {
       methods: [HttpMethod.GET],
       integration: new HttpLambdaIntegration(
         'CurrentWeekIntegration',
+        currentWeekFunction,
+      ),
+      authorizer,
+    });
+    httpApi.addRoutes({
+      path: '/api/weeks',
+      methods: [HttpMethod.GET],
+      integration: new HttpLambdaIntegration(
+        'WeeksIntegration',
+        currentWeekFunction,
+      ),
+      authorizer,
+    });
+    httpApi.addRoutes({
+      path: '/api/week/{seasonWeek}',
+      methods: [HttpMethod.GET],
+      integration: new HttpLambdaIntegration(
+        'SelectedWeekIntegration',
         currentWeekFunction,
       ),
       authorizer,
@@ -383,7 +430,6 @@ function handler(event) {
         ODDS_API_ENABLED: 'true',
         // Preseason testing: pull NFL preseason board. Flip to americanfootball_nfl for regular season.
         ODDS_API_SPORT: 'americanfootball_nfl_preseason',
-        ACTIVE_WEEK: '1',
       },
       bundling: {
         minify: true,
@@ -457,8 +503,8 @@ function handler(event) {
       name: 'locks',
     });
 
-    // Match existing odds schedules: ENABLED for preseason dry run. Disable
-    // both families during the offseason (see odds-management.md).
+    // Preseason mini-season schedules use America/New_York so kickoff windows
+    // stay stable across daylight-saving changes.
     const syncOddsScheduleProps = {
       groupName: 'locks',
       flexibleTimeWindow: { mode: 'OFF' },
@@ -472,23 +518,63 @@ function handler(event) {
       },
     } as const;
 
-    new CfnSchedule(this, 'SyncOddsMorningSchedule', {
-      name: 'sync-odds-morning',
-      scheduleExpression: 'cron(0 12 * * ? *)',
-      scheduleExpressionTimezone: 'UTC',
-      description: 'Morning NFL odds sync (8am ET, Tue-Mon during season)',
+    const syncTimezone = 'America/New_York';
+    new CfnSchedule(this, 'SyncOddsTuesdayAdvanceSchedule', {
+      name: 'sync-odds-tuesday-advance',
+      scheduleExpression: 'cron(0 2 ? * TUE *)',
+      scheduleExpressionTimezone: syncTimezone,
+      description: 'Advance competition week and sync odds (Tue 2am ET)',
+      ...syncOddsScheduleProps,
+      target: {
+        ...syncOddsScheduleProps.target,
+        input:
+          '{"advanceWeek":true,"advanceToken":"<aws.scheduler.scheduled-time>"}',
+      },
+    });
+    new CfnSchedule(this, 'SyncOddsThursdaySchedule', {
+      name: 'sync-odds-thursday',
+      scheduleExpression: 'cron(0 17 ? * THU *)',
+      scheduleExpressionTimezone: syncTimezone,
+      description: 'Thursday NFL odds sync (5pm ET)',
       ...syncOddsScheduleProps,
     });
-    new CfnSchedule(this, 'SyncOddsAfternoonSchedule', {
-      name: 'sync-odds-afternoon',
-      scheduleExpression: 'cron(0 20 * * ? *)',
-      scheduleExpressionTimezone: 'UTC',
-      description: 'Afternoon NFL odds sync (4pm ET, Tue-Mon during season)',
+    new CfnSchedule(this, 'SyncOddsSundayMorningSchedule', {
+      name: 'sync-odds-sunday-morning',
+      scheduleExpression: 'cron(0 8 ? * SUN *)',
+      scheduleExpressionTimezone: syncTimezone,
+      description: 'Sunday morning NFL odds sync (8am ET)',
+      ...syncOddsScheduleProps,
+    });
+    new CfnSchedule(this, 'SyncOddsSundayMiddaySchedule', {
+      name: 'sync-odds-sunday-midday',
+      scheduleExpression: 'cron(30 12 ? * SUN *)',
+      scheduleExpressionTimezone: syncTimezone,
+      description: 'Sunday midday NFL odds sync (12:30pm ET)',
+      ...syncOddsScheduleProps,
+    });
+    new CfnSchedule(this, 'SyncOddsSundayAfternoonSchedule', {
+      name: 'sync-odds-sunday-afternoon',
+      scheduleExpression: 'cron(30 15 ? * SUN *)',
+      scheduleExpressionTimezone: syncTimezone,
+      description: 'Sunday afternoon NFL odds sync (3:30pm ET)',
+      ...syncOddsScheduleProps,
+    });
+    new CfnSchedule(this, 'SyncOddsSundayEveningSchedule', {
+      name: 'sync-odds-sunday-evening',
+      scheduleExpression: 'cron(30 19 ? * SUN *)',
+      scheduleExpressionTimezone: syncTimezone,
+      description: 'Sunday evening NFL odds sync (7:30pm ET)',
+      ...syncOddsScheduleProps,
+    });
+    new CfnSchedule(this, 'SyncOddsMondaySchedule', {
+      name: 'sync-odds-monday',
+      scheduleExpression: 'cron(0 17 ? * MON *)',
+      scheduleExpressionTimezone: syncTimezone,
+      description: 'Monday NFL odds sync (5pm ET)',
       ...syncOddsScheduleProps,
     });
 
-    // Score windows (PLAN): after TNF / early / late / SNF / MNF.
-    // Timezone America/New_York so expressions track ET across DST.
+    // Score windows run after each major game slate.
     const gradeGamesScheduleProps = {
       groupName: 'locks',
       flexibleTimeWindow: { mode: 'OFF' },
@@ -502,53 +588,57 @@ function handler(event) {
       },
     } as const;
 
-    new CfnSchedule(this, 'GradeGamesThursdayTnfSchedule', {
-      name: 'grade-games-thursday-tnf',
-      // Thu 11:45 PM ET — after Thursday Night Football
-      scheduleExpression: 'cron(45 23 ? * THU *)',
+    new CfnSchedule(this, 'GradeGamesFridaySchedule', {
+      name: 'grade-games-friday',
+      scheduleExpression: 'cron(0 1 ? * FRI *)',
       scheduleExpressionTimezone: 'America/New_York',
-      description: 'Grade after TNF (Thu 11:45pm America/New_York)',
+      description: 'Grade Thursday games (Fri 1am America/New_York)',
+      ...gradeGamesScheduleProps,
+    });
+    new CfnSchedule(this, 'GradeGamesSaturdaySchedule', {
+      name: 'grade-games-saturday',
+      scheduleExpression: 'cron(0 1 ? * SAT *)',
+      scheduleExpressionTimezone: 'America/New_York',
+      description: 'Grade Friday or holiday games (Sat 1am America/New_York)',
       ...gradeGamesScheduleProps,
     });
     new CfnSchedule(this, 'GradeGamesSundayEarlySchedule', {
       name: 'grade-games-sunday-early',
-      // Sun 4:15 PM ET — after the early Sunday window
-      scheduleExpression: 'cron(15 16 ? * SUN *)',
+      scheduleExpression: 'cron(0 17 ? * SUN *)',
       scheduleExpressionTimezone: 'America/New_York',
-      description: 'Grade after early Sunday games (Sun 4:15pm America/New_York)',
+      description: 'Grade early Sunday games (Sun 5pm America/New_York)',
       ...gradeGamesScheduleProps,
     });
     new CfnSchedule(this, 'GradeGamesSundayLateSchedule', {
       name: 'grade-games-sunday-late',
-      // Sun 8:00 PM ET — after the late afternoon window
-      scheduleExpression: 'cron(0 20 ? * SUN *)',
+      scheduleExpression: 'cron(30 21 ? * SUN *)',
       scheduleExpressionTimezone: 'America/New_York',
-      description: 'Grade after late Sunday games (Sun 8:00pm America/New_York)',
+      description: 'Grade late Sunday games (Sun 9:30pm America/New_York)',
       ...gradeGamesScheduleProps,
     });
-    new CfnSchedule(this, 'GradeGamesSundaySnfSchedule', {
-      name: 'grade-games-sunday-snf',
-      // Sun 11:45 PM ET — after Sunday Night Football
-      scheduleExpression: 'cron(45 23 ? * SUN *)',
+    new CfnSchedule(this, 'GradeGamesMondaySchedule', {
+      name: 'grade-games-monday',
+      scheduleExpression: 'cron(0 1 ? * MON *)',
       scheduleExpressionTimezone: 'America/New_York',
-      description: 'Grade after SNF (Sun 11:45pm America/New_York)',
+      description: 'Grade Sunday night game (Mon 1am America/New_York)',
       ...gradeGamesScheduleProps,
     });
-    new CfnSchedule(this, 'GradeGamesMondayMnfSchedule', {
-      name: 'grade-games-monday-mnf',
-      // Mon 11:45 PM ET — after Monday Night Football
-      scheduleExpression: 'cron(45 23 ? * MON *)',
+    new CfnSchedule(this, 'GradeGamesTuesdaySchedule', {
+      name: 'grade-games-tuesday',
+      scheduleExpression: 'cron(0 1 ? * TUE *)',
       scheduleExpressionTimezone: 'America/New_York',
-      description: 'Grade after MNF (Mon 11:45pm America/New_York)',
+      description: 'Grade Monday night game (Tue 1am America/New_York)',
       ...gradeGamesScheduleProps,
     });
 
     output(this, 'ApiEndpoint', httpApi.apiEndpoint);
     output(this, 'Authority', userPool.userPoolProviderUrl);
     output(this, 'CognitoDomain', userPoolDomain.baseUrl());
+    output(this, 'CustomDomainName', CUSTOM_DOMAIN_NAME);
     output(this, 'DistributionDomainName', distribution.distributionDomainName);
     output(this, 'DistributionId', distribution.distributionId);
     output(this, 'GradeGamesFunctionName', gradeGamesFunction.functionName);
+    output(this, 'SyncOddsFunctionName', syncOddsFunction.functionName);
     output(this, 'SiteBucketName', siteBucket.bucketName);
     output(this, 'TableName', table.tableName);
     output(this, 'UserPoolClientId', userPoolClient.userPoolClientId);

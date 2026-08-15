@@ -281,6 +281,106 @@ describe('current-week handler', () => {
     },
   );
 
+  it('lists current and past weeks in descending order', async () => {
+    const send = vi.fn().mockResolvedValueOnce({
+      Item: {
+        PK: ACTIVE_SEASON_PARTITION_KEY,
+        SK: ACTIVE_SEASON_SORT_KEY,
+        season: SEASON,
+        week: 3,
+      },
+    });
+    const handler = createHandler(send);
+
+    const response = await handler({
+      ...createEvent(),
+      routeKey: 'GET /api/weeks',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(JSON.parse(response.body)).toEqual([
+      { season: SEASON, week: 3, isCurrent: true },
+      { season: SEASON, week: 2, isCurrent: false },
+      { season: SEASON, week: 1, isCurrent: false },
+    ]);
+    expect(send).toHaveBeenCalledOnce();
+  });
+
+  it('loads a selected past week with revealed picks', async () => {
+    const completedPastGame = {
+      ...finalGame,
+      commenceTime: '2026-09-01T00:20:00.000Z',
+    };
+    const send = vi
+      .fn()
+      .mockResolvedValueOnce({
+        Item: {
+          PK: ACTIVE_SEASON_PARTITION_KEY,
+          SK: ACTIVE_SEASON_SORT_KEY,
+          season: SEASON,
+          week: 2,
+        },
+      })
+      .mockResolvedValueOnce(weekMetaGet())
+      .mockResolvedValueOnce({ Items: [completedPastGame] })
+      .mockResolvedValueOnce({ Items: [basePick, otherPlayerPick] })
+      .mockResolvedValueOnce(counterGet(1));
+    const handler = createHandler(send, { now: () => AFTER_KICKOFF });
+
+    const response = await handler({
+      ...createEvent(),
+      routeKey: 'GET /api/week/{seasonWeek}',
+      pathParameters: { seasonWeek: '2026#W01' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(JSON.parse(response.body)).toMatchObject({
+      week: { season: SEASON, week: 1, seasonWeek: '2026#W01' },
+      picks: [expectedPick(basePick), expectedPick(otherPlayerPick)],
+    });
+  });
+
+  it('rejects malformed selected-week tokens', async () => {
+    const send = vi.fn().mockResolvedValueOnce(activeSeasonGet());
+    const handler = createHandler(send);
+
+    const response = await handler({
+      ...createEvent(),
+      routeKey: 'GET /api/week/{seasonWeek}',
+      pathParameters: { seasonWeek: 'week-one' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(JSON.parse(response.body).error.code).toBe('INVALID_WEEK');
+  });
+
+  it('returns not found when a past week has no metadata', async () => {
+    const send = vi
+      .fn()
+      .mockResolvedValueOnce({
+        Item: {
+          PK: ACTIVE_SEASON_PARTITION_KEY,
+          SK: ACTIVE_SEASON_SORT_KEY,
+          season: SEASON,
+          week: 2,
+        },
+      })
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ Items: [] })
+      .mockResolvedValueOnce({ Items: [] })
+      .mockResolvedValueOnce({});
+    const handler = createHandler(send);
+
+    const response = await handler({
+      ...createEvent(),
+      routeKey: 'GET /api/week/{seasonWeek}',
+      pathParameters: { seasonWeek: '2026#W01' },
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(JSON.parse(response.body).error.code).toBe('WEEK_NOT_FOUND');
+  });
+
   it('falls back to foundation behavior when no active week item exists', async () => {
     const send = vi
       .fn()

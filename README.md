@@ -9,7 +9,8 @@ out of scope.
 
 | Item | Value |
 |---|---|
-| Application | https://d141pq884g4gai.cloudfront.net |
+| Application | https://locks.inov8.cc |
+| CloudFront fallback | https://d141pq884g4gai.cloudfront.net |
 | AWS account | `580956784928` |
 | AWS region | `us-east-1` |
 | Production branch | `main` |

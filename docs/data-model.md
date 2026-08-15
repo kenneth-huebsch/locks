@@ -161,7 +161,9 @@ Applied to **Pick items only**:
 - `GSI1SK = PICK#<cognitoSub>#GAME#<eventId>`
 
 Serves the “all picks for a week” access pattern for the picks board and
-`GET /api/week/current`.
+`GET /api/week/current`, `GET /api/weeks`, and `GET /api/week/{seasonWeek}`.
+Clients must URL-encode season-week tokens so `#` becomes `%23`
+(for example `/api/week/2026%23W01`).
 
 ## Transaction boundaries
 
@@ -215,9 +217,12 @@ Rules:
 - Skip incomplete, in-progress, or missing-score events; leave those picks
   `pending`.
 - Do **not** write aggregate standings items in the grading Lambda (Phase 3b+).
-- Competition week product rule (documented only; no auto-advance here): a
-  competition week starts **Tuesday 02:00 America/New_York**. Current-week
-  selection remains `SEASON#ACTIVE` until an operator advances it.
+- A competition week starts **Tuesday 02:00 America/New_York**. The scheduled
+  Tuesday odds sync materializes and filters the new Tuesday-to-Tuesday slate
+  before conditionally moving the pointer, so a vendor/write failure leaves
+  the prior week active. Its stable Scheduler token prevents retries from
+  advancing twice, and week 18 is a hard cap. Operators can invoke the same
+  path manually.
 
 Quota diagnostic records for the scores endpoint use the same
 `QUOTA#ODDS_API` TTL pattern as odds sync (30 days).

@@ -78,7 +78,7 @@ every push to `main` and executes:
 So:
 
 - Approval to **commit and push `main`** (or merge a PR to `main`) is approval
-  to change the live site at https://d141pq884g4gai.cloudfront.net
+  to change the live site at https://locks.inov8.cc
 - Do **not** plan "code only, no deploy" if the delivery path is `main`
 - Prefer a **PR** when the user has not accepted production impact yet
 - After push, verify with `gh run list --repo kenneth-huebsch/locks --branch main`

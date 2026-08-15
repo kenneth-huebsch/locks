@@ -124,6 +124,28 @@ describe('submit-pick handler', () => {
     );
   });
 
+  it('uses SEASON#ACTIVE week as the pick source of truth', async () => {
+    const send = vi
+      .fn()
+      .mockResolvedValueOnce({ Item: { season: SEASON, week: 2 } })
+      .mockResolvedValueOnce({});
+    const handler = createHandler(send);
+
+    const response = await handler(createEvent(validRequest));
+
+    expect(response.statusCode).toBe(201);
+    expect(JSON.parse(response.body).pick.seasonWeek).toBe('2026#W02');
+    const transactCall = send.mock.calls.find(
+      ([command]) => command instanceof TransactWriteCommand,
+    );
+    expect(transactCall?.[0].input.TransactItems?.[0].ConditionCheck?.Key).toEqual(
+      {
+        PK: 'WEEK#2026#W02',
+        SK: `GAME#${GAME_ID}`,
+      },
+    );
+  });
+
   it('returns GAME_STARTED when commence_time is in the past', async () => {
     const send = vi
       .fn()

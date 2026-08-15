@@ -17,7 +17,8 @@
 - GitHub deployment ref: `refs/heads/main`
 - GitHub OIDC `sub` (exact, id-qualified):
   `repo:kenneth-huebsch@25780362/locks@1317783805:ref:refs/heads/main`
-- Site: `https://d141pq884g4gai.cloudfront.net`
+- Site: `https://locks.inov8.cc`
+- CloudFront fallback: `https://d141pq884g4gai.cloudfront.net`
 
 The CDK entry point rejects any other account or region.
 
@@ -107,16 +108,28 @@ The boundary includes scoped `lambda:InvokeFunction` on `LocksAppStack-*` so Eve
 `LocksAppStack` owns:
 
 - Private S3 site bucket and CloudFront distribution
+- ACM certificate and Route53 alias for `locks.inov8.cc`
 - CloudFront SPA rewrite on the S3 behavior only
 - Same-origin `/api/*` behavior without caching
 - Invite-only Cognito user pool, managed-login domain, and web client
 - JWT-authorized API Gateway HTTP API
-- Current-week Lambda
+- Current-week Lambda (`/api/week/current`, `/api/weeks`, `/api/week/{seasonWeek}`)
 - Encrypted, point-in-time-recoverable DynamoDB table
 - EventBridge Scheduler group
 - Future scheduled-function role with exact SSM read for `/locks/odds-api-key`
 
 The SSM parameter value is not created in Phase 1.
+
+### Custom domain
+
+- Production URL is `https://locks.inov8.cc`. CloudFront remains available as a
+  fallback at `https://d141pq884g4gai.cloudfront.net`.
+- ACM cert, CloudFront alias, Route53 A-record alias, and Cognito callback /
+  logout URLs are defined in `LocksAppStack`. Do not edit those only in the
+  console — the next stack deploy will overwrite drift.
+- App CloudFormation execution policy grants for ACM and the `inov8.cc` hosted
+  zone live in `LocksGitHubOidcStack` (`LocksAppCloudFormationExecutionPolicy`).
+  Deploy foundation first when those grants change, then the app stack.
 
 ## Security invariants
 

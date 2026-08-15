@@ -33,6 +33,7 @@ describe('LocksAppStack', () => {
   it('rewrites SPA routes only on the S3 behavior and preserves API errors', () => {
     template.hasResourceProperties('AWS::CloudFront::Distribution', {
       DistributionConfig: {
+        Aliases: ['locks.inov8.cc'],
         DefaultCacheBehavior: Match.objectLike({
           FunctionAssociations: Match.anyValue(),
         }),
@@ -42,7 +43,40 @@ describe('LocksAppStack', () => {
             FunctionAssociations: Match.absent(),
           }),
         ]),
+        ViewerCertificate: Match.objectLike({
+          AcmCertificateArn: Match.anyValue(),
+          SslSupportMethod: 'sni-only',
+        }),
       },
+    });
+  });
+
+  it('provisions the custom domain certificate and Route53 alias', () => {
+    template.hasResourceProperties('AWS::CertificateManager::Certificate', {
+      DomainName: 'locks.inov8.cc',
+      DomainValidationOptions: Match.arrayWith([
+        Match.objectLike({
+          DomainName: 'locks.inov8.cc',
+          HostedZoneId: 'Z0077616YT47LAXJAQQ6',
+        }),
+      ]),
+      ValidationMethod: 'DNS',
+    });
+    template.hasResourceProperties('AWS::Route53::RecordSet', {
+      HostedZoneId: 'Z0077616YT47LAXJAQQ6',
+      Name: 'locks.inov8.cc.',
+      Type: 'A',
+      AliasTarget: Match.objectLike({
+        DNSName: Match.anyValue(),
+        HostedZoneId: Match.anyValue(),
+      }),
+    });
+    template.hasResourceProperties('AWS::Cognito::UserPoolClient', {
+      CallbackURLs: Match.arrayWith(['https://locks.inov8.cc']),
+      LogoutURLs: Match.arrayWith(['https://locks.inov8.cc']),
+    });
+    template.hasOutput('CustomDomainName', {
+      Value: 'locks.inov8.cc',
     });
   });
 
@@ -54,6 +88,14 @@ describe('LocksAppStack', () => {
     template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
       AuthorizationType: 'JWT',
       RouteKey: 'GET /api/week/current',
+    });
+    template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
+      AuthorizationType: 'JWT',
+      RouteKey: 'GET /api/weeks',
+    });
+    template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
+      AuthorizationType: 'JWT',
+      RouteKey: 'GET /api/week/{seasonWeek}',
     });
     template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
       AuthorizationType: 'JWT',
@@ -136,51 +178,51 @@ describe('LocksAppStack', () => {
     });
     template.resourceCountIs('AWS::Scheduler::ScheduleGroup', 1);
     template.resourceCountIs('AWS::SSM::Parameter', 0);
-    template.resourceCountIs('AWS::Scheduler::Schedule', 7);
+    template.resourceCountIs('AWS::Scheduler::Schedule', 13);
     // Description must stay unchanged (AppIamExecutionPolicy lacks UpdateRoleDescription).
     template.hasResourceProperties('AWS::IAM::Role', {
       Description: 'Allows EventBridge Scheduler to invoke sync-odds',
     });
     template.hasResourceProperties('AWS::Scheduler::Schedule', {
-      Name: 'sync-odds-morning',
+      Name: 'sync-odds-tuesday-advance',
       State: 'ENABLED',
-      ScheduleExpression: 'cron(0 12 * * ? *)',
+      ScheduleExpression: 'cron(0 2 ? * TUE *)',
+      ScheduleExpressionTimezone: 'America/New_York',
+      Target: Match.objectLike({
+        Input:
+          '{"advanceWeek":true,"advanceToken":"<aws.scheduler.scheduled-time>"}',
+        RetryPolicy: { MaximumRetryAttempts: 2 },
+      }),
     });
     template.hasResourceProperties('AWS::Scheduler::Schedule', {
-      Name: 'sync-odds-afternoon',
+      Name: 'sync-odds-thursday',
       State: 'ENABLED',
-      ScheduleExpression: 'cron(0 20 * * ? *)',
-    });
-    template.hasResourceProperties('AWS::Scheduler::Schedule', {
-      Name: 'grade-games-thursday-tnf',
-      State: 'ENABLED',
-      ScheduleExpression: 'cron(45 23 ? * THU *)',
+      ScheduleExpression: 'cron(0 17 ? * THU *)',
       ScheduleExpressionTimezone: 'America/New_York',
     });
-    template.hasResourceProperties('AWS::Scheduler::Schedule', {
-      Name: 'grade-games-sunday-early',
-      State: 'ENABLED',
-      ScheduleExpression: 'cron(15 16 ? * SUN *)',
-      ScheduleExpressionTimezone: 'America/New_York',
-    });
-    template.hasResourceProperties('AWS::Scheduler::Schedule', {
-      Name: 'grade-games-sunday-late',
-      State: 'ENABLED',
-      ScheduleExpression: 'cron(0 20 ? * SUN *)',
-      ScheduleExpressionTimezone: 'America/New_York',
-    });
-    template.hasResourceProperties('AWS::Scheduler::Schedule', {
-      Name: 'grade-games-sunday-snf',
-      State: 'ENABLED',
-      ScheduleExpression: 'cron(45 23 ? * SUN *)',
-      ScheduleExpressionTimezone: 'America/New_York',
-    });
-    template.hasResourceProperties('AWS::Scheduler::Schedule', {
-      Name: 'grade-games-monday-mnf',
-      State: 'ENABLED',
-      ScheduleExpression: 'cron(45 23 ? * MON *)',
-      ScheduleExpressionTimezone: 'America/New_York',
-    });
+    for (const [name, expression] of [
+      ['sync-odds-sunday-morning', 'cron(0 8 ? * SUN *)'],
+      ['sync-odds-sunday-midday', 'cron(30 12 ? * SUN *)'],
+      ['sync-odds-sunday-afternoon', 'cron(30 15 ? * SUN *)'],
+      ['sync-odds-sunday-evening', 'cron(30 19 ? * SUN *)'],
+      ['sync-odds-monday', 'cron(0 17 ? * MON *)'],
+      ['grade-games-friday', 'cron(0 1 ? * FRI *)'],
+      ['grade-games-saturday', 'cron(0 1 ? * SAT *)'],
+      ['grade-games-sunday-early', 'cron(0 17 ? * SUN *)'],
+      ['grade-games-sunday-late', 'cron(30 21 ? * SUN *)'],
+      ['grade-games-monday', 'cron(0 1 ? * MON *)'],
+      ['grade-games-tuesday', 'cron(0 1 ? * TUE *)'],
+    ]) {
+      template.hasResourceProperties('AWS::Scheduler::Schedule', {
+        Name: name,
+        State: 'ENABLED',
+        ScheduleExpression: expression,
+        ScheduleExpressionTimezone: 'America/New_York',
+        Target: Match.objectLike({
+          RetryPolicy: { MaximumRetryAttempts: 2 },
+        }),
+      });
+    }
     template.hasResourceProperties('AWS::IAM::Policy', {
       PolicyDocument: {
         Statement: Match.arrayWith([
@@ -203,7 +245,7 @@ describe('LocksAppStack', () => {
   });
 
   it('defines grade-games Lambda with odds/score IAM and Node 22 ARM', () => {
-    // Unique vs sync-odds: no ACTIVE_WEEK env; dedicated role Description.
+    // Both scheduled functions resolve active week from DynamoDB.
     template.hasResourceProperties('AWS::Lambda::Function', {
       Handler: 'index.handler',
       Runtime: 'nodejs22.x',
@@ -218,17 +260,15 @@ describe('LocksAppStack', () => {
         }),
       },
     });
-    const gradeGamesLambdas = Object.values(
+    const scheduledLambdas = Object.entries(
       template.findResources('AWS::Lambda::Function'),
-    ).filter((resource) => {
-      const vars = resource.Properties.Environment?.Variables ?? {};
-      return (
-        vars.ODDS_API_ENABLED === 'true' &&
-        vars.ODDS_API_SPORT === 'americanfootball_nfl_preseason' &&
-        vars.ACTIVE_WEEK === undefined
-      );
-    });
-    expect(gradeGamesLambdas).toHaveLength(1);
+    ).filter(([id]) =>
+      id.includes('SyncOddsFunction') || id.includes('GradeGamesFunction'),
+    );
+    expect(scheduledLambdas).toHaveLength(2);
+    for (const [, resource] of scheduledLambdas) {
+      expect(resource.Properties.Environment.Variables.ACTIVE_WEEK).toBeUndefined();
+    }
     template.hasResourceProperties('AWS::IAM::Role', {
       Description: 'Execution role for scheduled score sync and pick grading',
     });
@@ -253,6 +293,7 @@ describe('LocksAppStack', () => {
       },
     });
     template.hasOutput('GradeGamesFunctionName', {});
+    template.hasOutput('SyncOddsFunctionName', {});
   });
 
   it('grants SubmitPick the Dynamo actions needed for pick transactions', () => {

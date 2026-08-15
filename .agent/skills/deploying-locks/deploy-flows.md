@@ -149,7 +149,7 @@ What `deploy:app` does:
 6. Creates a CloudFront invalidation
 
 **Post-deploy:**
-- Verify SPA: `curl -s -o /dev/null -w "%{http_code}" https://d141pq884g4gai.cloudfront.net/`
+- Verify SPA: `curl -s -o /dev/null -w "%{http_code}" https://locks.inov8.cc/`
 - Verify runtime config loads
 - Test login flow if possible
 

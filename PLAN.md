@@ -2,11 +2,12 @@
 
 ## Project status
 
-Last updated: August 10, 2026.
+Last updated: August 14, 2026.
 
 - **Phase 1 is complete and deployed.**
 - **Phase 2 is complete and deployed for preseason Week 1.**
-- Production application: https://d141pq884g4gai.cloudfront.net
+- Production application: https://locks.inov8.cc
+- CloudFront fallback: https://d141pq884g4gai.cloudfront.net
 - AWS account: `580956784928`
 - AWS region: `us-east-1`
 - Cognito login, authenticated APIs, live odds sync, pick submission, and the
@@ -31,8 +32,8 @@ Last updated: August 10, 2026.
 - [x] Shared types, NFL team mappings, and DynamoDB key patterns
 - [x] Odds API client with quota tracking and circuit breaker
 - [x] Odds API key set in SSM Parameter Store
-- [x] `sync-odds` Lambda with EventBridge schedules enabled
-  (`sync-odds-morning` 12:00 UTC / `sync-odds-afternoon` 20:00 UTC)
+- [x] `sync-odds` Lambda with kickoff-window EventBridge schedules enabled
+  in `America/New_York`
 - [x] Live preseason source: `americanfootball_nfl_preseason`
 - [x] `current-week` API endpoint (`GET /api/week/current`)
 - [x] Atomic pick submission (`POST /api/picks`) with validation
@@ -349,20 +350,22 @@ Odds requests use only:
 
 ### Odds schedule
 
-- Tuesday–Wednesday: once daily
-- Thursday–Monday: twice daily
-  - Morning
-  - Approximately two hours before the first kickoff
+- Tuesday 2:00 AM: advance the active competition week and sync its slate
+- Thursday 5:00 PM
+- Sunday 8:00 AM, 12:30 PM, 3:30 PM, and 7:30 PM
+- Monday 5:00 PM
 
-Estimated cost: approximately 40–50 credits/month.
+Estimated cost: approximately 28–35 credits/month.
 
 ### Score schedule
 
-- Sunday: after early games, late games, and Sunday Night Football
-- Monday: after Monday Night Football
-- Thursday: after Thursday Night Football
+- Friday 1:00 AM: after Thursday games
+- Saturday 1:00 AM: after Friday or holiday games
+- Sunday 5:00 PM and 9:30 PM: after early and late windows
+- Monday 1:00 AM: after Sunday Night Football
+- Tuesday 1:00 AM: after Monday Night Football
 
-Estimated cost: approximately 32–40 credits/month.
+Estimated cost: approximately 48–52 credits/month.
 
 ### Monthly estimate
 

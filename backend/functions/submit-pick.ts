@@ -152,20 +152,9 @@ async function resolveActiveWeek(
     typeof seasonResult.Item?.season === 'number'
       ? seasonResult.Item.season
       : fallbackSeason;
-  // Prefer explicit env, then SEASON#ACTIVE.week, then fallback.
-  const weekFromEnv =
-    typeof process.env.ACTIVE_WEEK === 'string' &&
-    process.env.ACTIVE_WEEK.trim().length > 0
-      ? Number(process.env.ACTIVE_WEEK)
-      : Number.NaN;
-  const weekFromItem =
+  const week =
     typeof seasonResult.Item?.week === 'number'
       ? seasonResult.Item.week
-      : Number.NaN;
-  const week = Number.isFinite(weekFromEnv)
-    ? weekFromEnv
-    : Number.isFinite(weekFromItem)
-      ? weekFromItem
       : fallbackWeek;
 
   return { season, week };

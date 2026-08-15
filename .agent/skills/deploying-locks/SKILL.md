@@ -61,7 +61,8 @@ Never deploy if any check fails. Never deploy all stacks with a broad command.
 
 - Scope: **`LocksAppStack` only** (not OIDC/foundation).
 - Concurrency group `locks-production` (no cancel-in-progress).
-- Live app: https://d141pq884g4gai.cloudfront.net
+- Live app: https://locks.inov8.cc
+- CloudFront fallback: https://d141pq884g4gai.cloudfront.net
 - Agent rule: if you pushed `main` and Deploy succeeded, production **was**
   updated. Do not tell the user a separate deploy step is still required.
 - Check runs: `gh run list --repo kenneth-huebsch/locks --branch main --workflow Deploy --limit 5`
@@ -89,11 +90,11 @@ See `verification.md` for the full checklist. Quick version:
 
 ```bash
 # SPA serving
-curl -s -o /dev/null -w "%{http_code}" https://d141pq884g4gai.cloudfront.net/
+curl -s -o /dev/null -w "%{http_code}" https://locks.inov8.cc/
 # Expect: 200
 
 # API route exists (401 = JWT authorizer active)
-curl -s -o /dev/null -w "%{http_code}" https://d141pq884g4gai.cloudfront.net/api/week/current
+curl -s -o /dev/null -w "%{http_code}" https://locks.inov8.cc/api/week/current
 # Expect: 401
 
 # Stack status

@@ -23,9 +23,19 @@ the Odds API, troubleshooting issues, and monitoring system health.
 |---|---|
 | Seed game data | `seeding.md` |
 | Manage Odds API key and schedules | `odds-management.md` |
+| Advance competition week manually | `odds-management.md` (`invoke-advance-week.ts`) |
 | Create/manage Cognito users | `cognito-users.md` |
 | Debug API, CloudFront, or Lambda issues | `troubleshooting.md` |
 | Check billing, logs, or metrics | `monitoring.md` |
+
+## Live URLs
+
+| Surface | URL |
+|---|---|
+| Application | https://locks.inov8.cc |
+| CloudFront fallback | https://d141pq884g4gai.cloudfront.net |
+
+Prefer the custom domain for health checks and operator smoke tests.
 
 ## AWS Profiles
 

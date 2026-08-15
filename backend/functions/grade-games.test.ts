@@ -359,7 +359,7 @@ describe('grade-games handler', () => {
     });
   });
 
-  it('returns an error result when the scores client fails', async () => {
+  it('throws when the scores client fails so Scheduler can retry', async () => {
     const { handler, restore } = createHandler({
       oddsClient: {
         fetchNflSpreads: vi.fn(),
@@ -370,12 +370,7 @@ describe('grade-games handler', () => {
       } satisfies OddsApiClient,
     });
 
-    const result = await handler();
+    await expect(handler()).rejects.toThrow('vendor unavailable');
     restore();
-
-    expect(result).toEqual({
-      status: 'error',
-      reason: 'vendor unavailable',
-    });
   });
 });

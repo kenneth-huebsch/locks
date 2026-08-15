@@ -119,6 +119,51 @@ describe('LocksGitHubOidcStack', () => {
     expect(JSON.stringify(policies)).not.toContain('"scheduler:*"');
   });
 
+  it('scopes custom-domain certificate and DNS management to the app', () => {
+    const statements =
+      managedPolicyStatements(template).LocksAppCloudFormationExecutionPolicy;
+
+    expect(statements).toEqual(
+      expect.arrayContaining([
+        {
+          Action: 'acm:RequestCertificate',
+          Effect: 'Allow',
+          Resource: '*',
+          Sid: 'AcmRequest',
+        },
+        expect.objectContaining({
+          Action: expect.arrayContaining([
+            'acm:DescribeCertificate',
+            'acm:DeleteCertificate',
+            'acm:AddTagsToCertificate',
+            'acm:RemoveTagsFromCertificate',
+            'acm:ListTagsForCertificate',
+          ]),
+          Effect: 'Allow',
+          Resource:
+            'arn:aws:acm:us-east-1:580956784928:certificate/*',
+          Sid: 'AcmCertificate',
+        }),
+        {
+          Action: expect.arrayContaining([
+            'route53:GetHostedZone',
+            'route53:ListResourceRecordSets',
+            'route53:ChangeResourceRecordSets',
+          ]),
+          Effect: 'Allow',
+          Resource: 'arn:aws:route53:::hostedzone/Z0077616YT47LAXJAQQ6',
+          Sid: 'Route53HostedZone',
+        },
+        {
+          Action: 'route53:GetChange',
+          Effect: 'Allow',
+          Resource: 'arn:aws:route53:::change/*',
+          Sid: 'Route53Changes',
+        },
+      ]),
+    );
+  });
+
   it('invokes only Locks custom-resource and app runtime functions', () => {
     const invokeStatements = Object.values(managedPolicyStatements(template))
       .flat()
@@ -172,6 +217,7 @@ describe('LocksGitHubOidcStack', () => {
       .sort();
 
     expect(wildcardActions).toEqual([
+      'acm:RequestCertificate',
       'cloudfront:CreateDistribution',
       'cloudfront:CreateFunction',
       'cloudfront:CreateOriginAccessControl',
@@ -218,7 +264,8 @@ describe('LocksGitHubOidcStack', () => {
         Version: '2012-10-17',
         Statement: statements,
       };
-      expect(JSON.stringify(policyDocument).length).toBeLessThanOrEqual(5_000);
+      // Keep at least ~600 characters below IAM's 6,144-character limit.
+      expect(JSON.stringify(policyDocument).length).toBeLessThanOrEqual(5_500);
     }
   });
 

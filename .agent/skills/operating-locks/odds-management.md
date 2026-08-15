@@ -46,24 +46,37 @@ AWS_PROFILE=coding-agent aws logs describe-log-groups \
 ## Free-Tier Quota Strategy
 
 - **Monthly limit:** 500 credits
-- **Estimated usage:** 80-90 credits/month
+- **Estimated usage:** approximately 80 credits/month
 - **Reserve threshold:** Stop sync when fewer than 50 credits remain
 - **Cost per call:** 1 credit (odds/spreads), 2 credits (scores)
 
 ### Sync Schedule (Defined in CDK)
-- Tuesday-Wednesday: once daily
-- Thursday-Monday: twice daily (morning + ~2h before first kickoff)
-- Expressions use timezone `UTC` (see `locks-app-stack.ts` comments for ET)
+All expressions use timezone `America/New_York`.
+
+| Schedule name | Cron | Local meaning |
+|---|---|---|
+| `sync-odds-tuesday-advance` | `cron(0 2 ? * TUE *)` | Advance week and sync Tue 2am |
+| `sync-odds-thursday` | `cron(0 17 ? * THU *)` | Thu 5pm |
+| `sync-odds-sunday-morning` | `cron(0 8 ? * SUN *)` | Sun 8am |
+| `sync-odds-sunday-midday` | `cron(30 12 ? * SUN *)` | Sun 12:30pm |
+| `sync-odds-sunday-afternoon` | `cron(30 15 ? * SUN *)` | Sun 3:30pm |
+| `sync-odds-sunday-evening` | `cron(30 19 ? * SUN *)` | Sun 7:30pm |
+| `sync-odds-monday` | `cron(0 17 ? * MON *)` | Mon 5pm |
 
 ### Score Schedule (Defined in CDK, timezone `America/New_York`)
 
 | Schedule name | Cron | Local meaning |
 |---|---|---|
-| `grade-games-thursday-tnf` | `cron(45 23 ? * THU *)` | Thu 11:45pm ET after TNF |
-| `grade-games-sunday-early` | `cron(15 16 ? * SUN *)` | Sun 4:15pm ET after early games |
-| `grade-games-sunday-late` | `cron(0 20 ? * SUN *)` | Sun 8:00pm ET after late games |
-| `grade-games-sunday-snf` | `cron(45 23 ? * SUN *)` | Sun 11:45pm ET after SNF |
-| `grade-games-monday-mnf` | `cron(45 23 ? * MON *)` | Mon 11:45pm ET after MNF |
+| `grade-games-friday` | `cron(0 1 ? * FRI *)` | Fri 1am after Thursday games |
+| `grade-games-saturday` | `cron(0 1 ? * SAT *)` | Sat 1am after Friday/holiday games |
+| `grade-games-sunday-early` | `cron(0 17 ? * SUN *)` | Sun 5pm after early games |
+| `grade-games-sunday-late` | `cron(30 21 ? * SUN *)` | Sun 9:30pm after late games |
+| `grade-games-monday` | `cron(0 1 ? * MON *)` | Mon 1am after Sunday night |
+| `grade-games-tuesday` | `cron(0 1 ? * TUE *)` | Tue 1am after Monday night |
+
+Scheduler retries each target up to twice. Scheduled handlers throw operational
+failures after logging so Scheduler can apply that retry policy; disabled or
+unconfigured integrations return an intentional skip without retry.
 
 Schedules are ENABLED to match odds sync for the preseason dry run. Disable
 both schedule families in the offseason.
@@ -147,10 +160,18 @@ AWS_PROFILE=locks-publish npx tsx scripts/invoke-grade-games.ts 2026#W01
 The script asserts account `580956784928`, resolves the function from stack
 outputs, and invokes Lambda only — it does not run CDK synth/deploy.
 
+Manual week advance uses the same idempotent sync path as Tuesday Scheduler:
+
+```bash
+AWS_PROFILE=locks-publish npx tsx scripts/invoke-advance-week.ts --confirm
+```
+
+The script asserts the target account, advances once with a unique token, and
+immediately syncs odds into the newly active week.
 
 ## Preseason vs regular season
 
 `SyncOddsFunction` reads `ODDS_API_SPORT` (CDK default during preseason testing:
 `americanfootball_nfl_preseason`). Set to `americanfootball_nfl` for the regular
 season and redeploy `LocksAppStack`. Active week comes from `SEASON#ACTIVE.week`
-(and optional `ACTIVE_WEEK` on the Lambda).
+for sync, grading, current-week reads, and pick submission.

@@ -351,6 +351,40 @@ export class LocksGitHubOidcStack extends Stack {
             ],
           }),
           new PolicyStatement({
+            sid: 'AcmRequest',
+            actions: ['acm:RequestCertificate'],
+            resources: ['*'],
+          }),
+          new PolicyStatement({
+            sid: 'AcmCertificate',
+            actions: [
+              'acm:AddTagsToCertificate',
+              'acm:DeleteCertificate',
+              'acm:DescribeCertificate',
+              'acm:ListTagsForCertificate',
+              'acm:RemoveTagsFromCertificate',
+            ],
+            resources: [
+              `arn:aws:acm:${TARGET_REGION}:${TARGET_ACCOUNT}:certificate/*`,
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'Route53HostedZone',
+            actions: [
+              'route53:ChangeResourceRecordSets',
+              'route53:GetHostedZone',
+              'route53:ListResourceRecordSets',
+            ],
+            resources: [
+              'arn:aws:route53:::hostedzone/Z0077616YT47LAXJAQQ6',
+            ],
+          }),
+          new PolicyStatement({
+            sid: 'Route53Changes',
+            actions: ['route53:GetChange'],
+            resources: ['arn:aws:route53:::change/*'],
+          }),
+          new PolicyStatement({
             sid: 'BootstrapVersion',
             actions: ['ssm:GetParameters'],
             resources: [

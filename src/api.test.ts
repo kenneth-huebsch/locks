@@ -109,3 +109,70 @@ describe('api mock weeks', () => {
     ).rejects.toBeInstanceOf(ApiError);
   });
 });
+
+describe('api live weeks', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.stubEnv('VITE_USE_MOCK_WEEKS', 'false');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    vi.resetModules();
+  });
+
+  it('loads available weeks from the authenticated weeks endpoint', async () => {
+    const summaries = [
+      { season: 2026, week: 2, isCurrent: true },
+      { season: 2026, week: 1, isCurrent: false },
+    ];
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(summaries), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const { listWeeks } = await import('./api');
+
+    await expect(listWeeks('token', '/api')).resolves.toEqual(summaries);
+    expect(fetchMock).toHaveBeenCalledWith('/api/weeks', {
+      headers: {
+        authorization: 'Bearer token',
+        'content-type': 'application/json',
+      },
+    });
+  });
+
+  it('loads a selected week with an encoded season-week token', async () => {
+    const payload = {
+      week: {
+        season: 2026,
+        week: 1,
+        status: 'complete',
+        seasonWeek: '2026#W01',
+      },
+      games: [],
+      picks: [],
+      remainingPicks: 0,
+      oddsUpdatedAt: null,
+    };
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const { loadWeek } = await import('./api');
+
+    await expect(loadWeek('token', 2026, 1, '/api')).resolves.toEqual(payload);
+    expect(fetchMock).toHaveBeenCalledWith('/api/week/2026%23W01', {
+      headers: {
+        authorization: 'Bearer token',
+        'content-type': 'application/json',
+      },
+    });
+  });
+});

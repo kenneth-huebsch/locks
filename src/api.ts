@@ -14,6 +14,7 @@ import {
   MockPickError,
   submitMockPick,
 } from './lib/mockWeeks';
+import { seasonWeekToken } from '../shared/dynamo';
 
 // Live current-week API by default for preseason/production testing.
 // Set VITE_USE_MOCK_WEEKS=true to force the local mock 3-week demo path.
@@ -78,21 +79,17 @@ export async function loadCurrentWeek(
 }
 
 export async function listWeeks(
-  _accessToken: string,
-  _apiBaseUrl = '/api',
+  accessToken: string,
+  apiBaseUrl = '/api',
 ): Promise<WeekSummary[]> {
   if (USE_MOCK_WEEKS) {
     return listMockWeeks();
   }
 
-  const current = await loadCurrentWeek(_accessToken, _apiBaseUrl);
-  return [
-    {
-      season: current.week.season,
-      week: current.week.week,
-      isCurrent: true,
-    },
-  ];
+  const response = await fetch(`${apiBaseUrl}/weeks`, {
+    headers: authHeaders(accessToken),
+  });
+  return parseResponse<WeekSummary[]>(response);
 }
 
 export function loadPicksThroughWeek(
@@ -117,12 +114,11 @@ export async function loadWeek(
     return loadMockWeek(season, week, userSub);
   }
 
-  const current = await loadCurrentWeek(accessToken, apiBaseUrl);
-  if (current.week.season === season && current.week.week === week) {
-    return current;
-  }
-
-  throw new Error(`Week ${season} W${week} is not available`);
+  const token = encodeURIComponent(seasonWeekToken(season, week));
+  const response = await fetch(`${apiBaseUrl}/week/${token}`, {
+    headers: authHeaders(accessToken),
+  });
+  return parseResponse<CurrentWeekResponse>(response);
 }
 
 export async function submitPick(

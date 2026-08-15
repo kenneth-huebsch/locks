@@ -501,10 +501,7 @@ export function createGradeGamesHandler(
       };
     } catch (error) {
       logger.error('Grading failed', error);
-      return {
-        status: 'error',
-        reason: error instanceof Error ? error.message : 'unknown_error',
-      };
+      throw error;
     }
   };
 }
