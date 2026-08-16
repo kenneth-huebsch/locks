@@ -11,6 +11,7 @@ import {
 } from '../../shared/dynamo.js';
 import { FOUNDATION_WEEK } from '../../shared/foundation.js';
 import { computeStandingsFromPicks } from '../../shared/records.js';
+import { LEAGUE_ROSTER } from '../../shared/roster.js';
 import {
   type ApiErrorResponse,
   type Pick as PickRecord,
@@ -41,6 +42,7 @@ export interface DynamoStandingsClient {
 interface StandingsDependencies {
   dynamoClient: DynamoStandingsClient;
   tableName: string;
+  playerIds?: readonly string[];
   logger?: Pick<Console, 'error'>;
 }
 
@@ -165,7 +167,12 @@ export function createStandingsHandler(
         season,
         currentWeek,
       );
-      const response = computeStandingsFromPicks(picks, season, currentWeek);
+      const response = computeStandingsFromPicks(
+        picks,
+        season,
+        currentWeek,
+        dependencies.playerIds ?? LEAGUE_ROSTER.map((player) => player.sub),
+      );
 
       return {
         statusCode: 200,

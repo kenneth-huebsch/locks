@@ -39,6 +39,7 @@ function createHandler(send: ReturnType<typeof vi.fn>) {
   return createStandingsHandler({
     dynamoClient: client,
     tableName: TABLE_NAME,
+    playerIds: [PLAYER_A, PLAYER_B],
     logger: { error: vi.fn() },
   });
 }
@@ -91,7 +92,7 @@ describe('standings handler', () => {
     });
   });
 
-  it('returns empty standings when there are no picks', async () => {
+  it('returns the full roster when there are no current-week picks', async () => {
     const send = vi.fn(async (command) => {
       if (command instanceof GetCommand) {
         return activeSeasonGet(1);
@@ -109,7 +110,34 @@ describe('standings handler', () => {
     expect(JSON.parse(response.body)).toEqual({
       season: SEASON,
       currentWeek: 1,
-      players: [],
+      players: [
+        {
+          playerId: PLAYER_A,
+          season: { wins: 0, losses: 0, pushes: 0 },
+          weeks: [
+            {
+              season: SEASON,
+              week: 1,
+              seasonWeek: '2026#W01',
+              isCurrent: true,
+              record: { wins: 0, losses: 0, pushes: 0 },
+            },
+          ],
+        },
+        {
+          playerId: PLAYER_B,
+          season: { wins: 0, losses: 0, pushes: 0 },
+          weeks: [
+            {
+              season: SEASON,
+              week: 1,
+              seasonWeek: '2026#W01',
+              isCurrent: true,
+              record: { wins: 0, losses: 0, pushes: 0 },
+            },
+          ],
+        },
+      ],
     });
     expect(send).toHaveBeenCalledTimes(2);
   });

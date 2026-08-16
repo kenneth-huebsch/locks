@@ -72,7 +72,7 @@ describe('PicksBoard', () => {
     expect(screen.getByLabelText(/standings/i)).toBeInTheDocument();
     expect(screen.getByText('1-0-0')).toBeInTheDocument();
     expect(screen.getByText('0-1-0')).toBeInTheDocument();
-    expect(screen.getByText('DAL @ PHI')).toBeInTheDocument();
+    expect(screen.getByText('DAL 20 @ PHI 24')).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
@@ -88,7 +88,7 @@ describe('PicksBoard', () => {
 
     expect(screen.getAllByText('Kenny')).toHaveLength(1);
     expect(screen.getAllByText('Jack')).toHaveLength(1);
-    expect(screen.queryByText('Kenny-2')).not.toBeInTheDocument();
+    expect(screen.queryByText('Eric')).not.toBeInTheDocument();
     expect(screen.queryByText('Player')).not.toBeInTheDocument();
     expect(screen.queryByText('stray-sub')).not.toBeInTheDocument();
   });

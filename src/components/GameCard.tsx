@@ -1,5 +1,6 @@
 import type { Game, Pick } from '../../shared/types';
 import { LEAGUE_ROSTER } from '../lib/players';
+import { finalScoreLabel } from '../lib/game';
 import {
   formatKickoffTime,
   formatSpread,
@@ -35,18 +36,6 @@ function matchesTeam(
   pickedTeam: string,
 ): boolean {
   return pickedTeam === team || pickedTeam === abbr;
-}
-
-function finalScoreLabel(game: Game): string | null {
-  if (
-    game.status !== 'final' ||
-    game.awayScore === null ||
-    game.homeScore === null
-  ) {
-    return null;
-  }
-
-  return `${game.awayAbbr} ${game.awayScore} @ ${game.homeAbbr} ${game.homeScore}`;
 }
 
 function lockedSideResultClass(result: Pick['result'] | undefined): string {

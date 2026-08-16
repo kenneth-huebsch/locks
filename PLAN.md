@@ -2,31 +2,29 @@
 
 ## Project status
 
-Last updated: August 15, 2026.
+Last updated: August 16, 2026.
 
 - **Phase 1 is complete and deployed.**
 - **Phase 2 is complete and deployed for preseason Week 1.**
-- **Phase 3 implementation is complete locally; deployment and live validation
-  remain.**
+- **Phase 3 is complete and validated in production** (preseason Week 1
+  grading + standings; active week advanced to Week 2).
 - Production application: https://locks.inov8.cc
 - CloudFront fallback: https://d141pq884g4gai.cloudfront.net
 - AWS account: `580956784928`
 - AWS region: `us-east-1`
-- Cognito login, authenticated APIs, live odds sync, pick submission, and the
-  current-week UI have been validated end to end.
+- Cognito login, authenticated APIs, live odds sync, pick submission, grading,
+  standings, and the current-week UI have been validated end to end.
 - GitHub Actions deploys `LocksAppStack` from `main` through short-lived OIDC
   credentials.
 - Foundation and application deployments use separate, least-privilege roles
   and runtime permissions boundaries.
-- The current Cognito user is `kenneth.huebsch@gmail.com`.
+- Cognito users live: `kenneth.huebsch@gmail.com` (Kenny) and
+  `jdmanning88@gmail.com` (Jack). Eric remains deferred.
 - Preferred sportsbook: **DraftKings** (`draftkings` bookmaker key).
 - No AWS Budget exists by user choice; spending is monitored manually.
-- AWS CLI v2 and CDK are available in Mira's container; deployment uses
-  `coding-agent` and `locks-publish` IAM profiles.
-- `LocksAppPublishRole` enables container-based static publishing and operator
-  data/Cognito tasks.
-- `LocksCodingAgentReadPolicy` grants read-only DynamoDB, CloudFormation,
-  Scheduler, Lambda config, logs, and IAM inspection from the container.
+- Operator AWS profiles (`coding-agent`, `locks-publish`) live in `~/.aws` on
+  the host; `LocksAppPublishRole` covers publish, seed, Cognito, and Lambda
+  invoke. `LocksCodingAgentReadPolicy` covers read-only inspection.
 
 ### Phase 2 completion status
 
@@ -48,13 +46,22 @@ Last updated: August 15, 2026.
 - [ ] Eric Cognito account deferred (not inviting yet)
 - [x] Phase 2 end-to-end validation with real preseason game data
 
+### Phase 3 completion status
+
+- [x] Scheduled score sync and ATS grading (`grade-games`)
+- [x] Season and weekly standings API + past-week board
+- [x] Historical picks board wired to live results
+- [x] Production validation on preseason Week 1 (Kenny 3-0-0, Jack 1-2-0;
+  all six picks match locked-spread ATS against final scores)
+- [x] Manual week advance verified (`SEASON#ACTIVE` 1 → 2); Week 2 slate
+  empty until Odds API publishes upcoming preseason games
+
 ### Current open items
 
 1. **Eric invite:** deferred until Kenny asks.
-2. **Phase 3 release:** deploy and validate grading, standings, and historical
-   results in production.
-3. **Phase 4 next:** mobile polish, empty states, immutable-pick messaging, and
-   admin grading overrides.
+2. **Phase 4 in progress:** records UX is implemented locally; mobile polish,
+   empty states, immutable-pick messaging, and admin grading overrides remain.
+3. **Preseason Week 2 slate:** re-sync once Odds API lists upcoming games.
 
 ## Recommendation: AWS serverless with DynamoDB caching
 
@@ -471,16 +478,24 @@ Approved Phase 1 deviations:
   - Three-pick weekly maximum
 - Refresh shared picks after submission, on window focus, and at a short interval.
 
-### Phase 3: Grading and standings — implementation complete
+### Phase 3: Grading and standings — complete
 
 - [x] Implement scheduled score synchronization.
 - [x] Implement W-L-P grading.
 - [x] Build season and weekly standings.
 - [x] Build the historical picks board.
-- [ ] Deploy and validate Phase 3 end to end in production.
+- [x] Deploy and validate Phase 3 end to end in production
+  (preseason Week 1 grading + manual week advance to Week 2).
 
-### Phase 4: Polish and final release — planned
+### Phase 4: Polish and final release — implementation in progress
 
+- Show final scores on past-week game cards.
+- Show week-only W-L-P records at the top of each past-week board.
+- Count a roster player who submits zero picks in a past week as `0-3-0`;
+  include those losses in the overall season record.
+- Add an overall records view with each contestant's portrait and season W-L-P.
+- Display the placeholder third contestant as Eric until his Cognito invite is
+  created.
 - Complete the mobile UX pass.
 - Display kickoff times in Eastern Time.
 - Add empty states.

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { Game, Pick } from '../../shared/types';
+import { finalScoreLabel } from '../lib/game';
 import { LEAGUE_ROSTER } from '../lib/players';
 import { formatKickoffTime } from '../lib/time';
 import { PickResultChip } from './PickResultChip';
@@ -60,7 +61,8 @@ export function PicksBoard({
           >
             <div className="mb-1.5 border-b border-slate-100 pb-1.5">
               <p className="text-sm font-semibold text-blue-950">
-                {game.awayAbbr} @ {game.homeAbbr}
+                {finalScoreLabel(game) ??
+                  `${game.awayAbbr} @ ${game.homeAbbr}`}
               </p>
               <p className="text-xs text-slate-500">
                 {formatKickoffTime(game.commenceTime)}

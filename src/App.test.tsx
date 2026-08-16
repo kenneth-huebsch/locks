@@ -8,7 +8,7 @@ import type {
   StandingsResponse,
   WeekSummary,
 } from '../shared/types';
-import { JACK_SUB, KENNY_SUB } from './lib/players';
+import { ERIC_SUB, JACK_SUB, KENNY_SUB } from './lib/players';
 
 const weekSummaries: WeekSummary[] = [
   { season: 2026, week: 3, isCurrent: true },
@@ -99,7 +99,7 @@ const standings: StandingsResponse = {
   players: [
     {
       playerId: KENNY_SUB,
-      season: { wins: 1, losses: 0, pushes: 0 },
+      season: { wins: 1, losses: 3, pushes: 0 },
       weeks: [
         {
           season: 2026,
@@ -113,7 +113,7 @@ const standings: StandingsResponse = {
           week: 2,
           seasonWeek: '2026#W02',
           isCurrent: false,
-          record: { wins: 0, losses: 0, pushes: 0 },
+          record: { wins: 0, losses: 3, pushes: 0 },
         },
         {
           season: 2026,
@@ -126,7 +126,7 @@ const standings: StandingsResponse = {
     },
     {
       playerId: JACK_SUB,
-      season: { wins: 0, losses: 1, pushes: 0 },
+      season: { wins: 0, losses: 4, pushes: 0 },
       weeks: [
         {
           season: 2026,
@@ -140,7 +140,34 @@ const standings: StandingsResponse = {
           week: 2,
           seasonWeek: '2026#W02',
           isCurrent: false,
+          record: { wins: 0, losses: 3, pushes: 0 },
+        },
+        {
+          season: 2026,
+          week: 3,
+          seasonWeek: '2026#W03',
+          isCurrent: true,
           record: { wins: 0, losses: 0, pushes: 0 },
+        },
+      ],
+    },
+    {
+      playerId: ERIC_SUB,
+      season: { wins: 0, losses: 6, pushes: 0 },
+      weeks: [
+        {
+          season: 2026,
+          week: 1,
+          seasonWeek: '2026#W01',
+          isCurrent: false,
+          record: { wins: 0, losses: 3, pushes: 0 },
+        },
+        {
+          season: 2026,
+          week: 2,
+          seasonWeek: '2026#W02',
+          isCurrent: false,
+          record: { wins: 0, losses: 3, pushes: 0 },
         },
         {
           season: 2026,
@@ -226,7 +253,7 @@ describe('App', () => {
     await user.selectOptions(screen.getByLabelText(/^weeks$/i), '2026-1');
 
     expect(await screen.findByRole('heading', { level: 2, name: /^week 1$/i })).toBeInTheDocument();
-    expect(screen.getByText('DAL @ PHI')).toBeInTheDocument();
+    expect(screen.getByText('DAL 20 @ PHI 24')).toBeInTheDocument();
     expect(screen.getAllByText('Kenny').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Jack').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('No pick')).not.toBeInTheDocument();
@@ -236,7 +263,7 @@ describe('App', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('shows cumulative player records on a past week board', async () => {
+  it('shows weekly player records on a past week board', async () => {
     const user = userEvent.setup();
     const loadWeek = vi.fn().mockImplementation(
       (_token: string, _season: number, week: number) =>
@@ -251,6 +278,7 @@ describe('App', () => {
     expect(await screen.findByLabelText(/standings/i)).toBeInTheDocument();
     expect(screen.getByText('1-0-0')).toBeInTheDocument();
     expect(screen.getByText('0-1-0')).toBeInTheDocument();
+    expect(screen.getByText('0-3-0')).toBeInTheDocument();
     expect(screen.queryByText('No pick')).not.toBeInTheDocument();
   });
 
@@ -299,7 +327,28 @@ describe('App', () => {
     resolvePastWeek(pastWeek);
 
     expect(await screen.findByRole('heading', { level: 2, name: /^week 1$/i })).toBeInTheDocument();
-    expect(screen.getByText('DAL @ PHI')).toBeInTheDocument();
+    expect(screen.getByText('DAL 20 @ PHI 24')).toBeInTheDocument();
+  });
+
+  it('opens an overall records view from the header', async () => {
+    const user = userEvent.setup();
+
+    renderApp();
+    await screen.findByText('Green Bay Packers (GB)');
+    await user.click(screen.getByRole('button', { name: /^records$/i }));
+
+    expect(
+      await screen.findByRole('heading', {
+        level: 2,
+        name: /overall records/i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/kenny overall record/i)).toHaveTextContent(
+      '1-3-0',
+    );
+    expect(screen.getByLabelText(/eric overall record/i)).toHaveTextContent(
+      '0-6-0',
+    );
   });
 
   it('clears stale week data when loading the selected week fails', async () => {

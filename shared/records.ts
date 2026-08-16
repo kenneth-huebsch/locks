@@ -50,6 +50,22 @@ export function recordsThroughWeek(
   return records;
 }
 
+export function recordsForWeek(
+  standings: StandingsResponse,
+  weekNumber: number,
+): Record<string, string> {
+  const records: Record<string, string> = {};
+
+  for (const player of standings.players) {
+    const week = player.weeks.find((entry) => entry.week === weekNumber);
+    if (week) {
+      records[player.playerId] = formatPlayerRecord(week.record);
+    }
+  }
+
+  return records;
+}
+
 export function computePlayerRecordsById(picks: Pick[]): Record<string, string> {
   const picksByPlayer = new Map<string, Pick[]>();
 
@@ -71,6 +87,7 @@ export function computeStandingsFromPicks(
   picks: Pick[],
   season: number,
   currentWeek: number,
+  rosterPlayerIds?: readonly string[],
 ): StandingsResponse {
   const picksByPlayer = new Map<string, Pick[]>();
   for (const pick of picks) {
@@ -79,7 +96,9 @@ export function computeStandingsFromPicks(
     picksByPlayer.set(pick.playerId, playerPicks);
   }
 
-  const playerIds = [...picksByPlayer.keys()].sort();
+  const playerIds = rosterPlayerIds
+    ? [...rosterPlayerIds]
+    : [...picksByPlayer.keys()].sort();
   const players: PlayerStandings[] = playerIds.map((playerId) => {
     const playerPicks = picksByPlayer.get(playerId) ?? [];
     const picksByWeek = new Map<string, Pick[]>();
@@ -93,18 +112,32 @@ export function computeStandingsFromPicks(
       const week = index + 1;
       const token = seasonWeekToken(season, week);
       const { season: weekSeason, week: weekNumber } = parseSeasonWeekToken(token);
+      const weekPicks = picksByWeek.get(token) ?? [];
+      const record =
+        week < currentWeek && weekPicks.length === 0
+          ? { wins: 0, losses: 3, pushes: 0 }
+          : computePlayerRecord(weekPicks);
       return {
         season: weekSeason,
         week: weekNumber,
         seasonWeek: token,
         isCurrent: week === currentWeek,
-        record: computePlayerRecord(picksByWeek.get(token) ?? []),
+        record,
       };
     });
 
+    const seasonRecord = weeks.reduce<WinLossTie>(
+      (total, week) => ({
+        wins: total.wins + week.record.wins,
+        losses: total.losses + week.record.losses,
+        pushes: total.pushes + week.record.pushes,
+      }),
+      { wins: 0, losses: 0, pushes: 0 },
+    );
+
     return {
       playerId,
-      season: computePlayerRecord(playerPicks),
+      season: seasonRecord,
       weeks,
     };
   });

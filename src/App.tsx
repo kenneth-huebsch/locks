@@ -4,9 +4,10 @@ import type {
   StandingsResponse,
   WeekSummary,
 } from '../shared/types';
+import { OverallRecord } from './components/OverallRecord';
 import { PicksBoard } from './components/PicksBoard';
 import { WeekView } from './components/WeekView';
-import { recordsThroughWeek } from './lib/records';
+import { recordsForWeek } from './lib/records';
 
 export interface AppAuth {
   isAuthenticated: boolean;
@@ -31,6 +32,7 @@ interface AppProps {
 }
 
 const REFRESH_INTERVAL_MS = 30_000;
+type AppView = 'week' | 'overall';
 
 function weekKey(season: number, week: number): string {
   return `${season}-${week}`;
@@ -66,10 +68,11 @@ export function App({
   const [selectedWeek, setSelectedWeek] = useState<WeekSummary>();
   const [weekData, setWeekData] = useState<CurrentWeekResponse>();
   const [standings, setStandings] = useState<StandingsResponse>();
+  const [view, setView] = useState<AppView>('week');
   const [loadError, setLoadError] = useState<string>();
 
   const refreshSelectedWeek = useCallback(async (): Promise<void> => {
-    if (!auth.accessToken || !selectedWeek) {
+    if (!auth.accessToken || !selectedWeek || view !== 'week') {
       return;
     }
 
@@ -88,7 +91,7 @@ export function App({
         error instanceof Error ? error.message : 'Unable to load week data',
       );
     }
-  }, [auth.accessToken, auth.userSub, loadWeek, selectedWeek]);
+  }, [auth.accessToken, auth.userSub, loadWeek, selectedWeek, view]);
 
   useEffect(() => {
     if (!auth.isLoading && !auth.isAuthenticated) {
@@ -130,7 +133,12 @@ export function App({
   }, [auth.accessToken, auth.isAuthenticated, listWeeks]);
 
   useEffect(() => {
-    if (!auth.isAuthenticated || !auth.accessToken || !selectedWeek) {
+    if (
+      !auth.isAuthenticated ||
+      !auth.accessToken ||
+      !selectedWeek ||
+      view !== 'week'
+    ) {
       return;
     }
 
@@ -178,15 +186,17 @@ export function App({
     loadWeek,
     refreshSelectedWeek,
     selectedWeek,
+    view,
   ]);
 
   const showingCurrentWeek = selectedWeek?.isCurrent ?? false;
+  const needsStandings = view === 'overall' || !showingCurrentWeek;
   useEffect(() => {
     if (
       !auth.isAuthenticated ||
       !auth.accessToken ||
       !selectedWeek ||
-      showingCurrentWeek
+      !needsStandings
     ) {
       setStandings(undefined);
       return;
@@ -217,8 +227,8 @@ export function App({
     auth.accessToken,
     auth.isAuthenticated,
     loadStandings,
+    needsStandings,
     selectedWeek,
-    showingCurrentWeek,
   ]);
 
   const playerRecords = useMemo(() => {
@@ -231,7 +241,7 @@ export function App({
       return undefined;
     }
 
-    return recordsThroughWeek(standings, selectedWeek.week);
+    return recordsForWeek(standings, selectedWeek.week);
   }, [selectedWeek, showingCurrentWeek, standings]);
 
   if (auth.isLoading) {
@@ -255,11 +265,14 @@ export function App({
       return;
     }
 
+    setView('week');
     if (
       selectedWeek?.season === currentWeekSummary.season &&
       selectedWeek?.week === currentWeekSummary.week
     ) {
-      void refreshSelectedWeek();
+      if (view === 'week') {
+        void refreshSelectedWeek();
+      }
       return;
     }
 
@@ -295,6 +308,7 @@ export function App({
                         item.season === season && item.week === week,
                     );
                     if (summary) {
+                      setView('week');
                       setSelectedWeek(summary);
                       setWeekData(undefined);
                       setLoadError(undefined);
@@ -318,6 +332,20 @@ export function App({
               </div>
             ) : null}
             <button
+              className={`shrink-0 whitespace-nowrap text-xs font-semibold sm:text-sm ${
+                view === 'overall'
+                  ? 'rounded bg-white px-2 py-1 text-blue-950 sm:px-3 sm:py-1.5'
+                  : 'underline underline-offset-4'
+              }`}
+              onClick={() => {
+                setView('overall');
+                setLoadError(undefined);
+              }}
+              type="button"
+            >
+              Records
+            </button>
+            <button
               className="shrink-0 whitespace-nowrap text-xs font-semibold underline underline-offset-4 sm:text-sm"
               onClick={() => void auth.logout()}
               type="button"
@@ -335,7 +363,13 @@ export function App({
           </p>
         ) : null}
 
-        {!readyWeekData || !selectedWeek ? (
+        {view === 'overall' ? (
+          standings ? (
+            <OverallRecord standings={standings} />
+          ) : (
+            <p className="text-slate-600">Loading overall records…</p>
+          )
+        ) : !readyWeekData || !selectedWeek ? (
           <p className="text-slate-600">Loading this week’s games…</p>
         ) : showingCurrentWeek && auth.userSub ? (
           <WeekView

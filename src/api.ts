@@ -16,6 +16,7 @@ import {
 } from './lib/mockWeeks';
 import { seasonWeekToken } from '../shared/dynamo';
 import { computeStandingsFromPicks } from '../shared/records';
+import { LEAGUE_ROSTER } from '../shared/roster';
 
 // Live current-week API by default for preseason/production testing.
 // Set VITE_USE_MOCK_WEEKS=true to force the local mock 3-week demo path.
@@ -108,6 +109,7 @@ export async function loadStandings(
       listMockPicksThroughWeek(current.season, current.week),
       current.season,
       current.week,
+      LEAGUE_ROSTER.map((player) => player.sub),
     );
   }
 
