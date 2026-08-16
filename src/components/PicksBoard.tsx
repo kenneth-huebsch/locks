@@ -40,7 +40,7 @@ export function PicksBoard({
       {playerRecords ? (
         <div
           className="flex flex-wrap gap-x-4 gap-y-1 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
-          aria-label="Standings"
+          aria-label="Weekly records"
         >
           {LEAGUE_ROSTER.map((player) => (
             <div className="flex items-baseline gap-1.5" key={player.sub}>

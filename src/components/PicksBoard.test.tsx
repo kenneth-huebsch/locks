@@ -69,7 +69,7 @@ describe('PicksBoard', () => {
     expect(
       screen.getByRole('heading', { level: 2, name: /^week 1$/i }),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText(/standings/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/weekly records/i)).toBeInTheDocument();
     expect(screen.getByText('1-0-0')).toBeInTheDocument();
     expect(screen.getByText('0-1-0')).toBeInTheDocument();
     expect(screen.getByText('DAL 20 @ PHI 24')).toBeInTheDocument();

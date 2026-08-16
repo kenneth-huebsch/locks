@@ -281,6 +281,39 @@ export function App({
     setLoadError(undefined);
   }
 
+  function handleWeeksNavClick(): void {
+    setView('week');
+    setLoadError(undefined);
+    if (!selectedWeek && currentWeekSummary) {
+      setSelectedWeek(currentWeekSummary);
+      setWeekData(undefined);
+    }
+  }
+
+  function handleStandingsNavClick(): void {
+    setView('overall');
+    setLoadError(undefined);
+  }
+
+  function handleWeekSelectChange(value: string): void {
+    const [season, week] = value.split('-').map(Number);
+    const summary = weekSummaries.find(
+      (item) => item.season === season && item.week === week,
+    );
+    if (summary) {
+      setSelectedWeek(summary);
+      setWeekData(undefined);
+      setLoadError(undefined);
+    }
+  }
+
+  const navLinkClass = (active: boolean): string =>
+    `shrink-0 whitespace-nowrap text-xs font-semibold sm:text-sm ${
+      active
+        ? 'rounded bg-white px-2 py-1 text-blue-950 sm:px-3 sm:py-1.5'
+        : 'underline underline-offset-4'
+    }`;
+
   return (
     <main className="min-h-screen bg-slate-50">
       <header className="bg-blue-950 text-white">
@@ -293,57 +326,19 @@ export function App({
             Locks
           </button>
           <div className="flex shrink-0 items-center gap-2 md:gap-4">
-            {weekSummaries.length > 0 ? (
-              <div className="flex items-center">
-                <select
-                  aria-label="Weeks"
-                  className="max-w-[9.5rem] truncate rounded bg-white px-2 py-1 text-xs font-semibold text-blue-950 sm:max-w-none sm:px-3 sm:py-1.5 sm:text-sm"
-                  id="weeks-select"
-                  onChange={(event) => {
-                    const [season, week] = event.target.value
-                      .split('-')
-                      .map(Number);
-                    const summary = weekSummaries.find(
-                      (item) =>
-                        item.season === season && item.week === week,
-                    );
-                    if (summary) {
-                      setView('week');
-                      setSelectedWeek(summary);
-                      setWeekData(undefined);
-                      setLoadError(undefined);
-                    }
-                  }}
-                  value={
-                    selectedWeek
-                      ? weekKey(selectedWeek.season, selectedWeek.week)
-                      : ''
-                  }
-                >
-                  {weekSummaries.map((summary) => (
-                    <option
-                      key={weekKey(summary.season, summary.week)}
-                      value={weekKey(summary.season, summary.week)}
-                    >
-                      {weekOptionLabel(summary)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : null}
             <button
-              className={`shrink-0 whitespace-nowrap text-xs font-semibold sm:text-sm ${
-                view === 'overall'
-                  ? 'rounded bg-white px-2 py-1 text-blue-950 sm:px-3 sm:py-1.5'
-                  : 'underline underline-offset-4'
-              }`}
-              onClick={() => {
-                setView('overall');
-                setLoadError(undefined);
-              }}
+              className={navLinkClass(view === 'week')}
+              onClick={handleWeeksNavClick}
               type="button"
             >
-              Records
+              Weeks
+            </button>
+            <button
+              className={navLinkClass(view === 'overall')}
+              onClick={handleStandingsNavClick}
+              type="button"
+            >
+              Standings
             </button>
             <button
               className="shrink-0 whitespace-nowrap text-xs font-semibold underline underline-offset-4 sm:text-sm"
@@ -367,27 +362,59 @@ export function App({
           standings ? (
             <OverallRecord standings={standings} />
           ) : (
-            <p className="text-slate-600">Loading overall records…</p>
+            <p className="text-slate-600">Loading standings…</p>
           )
-        ) : !readyWeekData || !selectedWeek ? (
-          <p className="text-slate-600">Loading this week’s games…</p>
-        ) : showingCurrentWeek && auth.userSub ? (
-          <WeekView
-            accessToken={auth.accessToken ?? ''}
-            currentWeek={readyWeekData}
-            onRefresh={refreshSelectedWeek}
-            userSub={auth.userSub}
-          />
-        ) : !showingCurrentWeek && auth.userSub ? (
-          <PicksBoard
-            games={readyWeekData.games}
-            picks={readyWeekData.picks ?? []}
-            playerRecords={playerRecords}
-            userSub={auth.userSub}
-            weekNumber={selectedWeek.week}
-          />
         ) : (
-          <p className="text-slate-600">Loading player session…</p>
+          <div className="space-y-6">
+            {weekSummaries.length > 0 ? (
+              <div className="flex items-center">
+                <label className="sr-only" htmlFor="weeks-select">
+                  Select week
+                </label>
+                <select
+                  aria-label="Select week"
+                  className="max-w-[9.5rem] truncate rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-blue-950 sm:max-w-none sm:px-3 sm:py-1.5 sm:text-sm"
+                  id="weeks-select"
+                  onChange={(event) => handleWeekSelectChange(event.target.value)}
+                  value={
+                    selectedWeek
+                      ? weekKey(selectedWeek.season, selectedWeek.week)
+                      : ''
+                  }
+                >
+                  {weekSummaries.map((summary) => (
+                    <option
+                      key={weekKey(summary.season, summary.week)}
+                      value={weekKey(summary.season, summary.week)}
+                    >
+                      {weekOptionLabel(summary)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+
+            {!readyWeekData || !selectedWeek ? (
+              <p className="text-slate-600">Loading this week’s games…</p>
+            ) : showingCurrentWeek && auth.userSub ? (
+              <WeekView
+                accessToken={auth.accessToken ?? ''}
+                currentWeek={readyWeekData}
+                onRefresh={refreshSelectedWeek}
+                userSub={auth.userSub}
+              />
+            ) : !showingCurrentWeek && auth.userSub ? (
+              <PicksBoard
+                games={readyWeekData.games}
+                picks={readyWeekData.picks ?? []}
+                playerRecords={playerRecords}
+                userSub={auth.userSub}
+                weekNumber={selectedWeek.week}
+              />
+            ) : (
+              <p className="text-slate-600">Loading player session…</p>
+            )}
+          </div>
         )}
       </section>
     </main>

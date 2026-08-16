@@ -32,7 +32,7 @@ describe('OverallRecord', () => {
     render(<OverallRecord standings={standings} />);
 
     expect(
-      screen.getByRole('heading', { level: 2, name: /overall records/i }),
+      screen.getByRole('heading', { level: 2, name: /^standings$/i }),
     ).toBeInTheDocument();
     expect(screen.getByLabelText(/kenny overall record/i)).toHaveTextContent(
       '3-0-0',

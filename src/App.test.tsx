@@ -223,11 +223,12 @@ describe('App', () => {
     expect(screen.getByText(/redirecting to sign in/i)).toBeInTheDocument();
   });
 
-  it('shows the week dropdown and current-week pick entry by default', async () => {
+  it('shows Weeks/Standings nav and current-week pick entry by default', async () => {
     renderApp();
 
-    expect(await screen.findByLabelText(/^weeks$/i)).toBeInTheDocument();
-    expect(screen.queryByText('Weeks', { selector: 'label' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^weeks$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^standings$/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/^select week$/i)).toBeInTheDocument();
     expect(screen.getByRole('option', { name: /week 3 \(current\)/i })).toBeInTheDocument();
     expect(await screen.findByText('Green Bay Packers (GB)')).toBeInTheDocument();
     expect(
@@ -250,7 +251,7 @@ describe('App', () => {
     renderApp(loadWeek);
 
     await screen.findByText('Green Bay Packers (GB)');
-    await user.selectOptions(screen.getByLabelText(/^weeks$/i), '2026-1');
+    await user.selectOptions(screen.getByLabelText(/^select week$/i), '2026-1');
 
     expect(await screen.findByRole('heading', { level: 2, name: /^week 1$/i })).toBeInTheDocument();
     expect(screen.getByText('DAL 20 @ PHI 24')).toBeInTheDocument();
@@ -273,9 +274,9 @@ describe('App', () => {
     renderApp(loadWeek);
 
     await screen.findByText('Green Bay Packers (GB)');
-    await user.selectOptions(screen.getByLabelText(/^weeks$/i), '2026-1');
+    await user.selectOptions(screen.getByLabelText(/^select week$/i), '2026-1');
 
-    expect(await screen.findByLabelText(/standings/i)).toBeInTheDocument();
+    expect(await screen.findByLabelText(/weekly records/i)).toBeInTheDocument();
     expect(screen.getByText('1-0-0')).toBeInTheDocument();
     expect(screen.getByText('0-1-0')).toBeInTheDocument();
     expect(screen.getByText('0-3-0')).toBeInTheDocument();
@@ -292,14 +293,14 @@ describe('App', () => {
     renderApp(loadWeek);
 
     await screen.findByText('Green Bay Packers (GB)');
-    await user.selectOptions(screen.getByLabelText(/^weeks$/i), '2026-1');
+    await user.selectOptions(screen.getByLabelText(/^select week$/i), '2026-1');
     await screen.findByRole('heading', { level: 2, name: /^week 1$/i });
 
     await user.click(screen.getByRole('button', { name: /^locks$/i }));
 
     expect(await screen.findByRole('heading', { level: 2, name: /^week 3$/i })).toBeInTheDocument();
     expect(screen.getByText(/2 picks remaining/i)).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: /^weeks$/i })).toHaveValue('2026-3');
+    expect(screen.getByRole('combobox', { name: /^select week$/i })).toHaveValue('2026-3');
   });
 
   it('shows loading instead of stale week data while a new week loads', async () => {
@@ -316,7 +317,7 @@ describe('App', () => {
     renderApp(loadWeek);
 
     await screen.findByText('Green Bay Packers (GB)');
-    await user.selectOptions(screen.getByLabelText(/^weeks$/i), '2026-1');
+    await user.selectOptions(screen.getByLabelText(/^select week$/i), '2026-1');
 
     expect(screen.getByText(/loading this week/i)).toBeInTheDocument();
     expect(
@@ -330,25 +331,31 @@ describe('App', () => {
     expect(screen.getByText('DAL 20 @ PHI 24')).toBeInTheDocument();
   });
 
-  it('opens an overall records view from the header', async () => {
+  it('opens standings from the header and returns via Weeks', async () => {
     const user = userEvent.setup();
 
     renderApp();
     await screen.findByText('Green Bay Packers (GB)');
-    await user.click(screen.getByRole('button', { name: /^records$/i }));
+    await user.click(screen.getByRole('button', { name: /^standings$/i }));
 
     expect(
       await screen.findByRole('heading', {
         level: 2,
-        name: /overall records/i,
+        name: /^standings$/i,
       }),
     ).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^select week$/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText(/kenny overall record/i)).toHaveTextContent(
       '1-3-0',
     );
     expect(screen.getByLabelText(/eric overall record/i)).toHaveTextContent(
       '0-6-0',
     );
+
+    await user.click(screen.getByRole('button', { name: /^weeks$/i }));
+
+    expect(await screen.findByLabelText(/^select week$/i)).toBeInTheDocument();
+    expect(await screen.findByText('Green Bay Packers (GB)')).toBeInTheDocument();
   });
 
   it('clears stale week data when loading the selected week fails', async () => {
@@ -361,7 +368,7 @@ describe('App', () => {
     renderApp(loadWeek);
 
     await screen.findByText('Green Bay Packers (GB)');
-    await user.selectOptions(screen.getByLabelText(/^weeks$/i), '2026-1');
+    await user.selectOptions(screen.getByLabelText(/^select week$/i), '2026-1');
 
     expect(await screen.findByText(/week unavailable/i)).toBeInTheDocument();
     expect(

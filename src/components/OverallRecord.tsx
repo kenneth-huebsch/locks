@@ -17,7 +17,7 @@ export function OverallRecord({ standings }: OverallRecordProps) {
         {standings.season} season
       </p>
       <h2 className="mt-1 text-3xl font-black text-blue-950 md:text-4xl">
-        Overall records
+        Standings
       </h2>
 
       <ul className="mt-8 grid gap-4 sm:grid-cols-3">
