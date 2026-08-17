@@ -244,25 +244,36 @@ describe('LocksAppStack', () => {
     });
   });
 
-  it('defines grade-games Lambda with odds/score IAM and Node 22 ARM', () => {
+  it('defines grade-games Lambda with ESPN-only config and narrowed IAM', () => {
     // Both scheduled functions resolve active week from DynamoDB.
-    template.hasResourceProperties('AWS::Lambda::Function', {
+    const lambdas = template.findResources('AWS::Lambda::Function');
+    const gradeLambdas = Object.entries(lambdas).filter(([id]) =>
+      id.includes('GradeGamesFunction'),
+    );
+    expect(gradeLambdas).toHaveLength(1);
+    expect(gradeLambdas[0]?.[1].Properties).toMatchObject({
       Handler: 'index.handler',
       Runtime: 'nodejs22.x',
       Architectures: ['arm64'],
       Timeout: 30,
       MemorySize: 256,
       Environment: {
-        Variables: Match.objectLike({
-          ODDS_API_ENABLED: 'true',
-          ODDS_API_SPORT: 'americanfootball_nfl_preseason',
-          ACTIVE_WEEK: Match.absent(),
-        }),
+        Variables: {
+          GRADE_GAMES_ENABLED: 'true',
+        },
       },
     });
-    const scheduledLambdas = Object.entries(
-      template.findResources('AWS::Lambda::Function'),
-    ).filter(([id]) =>
+    expect(
+      gradeLambdas[0]?.[1].Properties.Environment.Variables.TABLE_NAME,
+    ).toBeDefined();
+    expect(
+      gradeLambdas[0]?.[1].Properties.Environment.Variables.ODDS_API_ENABLED,
+    ).toBeUndefined();
+    expect(
+      gradeLambdas[0]?.[1].Properties.Environment.Variables.ODDS_API_SPORT,
+    ).toBeUndefined();
+
+    const scheduledLambdas = Object.entries(lambdas).filter(([id]) =>
       id.includes('SyncOddsFunction') || id.includes('GradeGamesFunction'),
     );
     expect(scheduledLambdas).toHaveLength(2);
@@ -272,26 +283,28 @@ describe('LocksAppStack', () => {
     template.hasResourceProperties('AWS::IAM::Role', {
       Description: 'Execution role for scheduled score sync and pick grading',
     });
-    template.hasResourceProperties('AWS::IAM::Policy', {
-      PolicyDocument: {
-        Statement: Match.arrayWith([
-          Match.objectLike({
-            Action: 'ssm:GetParameter',
-            Effect: 'Allow',
-            Resource:
-              'arn:aws:ssm:us-east-1:580956784928:parameter/locks/odds-api-key',
-          }),
-          Match.objectLike({
-            Action: Match.arrayWith([
-              'dynamodb:GetItem',
-              'dynamodb:PutItem',
-              'dynamodb:Query',
-              'dynamodb:UpdateItem',
-            ]),
-          }),
-        ]),
-      },
-    });
+    const gradeRole = Object.entries(
+      template.findResources('AWS::IAM::Role'),
+    ).find(
+      ([, resource]) =>
+        resource.Properties.Description ===
+        'Execution role for scheduled score sync and pick grading',
+    );
+    expect(gradeRole).toBeDefined();
+    const gradePolicies = Object.values(
+      template.findResources('AWS::IAM::Policy'),
+    ).filter((resource) =>
+      resource.Properties.Roles?.some(
+        (role: { Ref?: string }) => role.Ref === gradeRole?.[0],
+      ),
+    );
+    expect(gradePolicies).toHaveLength(1);
+    const gradePolicyJson = JSON.stringify(gradePolicies);
+    expect(gradePolicyJson).not.toContain('ssm:GetParameter');
+    expect(gradePolicyJson).not.toContain('dynamodb:PutItem');
+    expect(gradePolicyJson).toContain('dynamodb:GetItem');
+    expect(gradePolicyJson).toContain('dynamodb:Query');
+    expect(gradePolicyJson).toContain('dynamodb:UpdateItem');
     template.hasOutput('GradeGamesFunctionName', {});
     template.hasOutput('SyncOddsFunctionName', {});
   });

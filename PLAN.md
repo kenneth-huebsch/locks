@@ -59,12 +59,7 @@ Last updated: August 17, 2026.
 
 ### Current open items
 
-1. **ESPN scores for grading:** implement
-   [`docs/handoffs/espn-grading.md`](docs/handoffs/espn-grading.md) — `grade-games`
-   fetches finals from ESPN (0 Odds credits); match Dynamo games by team names;
-   keep The Odds API for spreads sync only. Phase 4 mobile/empty-state polish is
-   **cancelled** (out of scope).
-2. **Preseason Week 2 slate:** seeded manually; prefer Odds API once it lists
+1. **Preseason Week 2 slate:** seeded manually; prefer Odds API once it lists
    upcoming games.
 
 ## Recommendation: AWS serverless with DynamoDB caching
@@ -120,6 +115,7 @@ flowchart TB
 
   subgraph external [External APIs]
     OddsAPI[The Odds API]
+    EspnAPI[ESPN Scoreboard]
   end
 
   Browser --> StaticSite
@@ -132,7 +128,7 @@ flowchart TB
   FnSync --> Secrets
   FnSync --> OddsAPI
   FnSync --> Store
-  FnGrade --> OddsAPI
+  FnGrade --> EspnAPI
   FnGrade --> Store
 ```
 
@@ -379,7 +375,7 @@ Estimated cost: approximately 28–35 credits/month.
 
 ### Score schedule
 
-Same kickoff windows as today, but scores come from ESPN:
+Same kickoff windows as today; scores come from ESPN:
 
 - Friday 1:00 AM: after Thursday games
 - Saturday 1:00 AM: after Friday or holiday games
@@ -387,21 +383,16 @@ Same kickoff windows as today, but scores come from ESPN:
 - Monday 1:00 AM: after Sunday Night Football
 - Tuesday 1:00 AM: after Monday Night Football
 
-Odds API cost for score pulls: **0 credits** once ESPN grading is live
-(previously ~48–52 credits/month on The Odds API scores endpoint).
+Odds API cost for score pulls: **0 credits** (previously ~48–52 credits/month
+on The Odds API scores endpoint).
 
 ### Monthly estimate
 
-Target after ESPN score sync:
+Current free-tier estimate:
 
 - Spreads only on The Odds API: approximately 28–35 credits/month
 - Scores from ESPN: 0 Odds API credits
 - Approximately 465+ credits of free-tier buffer
-
-Until ESPN grading ships, `grade-games` still uses The Odds API scores
-endpoint (2 credits per call).
-
-The initial implementation will use The Odds API for both because it is simpler and still comfortably below the free limit.
 
 ### Enforcement
 
@@ -410,6 +401,7 @@ The initial implementation will use The Odds API for both because it is simpler 
 - Check quota before scheduled calls.
 - Stop calls below the configured reserve.
 - Add `ODDS_API_ENABLED=false` as an emergency/offseason kill switch.
+- Add `GRADE_GAMES_ENABLED=false` as the grading kill switch (independent of Odds).
 - Show “Lines last updated…” in the UI.
 
 ## Technology stack
@@ -495,7 +487,7 @@ Approved Phase 1 deviations:
 - [x] Deploy and validate Phase 3 end to end in production
   (preseason Week 1 grading + manual week advance to Week 2).
 
-### Phase 4: Polish and final release — mostly shipped; ESPN grading next
+### Phase 4: Polish and final release — complete for grading path
 
 Shipped:
 
@@ -506,11 +498,8 @@ Shipped:
 - Add an overall records view with each contestant's portrait and season W-L-P.
 - Map the third contestant to Eric's live Cognito invite (`ebs5021@gmail.com`).
 - Weeks / Standings top navigation; Eastern kickoff times.
-
-Open (agent handoff):
-
-- Switch `grade-games` to ESPN for final scores; keep The Odds API for spreads
-  only — see [`docs/handoffs/espn-grading.md`](docs/handoffs/espn-grading.md).
+- `grade-games` uses ESPN scoreboard finals matched by team names; The Odds API
+  is spreads-only. See [`docs/handoffs/espn-grading.md`](docs/handoffs/espn-grading.md).
 
 Cancelled:
 
@@ -548,7 +537,9 @@ Completed for multiplayer:
 - **Stale odds**
   - Show the last update time and synchronize before major kickoff windows.
 - **Team-name mismatches**
-  - Reference games by vendor event ID rather than free-text team names.
+  - Spreads sync still keys Odds events by vendor id. Grading matches ESPN
+    finals to Dynamo games by `awayTeam`/`homeTeam` full names from
+    `shared/teams.ts`.
 - **Postponed games**
   - Keep picks pending; resolve unusual outcomes with an operator DynamoDB
     update rather than an in-app admin override UI.

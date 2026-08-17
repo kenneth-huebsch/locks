@@ -2,23 +2,24 @@
 
 ## Overview
 
-The Locks app uses [The Odds API](https://the-odds-api.com/) for NFL spreads
-and scores. The API key lives in SSM Parameter Store at
-`/locks/odds-api-key`. The `sync-odds` and `grade-games` Lambda roles can
-read it.
+The Locks app uses [The Odds API](https://the-odds-api.com/) for NFL **spreads
+only**. Final scores for grading come from ESPN’s free scoreboard API (0 Odds
+credits). The Odds API key lives in SSM Parameter Store at
+`/locks/odds-api-key`. Only the `sync-odds` Lambda role can read it.
 
 ## Current State
 
 - Preferred sportsbook: **DraftKings** (`draftkings`).
-
-
+- **Scores source:** ESPN site API scoreboard (`grade-games`). Match Dynamo
+  games by `awayTeam` + `homeTeam` full names; no Odds `/scores` calls.
 - **API key:** Set as SecureString at `/locks/odds-api-key` by an approved
   operator via `locks-publish` (`ssm:PutParameter` on that parameter only).
 - **Scheduler:** EventBridge schedules in group `locks` are ENABLED for both
-  odds sync and grade-games (preseason dry run). `ODDS_API_ENABLED` on both
-  Lambdas is `true`.
-- **Kill switch:** Set `ODDS_API_ENABLED=false` on the Lambda to disable
-  sync/grading without removing the key or schedule.
+  odds sync and grade-games (preseason dry run).
+- **Kill switches:**
+  - `ODDS_API_ENABLED=false` on SyncOdds — disables spreads sync only.
+  - `GRADE_GAMES_ENABLED=false` on GradeGames — disables grading (independent
+    of Odds). Default is `true`.
 
 ## Setting the Odds API Key
 
@@ -46,9 +47,10 @@ AWS_PROFILE=coding-agent aws logs describe-log-groups \
 ## Free-Tier Quota Strategy
 
 - **Monthly limit:** 500 credits
-- **Estimated usage:** approximately 80 credits/month
+- **Estimated usage:** approximately 28–35 credits/month (spreads sync only)
 - **Reserve threshold:** Stop sync when fewer than 50 credits remain
-- **Cost per call:** 1 credit (odds/spreads), 2 credits (scores)
+- **Cost per call:** 1 credit (odds/spreads). Do **not** call `/scores`
+  (2 credits) — grading uses ESPN.
 
 ### Sync Schedule (Defined in CDK)
 All expressions use timezone `America/New_York`.
@@ -65,6 +67,9 @@ All expressions use timezone `America/New_York`.
 
 ### Score Schedule (Defined in CDK, timezone `America/New_York`)
 
+Scores are fetched from ESPN for the competition week’s kickoff dates (not ESPN
+week numbers). Schedules only trigger the Lambda:
+
 | Schedule name | Cron | Local meaning |
 |---|---|---|
 | `grade-games-friday` | `cron(0 1 ? * FRI *)` | Fri 1am after Thursday games |
@@ -75,8 +80,8 @@ All expressions use timezone `America/New_York`.
 | `grade-games-tuesday` | `cron(0 1 ? * TUE *)` | Tue 1am after Monday night |
 
 Scheduler retries each target up to twice. Scheduled handlers throw operational
-failures after logging so Scheduler can apply that retry policy; disabled or
-unconfigured integrations return an intentional skip without retry.
+failures after logging so Scheduler can apply that retry policy; disabled
+integrations return an intentional skip without retry.
 
 Schedules are ENABLED to match odds sync for the preseason dry run. Disable
 both schedule families in the offseason.
@@ -107,6 +112,11 @@ AWS_PROFILE=coding-agent aws scheduler update-schedule \
   --role-arn "<scheduler-invoke-role-arn>"
 ```
 
+## Disabling Grading
+
+Set `GRADE_GAMES_ENABLED=false` on GradeGames in CDK (or update the Lambda
+environment) and redeploy. This does not affect Odds sync or the SSM key.
+
 ## Quota Tracking
 
 The `sync-odds` Lambda records quota usage in DynamoDB under the
@@ -115,6 +125,8 @@ The `sync-odds` Lambda records quota usage in DynamoDB under the
 - Endpoint called
 - Credits used
 - Credits remaining
+
+`grade-games` does **not** write Odds quota records (ESPN is unmetered for us).
 
 ```bash
 # Check recent quota usage

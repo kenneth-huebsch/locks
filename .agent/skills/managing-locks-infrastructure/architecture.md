@@ -116,7 +116,8 @@ The boundary includes scoped `lambda:InvokeFunction` on `LocksAppStack-*` so Eve
 - Current-week Lambda (`/api/week/current`, `/api/weeks`, `/api/week/{seasonWeek}`)
 - Encrypted, point-in-time-recoverable DynamoDB table
 - EventBridge Scheduler group
-- Future scheduled-function role with exact SSM read for `/locks/odds-api-key`
+- Sync-odds role with exact SSM read for `/locks/odds-api-key`; grade-games uses
+  ESPN and has no Odds SSM access
 
 The SSM parameter value is not created in Phase 1.
 

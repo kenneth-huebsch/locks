@@ -1,83 +1,51 @@
 import {
   GetCommand,
-  PutCommand,
   QueryCommand,
   UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
-import type { OddsApiClient } from '../lib/odds-api-client.js';
+import type { EspnScoreboardClient } from '../lib/espn-scoreboard-client.js';
 import {
   createGradeGamesHandler,
   type GradeGamesEvent,
 } from './grade-games.js';
-import { QUOTA_PARTITION_KEY } from '../../shared/dynamo.js';
-import { oddsApiScoresPath } from '../lib/odds-api-client.js';
 
 const tableName = 'locks-table';
-const nowIso = '2026-08-11T04:00:00.000Z';
-const clock = { now: () => new Date(nowIso) };
 
-const completedScore = {
-  id: 'event-1',
-  sport_key: 'americanfootball_nfl_preseason',
-  sport_title: 'NFL Preseason',
-  commence_time: '2026-08-10T00:20:00.000Z',
-  completed: true,
-  home_team: 'Philadelphia Eagles',
-  away_team: 'Dallas Cowboys',
-  scores: [
-    { name: 'Dallas Cowboys', score: '17' },
-    { name: 'Philadelphia Eagles', score: '24' },
-  ],
-  last_update: '2026-08-10T03:30:00.000Z',
-};
-
-const incompleteScore = {
-  ...completedScore,
-  id: 'event-2',
-  completed: false,
-  scores: [
-    { name: 'Dallas Cowboys', score: '10' },
-    { name: 'Philadelphia Eagles', score: '14' },
-  ],
-};
-
-const missingScoresEvent = {
-  ...completedScore,
-  id: 'event-3',
-  completed: true,
-  scores: null,
+const finalScore = {
+  awayTeam: 'Dallas Cowboys',
+  homeTeam: 'Philadelphia Eagles',
+  awayScore: 17,
+  homeScore: 24,
 };
 
 function createHandler(
   overrides: {
     enabled?: boolean;
-    oddsClient?: OddsApiClient | null;
+    espnClient?: EspnScoreboardClient;
     send?: ReturnType<typeof vi.fn>;
     logger?: Pick<Console, 'info' | 'warn' | 'error'>;
   } = {},
 ) {
-  const previousEnabled = process.env.ODDS_API_ENABLED;
-  process.env.ODDS_API_ENABLED =
+  const previousGradeEnabled = process.env.GRADE_GAMES_ENABLED;
+  const previousOddsEnabled = process.env.ODDS_API_ENABLED;
+  process.env.GRADE_GAMES_ENABLED =
     overrides.enabled === false ? 'false' : 'true';
+  process.env.ODDS_API_ENABLED = 'false';
 
   const send =
     overrides.send ??
     vi.fn().mockImplementation((command) => {
       if (command instanceof GetCommand) {
-        return Promise.resolve({ Item: { season: 2026, week: 1 } });
+        return Promise.resolve({ Item: { season: 2026, week: 2 } });
       }
       if (command instanceof QueryCommand) {
-        const values = command.input.ExpressionAttributeValues ?? {};
-        if (values[':pk'] === QUOTA_PARTITION_KEY) {
-          return Promise.resolve({ Items: [{ creditsRemaining: 400 }] });
-        }
         if (command.input.IndexName === 'GSI1') {
           return Promise.resolve({
             Items: [
               {
                 playerId: 'player-1',
-                gameId: 'event-1',
-                seasonWeek: '2026#W01',
+                gameId: 'seed-2026-w02-game-1',
+                seasonWeek: '2026#W02',
                 pickedTeam: 'Dallas Cowboys',
                 spreadAtPick: 6.5,
                 submittedAt: '2026-08-09T12:00:00.000Z',
@@ -85,8 +53,8 @@ function createHandler(
               },
               {
                 playerId: 'player-2',
-                gameId: 'event-1',
-                seasonWeek: '2026#W01',
+                gameId: 'seed-2026-w02-game-1',
+                seasonWeek: '2026#W02',
                 pickedTeam: 'Philadelphia Eagles',
                 spreadAtPick: -3.5,
                 submittedAt: '2026-08-09T12:05:00.000Z',
@@ -98,16 +66,10 @@ function createHandler(
         return Promise.resolve({
           Items: [
             {
-              id: 'event-1',
+              id: 'seed-2026-w02-game-1',
               awayTeam: 'Dallas Cowboys',
               homeTeam: 'Philadelphia Eagles',
-              status: 'scheduled',
-            },
-            {
-              id: 'event-2',
-              awayTeam: 'Dallas Cowboys',
-              homeTeam: 'Philadelphia Eagles',
-              status: 'in_progress',
+              commenceTime: '2026-08-10T00:20:00.000Z',
             },
           ],
         });
@@ -115,22 +77,15 @@ function createHandler(
       return Promise.resolve({});
     });
 
-  const oddsClient =
-    overrides.oddsClient === undefined
-      ? ({
-          fetchNflSpreads: vi.fn(),
-          fetchNflEvents: vi.fn(),
-          fetchNflScores: vi.fn().mockResolvedValue({
-            data: [completedScore, incompleteScore, missingScoresEvent],
-            quota: { creditsUsed: 14, creditsRemaining: 486 },
-          }),
-        } satisfies OddsApiClient)
-      : overrides.oddsClient;
+  const espnClient =
+    overrides.espnClient ??
+    ({
+      fetchFinalScores: vi.fn().mockResolvedValue([finalScore]),
+    } satisfies EspnScoreboardClient);
 
   const handler = createGradeGamesHandler({
     dynamoClient: { send } as never,
-    oddsClient,
-    clock,
+    espnClient,
     tableName,
     logger: overrides.logger ?? {
       info: vi.fn(),
@@ -142,66 +97,53 @@ function createHandler(
   return {
     handler,
     send,
+    espnClient,
     restore() {
-      if (previousEnabled === undefined) {
+      if (previousGradeEnabled === undefined) {
+        delete process.env.GRADE_GAMES_ENABLED;
+      } else {
+        process.env.GRADE_GAMES_ENABLED = previousGradeEnabled;
+      }
+      if (previousOddsEnabled === undefined) {
         delete process.env.ODDS_API_ENABLED;
       } else {
-        process.env.ODDS_API_ENABLED = previousEnabled;
+        process.env.ODDS_API_ENABLED = previousOddsEnabled;
       }
     },
   };
 }
 
 describe('grade-games handler', () => {
-  it('skips when disabled', async () => {
-    const { handler, restore, send } = createHandler({ enabled: false });
+  it('skips when grading is disabled', async () => {
+    const { handler, restore, send, espnClient } = createHandler({
+      enabled: false,
+    });
     const result = await handler();
     restore();
 
     expect(result).toEqual({ status: 'skipped', reason: 'disabled' });
     expect(send).not.toHaveBeenCalled();
-  });
-
-  it('skips cleanly when the Odds API key is missing', async () => {
-    const { handler, restore, send } = createHandler({ oddsClient: null });
-    const result = await handler();
-    restore();
-
-    expect(result).toEqual({ status: 'skipped', reason: 'missing_parameter' });
-    expect(send).not.toHaveBeenCalled();
+    expect(espnClient.fetchFinalScores).not.toHaveBeenCalled();
   });
 
   it('uses seasonWeek from the invoke event when provided', async () => {
     const send = vi.fn().mockImplementation((command) => {
       if (command instanceof QueryCommand) {
-        const values = command.input.ExpressionAttributeValues ?? {};
-        if (values[':pk'] === QUOTA_PARTITION_KEY) {
-          return Promise.resolve({ Items: [{ creditsRemaining: 400 }] });
-        }
-        if (command.input.IndexName === 'GSI1') {
-          return Promise.resolve({ Items: [] });
-        }
         return Promise.resolve({ Items: [] });
       }
       return Promise.resolve({});
     });
-
-    const oddsClient = {
-      fetchNflSpreads: vi.fn(),
-      fetchNflEvents: vi.fn(),
-      fetchNflScores: vi.fn().mockResolvedValue({
-        data: [],
-        quota: { creditsUsed: 14, creditsRemaining: 486 },
-      }),
-    } satisfies OddsApiClient;
-
-    const { handler, restore } = createHandler({ send, oddsClient });
+    const { handler, restore } = createHandler({ send });
     const event: GradeGamesEvent = { seasonWeek: '2026#W03' };
+
     const result = await handler(event);
     restore();
 
-    expect(result.status).toBe('success');
-    expect(result.seasonWeek).toBe('2026#W03');
+    expect(result).toMatchObject({
+      status: 'success',
+      seasonWeek: '2026#W03',
+      gamesFinalized: 0,
+    });
     expect(
       send.mock.calls.some(
         ([command]) =>
@@ -209,50 +151,54 @@ describe('grade-games handler', () => {
           command.input.Key?.PK === 'SEASON#ACTIVE',
       ),
     ).toBe(false);
-
-    const weekQueries = send.mock.calls
-      .map(([command]) => command)
-      .filter((command) => command instanceof QueryCommand)
-      .filter((command) => {
+    expect(
+      send.mock.calls.some(([command]) => {
+        if (!(command instanceof QueryCommand)) {
+          return false;
+        }
         const values = command.input.ExpressionAttributeValues ?? {};
-        return values[':pk'] === 'WEEK#2026#W03' || values[':weekPk'] === 'WEEK#2026#W03';
-      });
-    expect(weekQueries.length).toBeGreaterThan(0);
+        return (
+          values[':pk'] === 'WEEK#2026#W03' ||
+          values[':weekPk'] === 'WEEK#2026#W03'
+        );
+      }),
+    ).toBe(true);
   });
 
-  it('finalizes completed games and grades only pending picks', async () => {
-    const { handler, restore, send } = createHandler();
+  it('matches by team names and updates using the seeded Dynamo game id', async () => {
+    const { handler, restore, send, espnClient } = createHandler();
+
     const result = await handler();
     restore();
 
     expect(result).toEqual({
       status: 'success',
-      seasonWeek: '2026#W01',
+      seasonWeek: '2026#W02',
       gamesFinalized: 1,
       picksGraded: 1,
       picksSkipped: 1,
     });
+    expect(espnClient.fetchFinalScores).toHaveBeenCalledWith('20260810');
 
     const updates = send.mock.calls
       .map(([command]) => command)
       .filter((command) => command instanceof UpdateCommand);
-
     expect(updates).toHaveLength(2);
-
     expect(updates[0]?.input).toMatchObject({
-      Key: { PK: 'WEEK#2026#W01', SK: 'GAME#event-1' },
+      Key: {
+        PK: 'WEEK#2026#W02',
+        SK: 'GAME#seed-2026-w02-game-1',
+      },
       ExpressionAttributeValues: {
         ':awayScore': 17,
         ':homeScore': 24,
         ':final': 'final',
       },
     });
-
-    // Away +6.5 with 17-24 → adjusted 23.5 < 24 → loss
     expect(updates[1]?.input).toMatchObject({
       Key: {
         PK: 'PLAYER#player-1',
-        SK: 'PICK#2026#W01#GAME#event-1',
+        SK: 'PICK#2026#W02#GAME#seed-2026-w02-game-1',
       },
       ConditionExpression: '#result = :pending',
       ExpressionAttributeValues: {
@@ -260,31 +206,66 @@ describe('grade-games handler', () => {
         ':pending': 'pending',
       },
     });
-
-    const puts = send.mock.calls
-      .map(([command]) => command)
-      .filter((command) => command instanceof PutCommand);
-    expect(puts).toHaveLength(1);
-    expect(puts[0]?.input.Item).toMatchObject({
-      PK: QUOTA_PARTITION_KEY,
-      endpoint: oddsApiScoresPath(),
-      creditsUsed: 14,
-      creditsRemaining: 486,
-      ttl: Math.floor(new Date(nowIso).getTime() / 1000) + 30 * 24 * 60 * 60,
-    });
   });
 
-  it('skips incomplete and missing-score events without writing game or pick updates', async () => {
-    const oddsClient = {
-      fetchNflSpreads: vi.fn(),
-      fetchNflEvents: vi.fn(),
-      fetchNflScores: vi.fn().mockResolvedValue({
-        data: [incompleteScore, missingScoresEvent],
-        quota: { creditsUsed: 14, creditsRemaining: 486 },
-      }),
-    } satisfies OddsApiClient;
+  it('fetches each distinct kickoff date once', async () => {
+    const send = vi.fn().mockImplementation((command) => {
+      if (command instanceof GetCommand) {
+        return Promise.resolve({ Item: { season: 2026, week: 2 } });
+      }
+      if (command instanceof QueryCommand) {
+        if (command.input.IndexName === 'GSI1') {
+          return Promise.resolve({ Items: [] });
+        }
+        return Promise.resolve({
+          Items: [
+            {
+              id: 'game-1',
+              awayTeam: 'Dallas Cowboys',
+              homeTeam: 'Philadelphia Eagles',
+              commenceTime: '2026-08-10T00:20:00.000Z',
+            },
+            {
+              id: 'game-2',
+              awayTeam: 'Miami Dolphins',
+              homeTeam: 'Chicago Bears',
+              commenceTime: '2026-08-10T17:00:00.000Z',
+            },
+            {
+              id: 'game-3',
+              awayTeam: 'Denver Broncos',
+              homeTeam: 'Seattle Seahawks',
+              commenceTime: '2026-08-11T00:20:00.000Z',
+            },
+          ],
+        });
+      }
+      return Promise.resolve({});
+    });
+    const espnClient = {
+      fetchFinalScores: vi.fn().mockResolvedValue([]),
+    } satisfies EspnScoreboardClient;
+    const { handler, restore } = createHandler({ send, espnClient });
 
-    const { handler, restore, send } = createHandler({ oddsClient });
+    await handler();
+    restore();
+
+    expect(espnClient.fetchFinalScores).toHaveBeenCalledTimes(2);
+    expect(espnClient.fetchFinalScores).toHaveBeenCalledWith('20260810');
+    expect(espnClient.fetchFinalScores).toHaveBeenCalledWith('20260811');
+  });
+
+  it('does not finalize an ESPN game whose team names do not match', async () => {
+    const espnClient = {
+      fetchFinalScores: vi.fn().mockResolvedValue([
+        {
+          ...finalScore,
+          awayTeam: 'New York Giants',
+        },
+      ]),
+    } satisfies EspnScoreboardClient;
+    const { handler, restore, send } = createHandler({ espnClient });
+
     const result = await handler();
     restore();
 
@@ -292,35 +273,39 @@ describe('grade-games handler', () => {
       status: 'success',
       gamesFinalized: 0,
       picksGraded: 0,
+      picksSkipped: 0,
     });
-
-    const updates = send.mock.calls
-      .map(([command]) => command)
-      .filter((command) => command instanceof UpdateCommand);
-    expect(updates).toHaveLength(0);
+    expect(
+      send.mock.calls.some(([command]) => command instanceof UpdateCommand),
+    ).toBe(false);
   });
 
   it('leaves terminal pick results alone when the conditional update fails', async () => {
     const send = vi.fn().mockImplementation((command) => {
       if (command instanceof GetCommand) {
-        return Promise.resolve({ Item: { season: 2026, week: 1 } });
+        return Promise.resolve({ Item: { season: 2026, week: 2 } });
       }
       if (command instanceof QueryCommand) {
-        const values = command.input.ExpressionAttributeValues ?? {};
-        if (values[':pk'] === QUOTA_PARTITION_KEY) {
-          return Promise.resolve({ Items: [{ creditsRemaining: 400 }] });
-        }
         if (command.input.IndexName === 'GSI1') {
           return Promise.resolve({
             Items: [
               {
+                playerId: 'player-1',
+                gameId: 'seed-2026-w02-game-1',
+                seasonWeek: '2026#W02',
+                pickedTeam: 'Dallas Cowboys',
+                spreadAtPick: 6.5,
+                submittedAt: '2026-08-09T12:00:00.000Z',
+                result: 'pending',
+              },
+              {
                 playerId: 'player-2',
-                gameId: 'event-1',
-                seasonWeek: '2026#W01',
+                gameId: 'seed-2026-w02-game-1',
+                seasonWeek: '2026#W02',
                 pickedTeam: 'Philadelphia Eagles',
                 spreadAtPick: -3.5,
                 submittedAt: '2026-08-09T12:05:00.000Z',
-                result: 'pending',
+                result: 'win',
               },
             ],
           });
@@ -328,26 +313,27 @@ describe('grade-games handler', () => {
         return Promise.resolve({
           Items: [
             {
-              id: 'event-1',
+              id: 'seed-2026-w02-game-1',
               awayTeam: 'Dallas Cowboys',
               homeTeam: 'Philadelphia Eagles',
-              status: 'scheduled',
+              commenceTime: '2026-08-10T00:20:00.000Z',
             },
           ],
         });
       }
-      if (command instanceof UpdateCommand) {
-        if (command.input.Key?.SK?.startsWith('PICK#')) {
-          const error = new Error('already graded');
-          error.name = 'ConditionalCheckFailedException';
-          return Promise.reject(error);
-        }
-        return Promise.resolve({});
+      if (
+        command instanceof UpdateCommand &&
+        typeof command.input.Key?.SK === 'string' &&
+        command.input.Key.SK.startsWith('PICK#')
+      ) {
+        const error = new Error('already graded');
+        error.name = 'ConditionalCheckFailedException';
+        return Promise.reject(error);
       }
       return Promise.resolve({});
     });
-
     const { handler, restore } = createHandler({ send });
+
     const result = await handler();
     restore();
 
@@ -355,22 +341,26 @@ describe('grade-games handler', () => {
       status: 'success',
       gamesFinalized: 1,
       picksGraded: 0,
-      picksSkipped: 1,
+      picksSkipped: 2,
     });
   });
 
-  it('throws when the scores client fails so Scheduler can retry', async () => {
+  it('throws when ESPN fails so Scheduler can retry', async () => {
+    const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
     const { handler, restore } = createHandler({
-      oddsClient: {
-        fetchNflSpreads: vi.fn(),
-        fetchNflEvents: vi.fn(),
-        fetchNflScores: vi
+      espnClient: {
+        fetchFinalScores: vi
           .fn()
-          .mockRejectedValue(new Error('vendor unavailable')),
-      } satisfies OddsApiClient,
+          .mockRejectedValue(new Error('ESPN unavailable')),
+      },
+      logger,
     });
 
-    await expect(handler()).rejects.toThrow('vendor unavailable');
+    await expect(handler()).rejects.toThrow('ESPN unavailable');
+    expect(logger.error).toHaveBeenCalledWith(
+      'Grading failed',
+      expect.any(Error),
+    );
     restore();
   });
 });

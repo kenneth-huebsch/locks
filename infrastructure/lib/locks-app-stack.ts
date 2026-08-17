@@ -448,17 +448,8 @@ function handler(event) {
     });
     gradeGamesFunctionRole.addToPolicy(
       new PolicyStatement({
-        actions: ['ssm:GetParameter'],
-        resources: [
-          `arn:aws:ssm:${TARGET_REGION}:${TARGET_ACCOUNT}:parameter/locks/odds-api-key`,
-        ],
-      }),
-    );
-    gradeGamesFunctionRole.addToPolicy(
-      new PolicyStatement({
         actions: [
           'dynamodb:GetItem',
-          'dynamodb:PutItem',
           'dynamodb:Query',
           'dynamodb:UpdateItem',
         ],
@@ -479,9 +470,7 @@ function handler(event) {
       role: gradeGamesFunctionRole,
       environment: {
         TABLE_NAME: table.tableName,
-        ODDS_API_ENABLED: 'true',
-        // Preseason dry run: match sync-odds sport key. Flip to americanfootball_nfl for regular season.
-        ODDS_API_SPORT: 'americanfootball_nfl_preseason',
+        GRADE_GAMES_ENABLED: 'true',
       },
       bundling: {
         minify: true,

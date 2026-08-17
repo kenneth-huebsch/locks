@@ -1,4 +1,4 @@
-<!-- Status: Ready for implementation. Do not start until the operator hands this off. -->
+<!-- Status: Implemented in repo. Ship via main after operator approval. -->
 # Handoff: ESPN Scores for Grading
 
 ## Mission
