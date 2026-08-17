@@ -59,10 +59,12 @@ Last updated: August 17, 2026.
 
 ### Current open items
 
-1. **Phase 4 polish remaining:** mobile polish and empty states.
-2. **ESPN scores for grading:** fetch final scores from ESPN (not The Odds API
-   scores endpoint) so Odds API credits are reserved for spreads sync only.
-3. **Preseason Week 2 slate:** seeded manually; prefer Odds API once it lists
+1. **ESPN scores for grading:** implement
+   [`docs/handoffs/espn-grading.md`](docs/handoffs/espn-grading.md) — `grade-games`
+   fetches finals from ESPN (0 Odds credits); match Dynamo games by team names;
+   keep The Odds API for spreads sync only. Phase 4 mobile/empty-state polish is
+   **cancelled** (out of scope).
+2. **Preseason Week 2 slate:** seeded manually; prefer Odds API once it lists
    upcoming games.
 
 ## Recommendation: AWS serverless with DynamoDB caching
@@ -493,7 +495,9 @@ Approved Phase 1 deviations:
 - [x] Deploy and validate Phase 3 end to end in production
   (preseason Week 1 grading + manual week advance to Week 2).
 
-### Phase 4: Polish and final release — implementation in progress
+### Phase 4: Polish and final release — mostly shipped; ESPN grading next
+
+Shipped:
 
 - Show final scores on past-week game cards.
 - Show week-only W-L-P records at the top of each past-week board.
@@ -501,14 +505,20 @@ Approved Phase 1 deviations:
   include those losses in the overall season record.
 - Add an overall records view with each contestant's portrait and season W-L-P.
 - Map the third contestant to Eric's live Cognito invite (`ebs5021@gmail.com`).
+- Weeks / Standings top navigation; Eastern kickoff times.
+
+Open (agent handoff):
+
 - Switch `grade-games` to ESPN for final scores; keep The Odds API for spreads
-  only (saves the 2-credit scores calls).
-- Complete the mobile UX pass.
-- Display kickoff times in Eastern Time.
-- Add empty states.
-- Deploy the completed version-one application changes to the existing
-  production infrastructure.
-- Optionally link to it from inov8.cc.
+  only — see [`docs/handoffs/espn-grading.md`](docs/handoffs/espn-grading.md).
+
+Cancelled:
+
+- Mobile UX polish and empty states (product is good enough; not blocking).
+
+Later / optional:
+
+- Optionally link the app from inov8.cc.
 
 ## Required from you
 
