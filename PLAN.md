@@ -19,7 +19,7 @@ Last updated: August 17, 2026.
 - Foundation and application deployments use separate, least-privilege roles
   and runtime permissions boundaries.
 - Cognito users live: `kenneth.huebsch@gmail.com` (Kenny),
-  `jdmanning88@gmail.com` (Jack), and `ebs5021@gmail.com` (Eric; invite sent).
+  `jdmanning88@gmail.com` (Jack), and `ebs5021@gmail.com` (Eric; logged in).
   Placeholder Kenny-2 (`kenny@puffin.dev`) is disabled.
 - Preferred sportsbook: **DraftKings** (`draftkings` bookmaker key).
 - No AWS Budget exists by user choice; spending is monitored manually.
@@ -59,9 +59,9 @@ Last updated: August 17, 2026.
 
 ### Current open items
 
-1. **Phase 4 polish remaining:** mobile polish, empty states, immutable-pick
-   messaging, and admin grading overrides.
-2. **Eric first login:** he must set his Cognito password from the invite email.
+1. **Phase 4 polish remaining:** mobile polish and empty states.
+2. **ESPN scores for grading:** fetch final scores from ESPN (not The Odds API
+   scores endpoint) so Odds API credits are reserved for spreads sync only.
 3. **Preseason Week 2 slate:** seeded manually; prefer Odds API once it lists
    upcoming games.
 
@@ -316,9 +316,11 @@ After submission:
   - Update cached games and spreads in DynamoDB.
   - Track API quota consumption.
 - `grade-games`
-  - Fetch completed scores.
+  - Fetch completed scores from ESPN (not The Odds API scores endpoint).
   - Update game records.
   - Grade pending picks.
+  - Keep The Odds API reserved for spreads sync so score pulls do not burn
+    the 2-credit scores calls.
 
 ## Grading logic
 
@@ -342,8 +344,10 @@ The goal is to remain below 500 credits every month.
 
 - Events endpoint: 0 credits
 - NFL odds with one region and spreads only: 1 credit
-- Scores with completed games requested: 2 credits
+- Scores with completed games requested: 2 credits (**do not use** once ESPN
+  score sync is live; keep Odds API for spreads only)
 - Browser page loads: 0 vendor credits
+- ESPN scoreboard/schedule for finals: 0 Odds API credits
 
 Odds requests use only:
 
@@ -373,27 +377,27 @@ Estimated cost: approximately 28–35 credits/month.
 
 ### Score schedule
 
+Same kickoff windows as today, but scores come from ESPN:
+
 - Friday 1:00 AM: after Thursday games
 - Saturday 1:00 AM: after Friday or holiday games
 - Sunday 5:00 PM and 9:30 PM: after early and late windows
 - Monday 1:00 AM: after Sunday Night Football
 - Tuesday 1:00 AM: after Monday Night Football
 
-Estimated cost: approximately 48–52 credits/month.
+Odds API cost for score pulls: **0 credits** once ESPN grading is live
+(previously ~48–52 credits/month on The Odds API scores endpoint).
 
 ### Monthly estimate
 
-Using The Odds API for spreads and scores:
+Target after ESPN score sync:
 
-- Approximately 80–90 credits/month
-- Approximately 410 credits of buffer
+- Spreads only on The Odds API: approximately 28–35 credits/month
+- Scores from ESPN: 0 Odds API credits
+- Approximately 465+ credits of free-tier buffer
 
-Optional later optimization:
-
-- Use a separate free NFL score source for grading.
-- Reserve The Odds API exclusively for spreads.
-- This would reduce usage to approximately 40–50 credits/month.
-- The tradeoff is maintaining a second external integration.
+Until ESPN grading ships, `grade-games` still uses The Odds API scores
+endpoint (2 credits per call).
 
 The initial implementation will use The Odds API for both because it is simpler and still comfortably below the free limit.
 
@@ -497,12 +501,11 @@ Approved Phase 1 deviations:
   include those losses in the overall season record.
 - Add an overall records view with each contestant's portrait and season W-L-P.
 - Map the third contestant to Eric's live Cognito invite (`ebs5021@gmail.com`).
+- Switch `grade-games` to ESPN for final scores; keep The Odds API for spreads
+  only (saves the 2-credit scores calls).
 - Complete the mobile UX pass.
 - Display kickoff times in Eastern Time.
 - Add empty states.
-- Reinforce immutable-pick messaging.
-- Add admin-only grading overrides for postponed games and unusual outcomes.
-- Admin overrides cannot edit player picks.
 - Deploy the completed version-one application changes to the existing
   production infrastructure.
 - Optionally link to it from inov8.cc.
@@ -521,12 +524,11 @@ Still needed for multiplayer:
 
 1. Confirm whether the real launch target is 2026 Week 1 or an earlier test
    window.
-2. Eric completes first Cognito login / password change.
 
 Completed for multiplayer:
 
 1. Free-tier Odds API key.
-2. Eric invited (`ebs5021@gmail.com`; Jack is live).
+2. Eric invited and logged in (`ebs5021@gmail.com`; Jack is live).
 3. Preferred sportsbook: **DraftKings** (confirmed).
 
 ## Risks and mitigations
@@ -538,7 +540,8 @@ Completed for multiplayer:
 - **Team-name mismatches**
   - Reference games by vendor event ID rather than free-text team names.
 - **Postponed games**
-  - Keep picks pending and provide a grading override.
+  - Keep picks pending; resolve unusual outcomes with an operator DynamoDB
+    update rather than an in-app admin override UI.
 - **API outage**
   - Continue displaying cached lines and provide a manual grading fallback.
 - **Unexpected AWS charges**
@@ -555,3 +558,5 @@ Completed for multiplayer:
 - Office Football Pool
 - Anonymous public access
 - Player pick editing or deletion
+- In-app admin grading override UI (operator DynamoDB updates instead)
+- Extra immutable-pick banner copy beyond the existing confirm modal

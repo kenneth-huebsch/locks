@@ -4,7 +4,7 @@
 
 - Kenny: live (`kenneth.huebsch@gmail.com`)
 - Jack: live (`jdmanning88@gmail.com`, CONFIRMED)
-- Eric: live invite sent (`ebs5021@gmail.com`, `FORCE_CHANGE_PASSWORD`)
+- Eric: live (`ebs5021@gmail.com`, CONFIRMED / logged in)
 - Sportsbook preference: **DraftKings**
 
 ## Current Users
@@ -13,7 +13,7 @@
 |---|---|---|---|
 | Kenny | `kenneth.huebsch@gmail.com` | `94780408-b0d1-706f-0e5e-d4dbe28dfde0` | Active (`CONFIRMED` after first login / password set) |
 | Jack | `jdmanning88@gmail.com` | `74a854f8-20d1-70a4-7d77-d560ef23adb0` | Active (`CONFIRMED`) |
-| Eric | `ebs5021@gmail.com` | `24e8e448-7041-707d-4e37-1332a3fe215d` | Invited (`FORCE_CHANGE_PASSWORD`; must set password on first login) |
+| Eric | `ebs5021@gmail.com` | `24e8e448-7041-707d-4e37-1332a3fe215d` | Active (`CONFIRMED` after first login) |
 | Kenny-2 (retired) | `kenny@puffin.dev` | `0408b498-c0b1-7017-d3f4-1a82689ab2c0` | Disabled after Eric invite |
 
 The picks board roster maps display names to Cognito `sub` values in
