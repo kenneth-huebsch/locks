@@ -4,7 +4,7 @@
 
 - Kenny: live (`kenneth.huebsch@gmail.com`)
 - Jack: live (`jdmanning88@gmail.com`, CONFIRMED)
-- Eric: **not inviting yet** (deferred)
+- Eric: live invite sent (`ebs5021@gmail.com`, `FORCE_CHANGE_PASSWORD`)
 - Sportsbook preference: **DraftKings**
 
 ## Current Users
@@ -13,16 +13,16 @@
 |---|---|---|---|
 | Kenny | `kenneth.huebsch@gmail.com` | `94780408-b0d1-706f-0e5e-d4dbe28dfde0` | Active (`CONFIRMED` after first login / password set) |
 | Jack | `jdmanning88@gmail.com` | `74a854f8-20d1-70a4-7d77-d560ef23adb0` | Active (`CONFIRMED`) |
-| Kenny-2 | `kenny@puffin.dev` | `0408b498-c0b1-7017-d3f4-1a82689ab2c0` | Invited / password set after pool replacement |
+| Eric | `ebs5021@gmail.com` | `24e8e448-7041-707d-4e37-1332a3fe215d` | Invited (`FORCE_CHANGE_PASSWORD`; must set password on first login) |
+| Kenny-2 (retired) | `kenny@puffin.dev` | `0408b498-c0b1-7017-d3f4-1a82689ab2c0` | Disabled after Eric invite |
 
-The picks board
 The picks board roster maps display names to Cognito `sub` values in
-`src/lib/players.ts` (`KENNY_SUB`, `JACK_SUB`, `KENNY_2_SUB`). Do not change a
+`shared/roster.ts` / `src/lib/players.ts` (`KENNY_SUB`, `JACK_SUB`, `ERIC_SUB`). Do not change a
 live user's `sub` by casually deleting and recreating the Cognito user. The
 only approved exception is intentional UserPool replacement (see
 [Case sensitivity and pool replacement](#case-sensitivity-and-pool-replacement)):
 after an approved apply that replaces the pool, recreate invited users and
-remap `src/lib/players.ts` (and any pick data keyed by `sub`).
+remap `shared/roster.ts` (and any pick data keyed by `sub`).
 
 ## User Pool Details
 

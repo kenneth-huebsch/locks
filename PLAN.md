@@ -2,7 +2,7 @@
 
 ## Project status
 
-Last updated: August 16, 2026.
+Last updated: August 17, 2026.
 
 - **Phase 1 is complete and deployed.**
 - **Phase 2 is complete and deployed for preseason Week 1.**
@@ -18,8 +18,9 @@ Last updated: August 16, 2026.
   credentials.
 - Foundation and application deployments use separate, least-privilege roles
   and runtime permissions boundaries.
-- Cognito users live: `kenneth.huebsch@gmail.com` (Kenny) and
-  `jdmanning88@gmail.com` (Jack). Eric remains deferred.
+- Cognito users live: `kenneth.huebsch@gmail.com` (Kenny),
+  `jdmanning88@gmail.com` (Jack), and `ebs5021@gmail.com` (Eric; invite sent).
+  Placeholder Kenny-2 (`kenny@puffin.dev`) is disabled.
 - Preferred sportsbook: **DraftKings** (`draftkings` bookmaker key).
 - No AWS Budget exists by user choice; spending is monitored manually.
 - Operator AWS profiles (`coding-agent`, `locks-publish`) live in `~/.aws` on
@@ -43,7 +44,7 @@ Last updated: August 16, 2026.
 - [x] DraftKings preferred sportsbook locked
 - [x] Foundation dummy game removed from publish path and cleaned from live table
 - [x] Jack Cognito account live (`jdmanning88@gmail.com`, sub mapped in `src/lib/players.ts`)
-- [ ] Eric Cognito account deferred (not inviting yet)
+- [x] Eric Cognito account invited (`ebs5021@gmail.com`, sub mapped in `shared/roster.ts`)
 - [x] Phase 2 end-to-end validation with real preseason game data
 
 ### Phase 3 completion status
@@ -58,10 +59,11 @@ Last updated: August 16, 2026.
 
 ### Current open items
 
-1. **Eric invite:** deferred until Kenny asks.
-2. **Phase 4 in progress:** records UX is implemented locally; mobile polish,
-   empty states, immutable-pick messaging, and admin grading overrides remain.
-3. **Preseason Week 2 slate:** re-sync once Odds API lists upcoming games.
+1. **Phase 4 polish remaining:** mobile polish, empty states, immutable-pick
+   messaging, and admin grading overrides.
+2. **Eric first login:** he must set his Cognito password from the invite email.
+3. **Preseason Week 2 slate:** seeded manually; prefer Odds API once it lists
+   upcoming games.
 
 ## Recommendation: AWS serverless with DynamoDB caching
 
@@ -454,8 +456,8 @@ locks/
 Approved Phase 1 deviations:
 
 - No AWS Budget alert; spending is monitored manually.
-- Kenny and Jack Cognito accounts are live. Eric remains deferred until
-  their email addresses are supplied.
+- Kenny, Jack, and Eric Cognito accounts are live (Eric invited;
+  Kenny-2 placeholder disabled).
 - The Odds API parameter value is deferred until Phase 2.
 
 ### Phase 2: Picks and odds — complete
@@ -494,8 +496,7 @@ Approved Phase 1 deviations:
 - Count a roster player who submits zero picks in a past week as `0-3-0`;
   include those losses in the overall season record.
 - Add an overall records view with each contestant's portrait and season W-L-P.
-- Display the placeholder third contestant as Eric until his Cognito invite is
-  created.
+- Map the third contestant to Eric's live Cognito invite (`ebs5021@gmail.com`).
 - Complete the mobile UX pass.
 - Display kickoff times in Eastern Time.
 - Add empty states.
@@ -518,11 +519,15 @@ Completed:
 
 Still needed for multiplayer:
 
-1. Free-tier Odds API key.
-2. Eric's email address if/when inviting him (Jack is live).
-3. Preferred sportsbook: **DraftKings** (confirmed).
-4. Confirm whether the real launch target is 2026 Week 1 or an earlier test
+1. Confirm whether the real launch target is 2026 Week 1 or an earlier test
    window.
+2. Eric completes first Cognito login / password change.
+
+Completed for multiplayer:
+
+1. Free-tier Odds API key.
+2. Eric invited (`ebs5021@gmail.com`; Jack is live).
+3. Preferred sportsbook: **DraftKings** (confirmed).
 
 ## Risks and mitigations
 
