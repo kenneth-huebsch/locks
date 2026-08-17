@@ -40,8 +40,9 @@ See `codebase-guide.md` for the detailed map. Quick summary:
   thin — business logic goes in `backend/lib/` or `shared/`.
 - **Frontend components import from `../api`, `../../shared/`, and `../lib/`.**
   Keep API calls in `src/api.ts`.
-- **No secrets in code.** The Odds API key lives in SSM Parameter Store. Lambda
-  reads it at runtime via `GetParameterCommand`.
+- **No secrets in code.** The Odds API key lives in SSM Parameter Store and is
+  read only by `sync-odds` at runtime via `GetParameterCommand`. Grading uses
+  ESPN and needs no secret.
 
 ## Before Completing Work
 

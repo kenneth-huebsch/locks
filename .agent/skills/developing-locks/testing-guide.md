@@ -27,7 +27,7 @@ Every source file has a co-located `.test.ts`:
 | Layer | Location | What to Test |
 |---|---|---|
 | Shared | `shared/*.test.ts` | Type behavior, key patterns, team mappings |
-| Backend lib | `backend/lib/*.test.ts` | Odds API client, game mapper logic |
+| Backend lib | `backend/lib/*.test.ts` | Odds API client, ESPN scoreboard client, game mapper |
 | Backend functions | `backend/functions/*.test.ts` | Handler logic with mocked DynamoDB |
 | Frontend | `src/**/*.test.tsx` | Component rendering, user interactions, API mock |
 | Scripts | `scripts/*.test.ts` | Deploy config, runtime config, npm command helpers |

@@ -209,10 +209,10 @@ Detailed agent rules live in `AGENTS.md` and `.agent/skills/deploying-locks/`.
   recovery work.
 - No AWS Budget exists by user choice. Monitor AWS Billing and Cost Explorer
   manually.
-- No Odds API key or SSM parameter value exists yet. Phase 2 must add it as an
-  explicitly approved credential operation.
-- `docs/data-model.md` is planned but does not exist yet; create it before
-  implementing the Phase 2 DynamoDB model.
+- Odds API key is set in SSM (`/locks/odds-api-key`); only `sync-odds` reads it.
+  Grading uses ESPN scoreboard (no key). See
+  `.agent/skills/operating-locks/odds-management.md`.
+- `docs/data-model.md` documents DynamoDB keys, grading, and quota TTL.
 - The DynamoDB table has point-in-time recovery, but the table, Cognito pool,
   and site bucket use destroy-oriented Phase 1 removal policies.
 - A high-severity `brace-expansion` advisory is bundled inside the latest CDK

@@ -7,7 +7,7 @@ the Odds API, troubleshooting issues, and monitoring system health.
 
 - Seeding or resetting game data
 - Creating or managing Cognito users (Jack, Eric)
-- Managing the Odds API key or sync schedules
+- Managing the Odds API key, spreads sync, or ESPN grading schedules
 - Debugging API errors, stale CloudFront, or Lambda failures
 - Checking AWS billing or usage metrics
 
@@ -22,8 +22,8 @@ the Odds API, troubleshooting issues, and monitoring system health.
 | Task | Guide |
 |---|---|
 | Seed game data | `seeding.md` |
-| Manage Odds API key and schedules | `odds-management.md` |
-| Advance competition week manually | `odds-management.md` (`invoke-advance-week.ts`) |
+| Manage Odds API key, spreads schedules, grading | `odds-management.md` |
+| Manual grade / week advance | `odds-management.md` (`invoke-grade-games.ts`, `invoke-advance-week.ts`) |
 | Create/manage Cognito users | `cognito-users.md` |
 | Debug API, CloudFront, or Lambda issues | `troubleshooting.md` |
 | Check billing, logs, or metrics | `monitoring.md` |

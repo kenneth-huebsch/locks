@@ -4,15 +4,20 @@
 
 Last updated: August 17, 2026.
 
-- **Phase 1 is complete and deployed.**
-- **Phase 2 is complete and deployed for preseason Week 1.**
-- **Phase 3 is complete and validated in production** (preseason Week 1
-  grading + standings; active week advanced to Week 2).
+**Version one is feature-complete and live.** Phases 1–4 are done. Remaining
+work is operational (slate sync, season flip, optional marketing link) — not
+missing product features.
+
+- **Phase 1–3:** complete and validated in production (preseason Week 1
+  grading + standings; active week is Week 2).
+- **Phase 4:** complete — UI polish items shipped; ESPN grading shipped and
+  smoke-tested (`2026#W01` idempotent re-finalize; active Week 2 no-op until
+  finals exist). Mobile/empty-state polish cancelled.
 - Production application: https://locks.inov8.cc
 - CloudFront fallback: https://d141pq884g4gai.cloudfront.net
 - AWS account: `580956784928`
 - AWS region: `us-east-1`
-- Cognito login, authenticated APIs, live odds sync, pick submission, grading,
+- Cognito login, authenticated APIs, Odds spreads sync, ESPN score grading,
   standings, and the current-week UI have been validated end to end.
 - GitHub Actions deploys `LocksAppStack` from `main` through short-lived OIDC
   credentials.
@@ -22,6 +27,7 @@ Last updated: August 17, 2026.
   `jdmanning88@gmail.com` (Jack), and `ebs5021@gmail.com` (Eric; logged in).
   Placeholder Kenny-2 (`kenny@puffin.dev`) is disabled.
 - Preferred sportsbook: **DraftKings** (`draftkings` bookmaker key).
+- Scores: ESPN scoreboard (no API key). Spreads: The Odds API only.
 - No AWS Budget exists by user choice; spending is monitored manually.
 - Operator AWS profiles (`coding-agent`, `locks-publish`) live in `~/.aws` on
   the host; `LocksAppPublishRole` covers publish, seed, Cognito, and Lambda
@@ -54,13 +60,19 @@ Last updated: August 17, 2026.
 - [x] Historical picks board wired to live results
 - [x] Production validation on preseason Week 1 (Kenny 3-0-0, Jack 1-2-0;
   all six picks match locked-spread ATS against final scores)
-- [x] Manual week advance verified (`SEASON#ACTIVE` 1 → 2); Week 2 slate
-  empty until Odds API publishes upcoming preseason games
+- [x] Manual week advance verified (`SEASON#ACTIVE` 1 → 2)
+- [x] Week 2 competition slate seeded manually (Odds API had no upcoming
+  preseason listing at seed time)
 
-### Current open items
+### Current open items (ops / small)
 
-1. **Preseason Week 2 slate:** seeded manually; prefer Odds API once it lists
-   upcoming games.
+1. **Week 2+ spreads via Odds API:** keep using seeded lines until The Odds
+   API lists upcoming preseason (or regular-season) games; then let
+   `sync-odds` refresh spreads as usual.
+2. **Regular-season sport key:** flip `ODDS_API_SPORT` from
+   `americanfootball_nfl_preseason` to `americanfootball_nfl` when the
+   regular season starts (CDK + redeploy).
+3. **Optional:** link the app from inov8.cc.
 
 ## Recommendation: AWS serverless with DynamoDB caching
 
@@ -132,10 +144,10 @@ flowchart TB
   FnGrade --> Store
 ```
 
-In Phase 2, the Odds API key will live in Parameter Store and will be readable
-only by the synchronization Lambda role. Phase 1 provisions the exact access
-boundary but does not create the parameter value. The browser never talks
-directly to DynamoDB or The Odds API. Cognito JWTs protect every API route.
+The Odds API key lives in Parameter Store and is readable only by the
+`sync-odds` Lambda role. `grade-games` uses ESPN and has no Odds SSM access.
+The browser never talks directly to DynamoDB, The Odds API, or ESPN. Cognito
+JWTs protect every API route.
 
 ## Competition rules
 
@@ -314,11 +326,10 @@ After submission:
   - Update cached games and spreads in DynamoDB.
   - Track API quota consumption.
 - `grade-games`
-  - Fetch completed scores from ESPN (not The Odds API scores endpoint).
-  - Update game records.
-  - Grade pending picks.
-  - Keep The Odds API reserved for spreads sync so score pulls do not burn
-    the 2-credit scores calls.
+  - Fetch completed scores from ESPN scoreboard by kickoff calendar dates.
+  - Match Dynamo games by `awayTeam` / `homeTeam` full names; update by Dynamo `id`.
+  - Grade pending picks (kill switch: `GRADE_GAMES_ENABLED`).
+  - Does not call The Odds API (spreads stay on `sync-odds` only).
 
 ## Grading logic
 
@@ -342,10 +353,9 @@ The goal is to remain below 500 credits every month.
 
 - Events endpoint: 0 credits
 - NFL odds with one region and spreads only: 1 credit
-- Scores with completed games requested: 2 credits (**do not use** once ESPN
-  score sync is live; keep Odds API for spreads only)
+- Scores endpoint: 2 credits — **do not call**; grading uses ESPN instead
 - Browser page loads: 0 vendor credits
-- ESPN scoreboard/schedule for finals: 0 Odds API credits
+- ESPN scoreboard for finals: 0 Odds API credits (no ESPN API key)
 
 Odds requests use only:
 
@@ -383,8 +393,7 @@ Same kickoff windows as today; scores come from ESPN:
 - Monday 1:00 AM: after Sunday Night Football
 - Tuesday 1:00 AM: after Monday Night Football
 
-Odds API cost for score pulls: **0 credits** (previously ~48–52 credits/month
-on The Odds API scores endpoint).
+Odds API cost for score pulls: **0 credits**.
 
 ### Monthly estimate
 
@@ -487,7 +496,7 @@ Approved Phase 1 deviations:
 - [x] Deploy and validate Phase 3 end to end in production
   (preseason Week 1 grading + manual week advance to Week 2).
 
-### Phase 4: Polish and final release — complete for grading path
+### Phase 4: Polish and final release — complete
 
 Shipped:
 
@@ -499,7 +508,8 @@ Shipped:
 - Map the third contestant to Eric's live Cognito invite (`ebs5021@gmail.com`).
 - Weeks / Standings top navigation; Eastern kickoff times.
 - `grade-games` uses ESPN scoreboard finals matched by team names; The Odds API
-  is spreads-only. See [`docs/handoffs/espn-grading.md`](docs/handoffs/espn-grading.md).
+  is spreads-only. Deployed and smoke-tested. Handoff:
+  [`docs/handoffs/espn-grading.md`](docs/handoffs/espn-grading.md).
 
 Cancelled:
 
@@ -511,24 +521,14 @@ Later / optional:
 
 ## Required from you
 
-Completed:
+All launch prerequisites are complete:
 
-1. AWS account: `580956784928`.
-2. Target AWS region: `us-east-1`.
-3. Initial CDK/OIDC deployment access.
-4. Kenny's invite-only Cognito account and login validation.
-5. Offseason/foundation validation using a dummy 2026 Week 1 game.
+1. AWS account `580956784928`, region `us-east-1`, CDK/OIDC access.
+2. Kenny, Jack, and Eric Cognito accounts live.
+3. Free-tier Odds API key in SSM; preferred sportsbook DraftKings.
+4. Preseason competition running (Week 1 graded; Week 2 active).
 
-Still needed for multiplayer:
-
-1. Confirm whether the real launch target is 2026 Week 1 or an earlier test
-   window.
-
-Completed for multiplayer:
-
-1. Free-tier Odds API key.
-2. Eric invited and logged in (`ebs5021@gmail.com`; Jack is live).
-3. Preferred sportsbook: **DraftKings** (confirmed).
+Remaining asks are only the small ops items under **Current open items** above.
 
 ## Risks and mitigations
 

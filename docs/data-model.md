@@ -213,8 +213,9 @@ Rules:
   update (`result = pending`) so terminal `win` / `loss` / `push` values are
   never overwritten. Score corrections after a game is final are out of scope.
 - Write final `awayScore` / `homeScore` and `status = final` on the game item
-  when The Odds API reports a completed event with both team scores present.
-- Skip incomplete, in-progress, or missing-score events; leave those picks
+  when ESPN reports a completed matchup whose `displayName` teams match the
+  Dynamo `awayTeam` / `homeTeam` (matched by name, not vendor event id).
+- Skip incomplete, in-progress, or unmatched ESPN events; leave those picks
   `pending`.
 - Do **not** write aggregate standings items in the grading Lambda (Phase 3b+).
 - A competition week starts **Tuesday 02:00 America/New_York**. The scheduled
@@ -224,8 +225,9 @@ Rules:
   advancing twice, and week 18 is a hard cap. Operators can invoke the same
   path manually.
 
-Quota diagnostic records for the scores endpoint use the same
-`QUOTA#ODDS_API` TTL pattern as odds sync (30 days).
+Quota diagnostic records are written by **spreads sync only**
+(`QUOTA#ODDS_API`, 30-day TTL). Grading uses ESPN and does not write quota
+rows.
 
 ## Conditional expressions (summary)
 

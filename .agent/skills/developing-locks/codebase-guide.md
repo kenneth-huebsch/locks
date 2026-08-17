@@ -49,8 +49,8 @@ Each function is a Node.js Lambda bundled by CDK's `NodejsFunction`.
 | `current-week.ts` | `/api/week/{seasonWeek}` | GET | Selected week games + picks (`YYYY#Wnn`, URL-encoded) |
 | `submit-pick.ts` | `/api/picks` | POST | Atomic pick submission with validation |
 | `standings.ts` | `/api/standings` | GET | Season standings through the active week |
-| `sync-odds.ts` | (scheduled) | — | Fetches odds; Tuesday 2am may advance `SEASON#ACTIVE` |
-| `grade-games.ts` | (scheduled) | — | Fetches scores and grades pending picks |
+| `sync-odds.ts` | (scheduled) | — | Fetches Odds API spreads; Tuesday 2am may advance `SEASON#ACTIVE` |
+| `grade-games.ts` | (scheduled) | — | Fetches ESPN finals by kickoff date, matches by team name, grades picks |
 
 ### Handler Structure
 Each handler:
@@ -59,9 +59,10 @@ Each handler:
 3. Returns a typed response or error
 
 ### Backend Libraries
-- `backend/lib/odds-api-client.ts` — The Odds API client with quota tracking
+- `backend/lib/odds-api-client.ts` — The Odds API client with quota tracking (spreads/events; used by `sync-odds`)
 - `backend/lib/odds-api-types.ts` — Odds API response types
 - `backend/lib/game-mapper.ts` — Maps Odds API events to Game models
+- `backend/lib/espn-scoreboard-client.ts` — ESPN NFL scoreboard client (finals for `grade-games`; no API key)
 
 ## Shared (shared/)
 
@@ -115,6 +116,9 @@ A CloudFront function (`SpaRewrite`) handles SPA routing.
 | `seed-foundation.ts` | Seeds the canonical Week 1 foundation game |
 | `seed-active-week.ts` | Seeds active week metadata + fake game slate |
 | `seed-week.ts` | Seeds a fake game slate for a specific week |
+| `seed-week-2.ts` | Seeds competition Week 2 from ESPN preseason matchups |
+| `invoke-grade-games.ts` | Operator invoke for `grade-games` (optional `seasonWeek`) |
+| `invoke-advance-week.ts` | Operator advance active week + sync odds |
 | `verify-deployment.ts` | Post-deploy verification (curl probes, stack outputs) |
 | `synth.sh` | Wrapper for CDK synth |
 | `aws-context.ts` | AWS context helpers |

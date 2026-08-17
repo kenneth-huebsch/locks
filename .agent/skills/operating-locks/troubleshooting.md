@@ -110,7 +110,7 @@ AWS_PROFILE=coding-agent aws logs filter-log-events \
 **Common causes:**
 - DynamoDB throttling (unlikely at 3 users)
 - Missing environment variable (check CDK config)
-- SSM parameter not set (Odds API key — sync-odds only)
+- SSM parameter not set (Odds API key — **sync-odds only**; grade-games uses ESPN)
 - Permission error (check Lambda role policies)
 
 ### Odds sync not running
@@ -119,7 +119,7 @@ AWS_PROFILE=coding-agent aws logs filter-log-events \
 ```bash
 # Check if the EventBridge schedule exists and is enabled
 AWS_PROFILE=coding-agent aws scheduler list-schedules \
-  --group-name locks-scheduled-functions --output json
+  --group-name locks --output json
 
 # Check sync-odds Lambda logs
 AWS_PROFILE=coding-agent aws logs filter-log-events \
@@ -130,9 +130,28 @@ AWS_PROFILE=coding-agent aws logs filter-log-events \
 
 **Common causes:**
 - Odds API key not set in SSM (`/locks/odds-api-key`)
-- `ODDS_API_ENABLED=false` on the Lambda
+- `ODDS_API_ENABLED=false` on the SyncOdds Lambda
 - Quota exhausted (check DynamoDB quota records)
 - Schedule is disabled
+
+### Grading not updating scores / picks
+
+**Diagnosis:**
+```bash
+# Manual invoke (active week, or override)
+AWS_PROFILE=locks-publish npx tsx scripts/invoke-grade-games.ts
+AWS_PROFILE=locks-publish npx tsx scripts/invoke-grade-games.ts 2026#W01
+
+# Grade Lambda logs (physical name from stack output GradeGamesFunctionName)
+AWS_PROFILE=coding-agent aws logs describe-log-groups \
+  --log-group-name-prefix /aws/lambda/LocksAppStack-GradeGames --output json
+```
+
+**Common causes:**
+- `GRADE_GAMES_ENABLED=false` on GradeGames (independent of Odds)
+- Games not final yet on ESPN for the kickoff calendar dates
+- Team-name mismatch between Dynamo `awayTeam`/`homeTeam` and ESPN `displayName`
+- ESPN HTTP failure (Scheduler retries; check logs)
 
 ### DynamoDB issues
 

@@ -110,6 +110,9 @@ AWS_PROFILE=coding-agent aws cloudwatch get-metric-statistics \
 
 ## Odds API Quota
 
+Spreads sync (`sync-odds`) writes quota rows. Grading does **not** — ESPN is
+unmetered for us.
+
 ```bash
 # Check recent quota usage in DynamoDB
 AWS_PROFILE=coding-agent aws dynamodb query \

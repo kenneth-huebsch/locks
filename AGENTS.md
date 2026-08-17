@@ -29,8 +29,8 @@ src/                    React SPA (Vite, TypeScript, Tailwind)
   api.ts                API client for Lambda-backed endpoints
   runtime-config.ts     Loads same-origin runtime config from CloudFront
 backend/
-  functions/             Lambda handlers (current-week, submit-pick, sync-odds)
-  lib/                  Backend utilities (odds-api-client, game-mapper)
+  functions/             Lambda handlers (current-week, submit-pick, sync-odds, grade-games)
+  lib/                  Backend utilities (odds-api-client, espn-scoreboard-client, game-mapper)
 shared/                  Types and logic shared between frontend and backend
   types.ts              API request/response types, domain models
   teams.ts              NFL team name/abbreviation mappings
