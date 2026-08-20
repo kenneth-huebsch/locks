@@ -10,6 +10,7 @@ import {
 import {
   HttpApi,
   HttpMethod,
+  HttpNoneAuthorizer,
 } from 'aws-cdk-lib/aws-apigatewayv2';
 import { HttpJwtAuthorizer } from 'aws-cdk-lib/aws-apigatewayv2-authorizers';
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
@@ -157,6 +158,55 @@ export class LocksAppStack extends Stack {
       },
     });
     table.grantReadData(standingsFunction);
+
+    const incompletePicksFunctionRole = new Role(
+      this,
+      'IncompletePicksFunctionRole',
+      {
+        assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
+        description: 'Execution role for incomplete-picks reminder API',
+        managedPolicies: [
+          ManagedPolicy.fromAwsManagedPolicyName(
+            'service-role/AWSLambdaBasicExecutionRole',
+          ),
+        ],
+      },
+    );
+    incompletePicksFunctionRole.addToPolicy(
+      new PolicyStatement({
+        actions: ['dynamodb:GetItem'],
+        resources: [table.tableArn],
+      }),
+    );
+    incompletePicksFunctionRole.addToPolicy(
+      new PolicyStatement({
+        actions: ['ssm:GetParameter'],
+        resources: [
+          `arn:aws:ssm:${TARGET_REGION}:${TARGET_ACCOUNT}:parameter/locks/incomplete-picks-api-key`,
+        ],
+      }),
+    );
+
+    const incompletePicksFunction = new NodejsFunction(
+      this,
+      'IncompletePicksFunction',
+      {
+        entry: 'backend/functions/incomplete-picks.ts',
+        handler: 'handler',
+        runtime: Runtime.NODEJS_22_X,
+        architecture: Architecture.ARM_64,
+        timeout: Duration.seconds(10),
+        memorySize: 256,
+        role: incompletePicksFunctionRole,
+        environment: {
+          TABLE_NAME: table.tableName,
+        },
+        bundling: {
+          minify: true,
+          sourceMap: true,
+        },
+      },
+    );
 
     const userPool = new UserPool(this, 'UserPoolV2', {
       userPoolName: 'locks',
@@ -329,6 +379,15 @@ function handler(event) {
         standingsFunction,
       ),
       authorizer,
+    });
+    httpApi.addRoutes({
+      path: '/api/reminders/incomplete-picks',
+      methods: [HttpMethod.GET],
+      integration: new HttpLambdaIntegration(
+        'IncompletePicksIntegration',
+        incompletePicksFunction,
+      ),
+      authorizer: new HttpNoneAuthorizer(),
     });
 
     const submitPickFunctionRole = new Role(this, 'SubmitPickFunctionRole', {
@@ -627,6 +686,11 @@ function handler(event) {
     output(this, 'DistributionDomainName', distribution.distributionDomainName);
     output(this, 'DistributionId', distribution.distributionId);
     output(this, 'GradeGamesFunctionName', gradeGamesFunction.functionName);
+    output(
+      this,
+      'IncompletePicksFunctionName',
+      incompletePicksFunction.functionName,
+    );
     output(this, 'SyncOddsFunctionName', syncOddsFunction.functionName);
     output(this, 'SiteBucketName', siteBucket.bucketName);
     output(this, 'TableName', table.tableName);

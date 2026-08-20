@@ -87,6 +87,7 @@ export class LocksGitHubOidcStack extends Stack {
             actions: ['ssm:GetParameter'],
             resources: [
               `arn:aws:ssm:${TARGET_REGION}:${TARGET_ACCOUNT}:parameter/locks/odds-api-key`,
+              `arn:aws:ssm:${TARGET_REGION}:${TARGET_ACCOUNT}:parameter/locks/incomplete-picks-api-key`,
             ],
           }),
           new PolicyStatement({
@@ -906,6 +907,15 @@ export class LocksGitHubOidcStack extends Stack {
         actions: ['ssm:PutParameter', 'ssm:GetParameter', 'ssm:DeleteParameter'],
         resources: [
           `arn:aws:ssm:${TARGET_REGION}:${TARGET_ACCOUNT}:parameter/locks/odds-api-key`,
+        ],
+      }),
+    );
+    appPublishRole.addToPolicy(
+      new PolicyStatement({
+        sid: 'IncompletePicksApiKeyWrite',
+        actions: ['ssm:PutParameter', 'ssm:GetParameter', 'ssm:DeleteParameter'],
+        resources: [
+          `arn:aws:ssm:${TARGET_REGION}:${TARGET_ACCOUNT}:parameter/locks/incomplete-picks-api-key`,
         ],
       }),
     );

@@ -558,6 +558,7 @@ describe('LocksGitHubOidcStack', () => {
       expect.arrayContaining([
         'arn:aws:dynamodb:us-east-1:580956784928:table/locks',
         'arn:aws:ssm:us-east-1:580956784928:parameter/locks/odds-api-key',
+        'arn:aws:ssm:us-east-1:580956784928:parameter/locks/incomplete-picks-api-key',
         'arn:aws:s3:::locks-580956784928-us-east-1-site',
         'arn:aws:s3:::locks-580956784928-us-east-1-site/*',
         'arn:aws:logs:us-east-1:580956784928:log-group:/aws/lambda/LocksAppStack-*',
@@ -617,6 +618,7 @@ describe('LocksGitHubOidcStack', () => {
         'arn:aws:s3:::locks-580956784928-us-east-1-site',
         'arn:aws:s3:::locks-580956784928-us-east-1-site/*',
         'arn:aws:ssm:us-east-1:580956784928:parameter/locks/odds-api-key',
+        'arn:aws:ssm:us-east-1:580956784928:parameter/locks/incomplete-picks-api-key',
         'arn:aws:lambda:us-east-1:580956784928:function:LocksAppStack-SyncOddsFunction*',
         'arn:aws:lambda:us-east-1:580956784928:function:LocksAppStack-SubmitPickFunction*',
         'arn:aws:lambda:us-east-1:580956784928:function:LocksAppStack-GradeGamesFunction*',
@@ -655,6 +657,23 @@ describe('LocksGitHubOidcStack', () => {
         'ssm:DeleteParameter',
       ]),
       Resource: 'arn:aws:ssm:us-east-1:580956784928:parameter/locks/odds-api-key',
+    });
+  });
+
+  it('grants LocksAppPublishRole scoped incomplete-picks API key SSM write', () => {
+    const statements = inlineRoleStatements(template, 'LocksAppPublishRole');
+    const reminderKey = statements.find(
+      ({ Sid }) => Sid === 'IncompletePicksApiKeyWrite',
+    );
+    expect(reminderKey).toMatchObject({
+      Sid: 'IncompletePicksApiKeyWrite',
+      Action: expect.arrayContaining([
+        'ssm:PutParameter',
+        'ssm:GetParameter',
+        'ssm:DeleteParameter',
+      ]),
+      Resource:
+        'arn:aws:ssm:us-east-1:580956784928:parameter/locks/incomplete-picks-api-key',
     });
   });
 

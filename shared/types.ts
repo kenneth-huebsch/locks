@@ -77,6 +77,19 @@ export interface StandingsResponse {
   players: PlayerStandings[];
 }
 
+export interface IncompletePicksPlayer {
+  displayName: string;
+  sub: string;
+  pickCount: number;
+  remainingPicks: number;
+}
+
+export interface IncompletePicksResponse {
+  seasonWeek: string;
+  maxPicks: number;
+  incomplete: IncompletePicksPlayer[];
+}
+
 export interface CurrentWeekResponse {
   week: Week;
   games: Game[];

@@ -105,6 +105,23 @@ describe('LocksAppStack', () => {
       AuthorizationType: 'JWT',
       RouteKey: 'GET /api/standings',
     });
+    template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
+      AuthorizationType: 'NONE',
+      RouteKey: 'GET /api/reminders/incomplete-picks',
+    });
+  });
+
+  it('creates an incomplete-picks Lambda with table and SSM read access', () => {
+    const lambdas = template.findResources('AWS::Lambda::Function');
+    const incompleteLambdas = Object.entries(lambdas).filter(([id]) =>
+      id.includes('IncompletePicksFunction'),
+    );
+    expect(incompleteLambdas).toHaveLength(1);
+    expect(incompleteLambdas[0]?.[1].Properties).toMatchObject({
+      Handler: 'index.handler',
+      Runtime: 'nodejs22.x',
+      Architectures: ['arm64'],
+    });
   });
 
   it('creates a standings Lambda with read access to the table', () => {
