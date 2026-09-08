@@ -487,8 +487,8 @@ function handler(event) {
       environment: {
         TABLE_NAME: table.tableName,
         ODDS_API_ENABLED: 'true',
-        // Preseason testing: pull NFL preseason board. Flip to americanfootball_nfl for regular season.
-        ODDS_API_SPORT: 'americanfootball_nfl_preseason',
+        // Regular season NFL board (was americanfootball_nfl_preseason during dry run).
+        ODDS_API_SPORT: 'americanfootball_nfl',
       },
       bundling: {
         minify: true,

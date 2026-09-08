@@ -183,7 +183,14 @@ immediately syncs odds into the newly active week.
 
 ## Preseason vs regular season
 
-`SyncOddsFunction` reads `ODDS_API_SPORT` (CDK default during preseason testing:
-`americanfootball_nfl_preseason`). Set to `americanfootball_nfl` for the regular
-season and redeploy `LocksAppStack`. Active week comes from `SEASON#ACTIVE.week`
+`SyncOddsFunction` reads `ODDS_API_SPORT` (CDK default:
+`americanfootball_nfl` for the regular season). Preseason dry run used
+`americanfootball_nfl_preseason`. Active week comes from `SEASON#ACTIVE.week`
 for sync, grading, current-week reads, and pick submission.
+
+To wipe leftover preseason competition rows and reset to Week 1:
+
+```bash
+AWS_PROFILE=locks-publish npx tsx scripts/wipe-preseason-data.ts          # dry run
+AWS_PROFILE=locks-publish npx tsx scripts/wipe-preseason-data.ts --confirm
+```

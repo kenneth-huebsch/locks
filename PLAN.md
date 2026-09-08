@@ -2,14 +2,14 @@
 
 ## Project status
 
-Last updated: August 17, 2026.
+Last updated: September 8, 2026.
 
 **Version one is feature-complete and live.** Phases 1–4 are done. Remaining
-work is operational (slate sync, season flip, optional marketing link) — not
-missing product features.
+work is operational (slate sync, optional marketing link) — not missing
+product features.
 
 - **Phase 1–3:** complete and validated in production (preseason Week 1
-  grading + standings; active week is Week 2).
+  grading + standings; preseason data wiped for regular-season Week 1).
 - **Phase 4:** complete — UI polish items shipped; ESPN grading shipped and
   smoke-tested (`2026#W01` idempotent re-finalize; active Week 2 no-op until
   finals exist). Mobile/empty-state polish cancelled.
@@ -66,13 +66,9 @@ missing product features.
 
 ### Current open items (ops / small)
 
-1. **Week 2+ spreads via Odds API:** keep using seeded lines until The Odds
-   API lists upcoming preseason (or regular-season) games; then let
-   `sync-odds` refresh spreads as usual.
-2. **Regular-season sport key:** flip `ODDS_API_SPORT` from
-   `americanfootball_nfl_preseason` to `americanfootball_nfl` when the
-   regular season starts (CDK + redeploy).
-3. **Optional:** link the app from inov8.cc.
+1. **Optional:** link the app from inov8.cc.
+2. ~~Regular-season sport key~~ — done: `ODDS_API_SPORT=americanfootball_nfl`
+   with preseason competition wipe + active week reset to `2026#W01`.
 
 ## Recommendation: AWS serverless with DynamoDB caching
 

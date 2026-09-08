@@ -259,6 +259,15 @@ describe('LocksAppStack', () => {
         ]),
       },
     });
+
+    const lambdas = template.findResources('AWS::Lambda::Function');
+    const syncLambdas = Object.entries(lambdas).filter(([id]) =>
+      id.includes('SyncOddsFunction'),
+    );
+    expect(syncLambdas).toHaveLength(1);
+    expect(
+      syncLambdas[0]?.[1].Properties.Environment.Variables.ODDS_API_SPORT,
+    ).toBe('americanfootball_nfl');
   });
 
   it('defines grade-games Lambda with ESPN-only config and narrowed IAM', () => {
