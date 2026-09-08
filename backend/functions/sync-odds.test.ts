@@ -283,6 +283,43 @@ describe('sync-odds handler', () => {
     ).toBe(false);
   });
 
+  it('does not advance when weekStartsAt already matches the advance token', async () => {
+    const send = vi.fn().mockImplementation((command) => {
+      if (command instanceof GetCommand) {
+        return Promise.resolve({
+          Item: {
+            season: 2026,
+            week: 1,
+            weekStartsAt: '2026-09-08T06:00:00.000Z',
+          },
+        });
+      }
+      if (command instanceof QueryCommand) {
+        return Promise.resolve({ Items: [] });
+      }
+      return Promise.resolve({});
+    });
+    const { handler, restore } = createHandler({ send });
+
+    const result = await handler({
+      advanceWeek: true,
+      advanceToken: '2026-09-08T06:00:00Z',
+    });
+    restore();
+
+    expect(result).toMatchObject({
+      seasonWeek: '2026#W01',
+      advanced: false,
+    });
+    expect(
+      send.mock.calls.some(
+        ([command]) =>
+          command instanceof UpdateCommand &&
+          command.input.Key?.PK === 'SEASON#ACTIVE',
+      ),
+    ).toBe(false);
+  });
+
   it('caps automatic advancement at week 18', async () => {
     const send = vi.fn().mockImplementation((command) => {
       if (command instanceof GetCommand) {

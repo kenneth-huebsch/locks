@@ -232,6 +232,21 @@ function prepareSyncTarget(
     ? new Date(scheduledTimeMs).toISOString()
     : toIsoTimestamp(clock);
 
+  // Opening Tuesday already stamped weekStartsAt to this fire time — sync the
+  // current week instead of advancing into a duplicate slate.
+  if (
+    active.weekStartsAt &&
+    Number.isFinite(scheduledTimeMs) &&
+    Date.parse(active.weekStartsAt) === scheduledTimeMs
+  ) {
+    return {
+      season: active.season,
+      week: active.week,
+      weekStartsAt: active.weekStartsAt,
+      shouldAdvance: false,
+    };
+  }
+
   return {
     season: active.season,
     week: active.week + 1,

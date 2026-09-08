@@ -36,6 +36,8 @@ const SEASON = 2026;
 const PRESEASON_WEEKS = [1, 2, 3, 4] as const;
 /** Tue 2026-09-08 02:00 America/New_York — opens regular-season Week 1 window. */
 const WEEK_1_STARTS_AT = '2026-09-08T06:00:00.000Z';
+/** Scheduler advanceToken form for the same instant (no millis). */
+const WEEK_1_ADVANCE_TOKEN = '2026-09-08T06:00:00Z';
 
 const confirm = process.argv.includes('--confirm');
 
@@ -108,7 +110,8 @@ for (const key of keys) {
 }
 console.log(
   `Would reset ${ACTIVE_SEASON_PARTITION_KEY}/${ACTIVE_SEASON_SORT_KEY}` +
-    ` → season=${SEASON} week=1 weekStartsAt=${WEEK_1_STARTS_AT}`,
+    ` → season=${SEASON} week=1 weekStartsAt=${WEEK_1_STARTS_AT}` +
+    ` lastAdvanceToken=${WEEK_1_ADVANCE_TOKEN}`,
 );
 
 if (!confirm) {
@@ -135,6 +138,7 @@ await client.send(
       week: 1,
       status: 'open',
       weekStartsAt: WEEK_1_STARTS_AT,
+      lastAdvanceToken: WEEK_1_ADVANCE_TOKEN,
       updatedAt: new Date().toISOString(),
     },
   }),
