@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ERIC_SUB, JACK_SUB, KENNY_SUB } from './roster.js';
 import {
+  formatIncompleteReminder,
   formatPickNotification,
   isSwingAgainstPeers,
 } from './push-copy.js';
@@ -50,6 +51,20 @@ describe('formatPickNotification', () => {
         isSwing: true,
       }),
     ).toBe('🚨 Kenny swung Dallas -3.5');
+  });
+});
+
+describe('formatIncompleteReminder', () => {
+  it('uses lock for a single remaining pick', () => {
+    expect(formatIncompleteReminder(1)).toBe(
+      'You still have 1 lock left. Open Locks and get them in.',
+    );
+  });
+
+  it('uses locks for multiple remaining picks', () => {
+    expect(formatIncompleteReminder(2)).toBe(
+      'You still have 2 locks left. Open Locks and get them in.',
+    );
   });
 });
 

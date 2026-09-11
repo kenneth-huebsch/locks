@@ -15,31 +15,24 @@ import {
   weekPartitionKey,
 } from '../../shared/dynamo.js';
 import {
+  createWebPushSender,
+  parseStoredPushSubscription,
+  type PushSender,
+  type StoredPushSubscription,
+} from '../lib/web-push-sender.js';
+import {
   formatPickNotification,
   isSwingAgainstPeers,
 } from '../../shared/push-copy.js';
 import { LEAGUE_ROSTER } from '../../shared/roster.js';
 import type { Game, NotifyPickEvent, Pick as PickRecord } from '../../shared/types.js';
 
+export type { PushSender, StoredPushSubscription };
+
 export interface DynamoNotifyClient {
   send(command: GetCommand): Promise<GetCommandOutput>;
   send(command: QueryCommand): Promise<QueryCommandOutput>;
   send(command: UpdateCommand): Promise<UpdateCommandOutput>;
-}
-
-export interface StoredPushSubscription {
-  endpoint: string;
-  p256dh: string;
-  auth: string;
-  playerId: string;
-}
-
-export interface PushSender {
-  send(
-    subscription: StoredPushSubscription,
-    payload: string,
-    vapid: { publicKey: string; privateKey: string },
-  ): Promise<'ok' | 'gone'>;
 }
 
 interface NotifyPickDependencies {
@@ -51,7 +44,6 @@ interface NotifyPickDependencies {
 }
 
 const GSI1_INDEX_NAME = 'GSI1';
-const VAPID_SUBJECT = 'mailto:kenneth.huebsch@gmail.com';
 
 function toGame(item: Record<string, unknown>): Game | null {
   if (
@@ -214,24 +206,7 @@ export function createNotifyPickHandler(
           }),
         );
         return (result.Items ?? [])
-          .map((item) => {
-            if (
-              typeof item.endpoint !== 'string' ||
-              typeof item.p256dh !== 'string' ||
-              typeof item.auth !== 'string' ||
-              typeof item.SK !== 'string'
-            ) {
-              return null;
-            }
-
-            return {
-              endpoint: item.endpoint,
-              p256dh: item.p256dh,
-              auth: item.auth,
-              playerId: player.sub,
-              sortKey: item.SK,
-            };
-          })
+          .map((item) => parseStoredPushSubscription(item, player.sub))
           .filter(
             (
               item,
@@ -268,42 +243,7 @@ export function createNotifyPickHandler(
   };
 }
 
-export function createWebPushSender(): PushSender {
-  return {
-    async send(subscription, payload, vapid) {
-      const webPush = await import('web-push');
-      try {
-        await webPush.sendNotification(
-          {
-            endpoint: subscription.endpoint,
-            keys: {
-              p256dh: subscription.p256dh,
-              auth: subscription.auth,
-            },
-          },
-          payload,
-          {
-            vapidDetails: {
-              subject: VAPID_SUBJECT,
-              publicKey: vapid.publicKey,
-              privateKey: vapid.privateKey,
-            },
-          },
-        );
-        return 'ok';
-      } catch (error) {
-        const statusCode =
-          error && typeof error === 'object' && 'statusCode' in error
-            ? Number((error as { statusCode?: unknown }).statusCode)
-            : undefined;
-        if (statusCode === 404 || statusCode === 410) {
-          return 'gone';
-        }
-        throw error;
-      }
-    },
-  };
-}
+export { createWebPushSender };
 
 let runtimeHandler: ((event: NotifyPickEvent) => Promise<void>) | undefined;
 

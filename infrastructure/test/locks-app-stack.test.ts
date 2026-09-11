@@ -189,6 +189,46 @@ describe('LocksAppStack', () => {
     ).toBeDefined();
   });
 
+  it('schedules Sunday noon incomplete-picks push reminders', () => {
+    const lambdas = template.findResources('AWS::Lambda::Function');
+    const remindLambdas = Object.entries(lambdas).filter(([id]) =>
+      id.includes('RemindIncompleteFunction'),
+    );
+    expect(remindLambdas).toHaveLength(1);
+    expect(remindLambdas[0]?.[1].Properties).toMatchObject({
+      Handler: 'index.handler',
+      Runtime: 'nodejs22.x',
+      Architectures: ['arm64'],
+      Timeout: 30,
+    });
+    expect(
+      remindLambdas[0]?.[1].Properties.Environment.Variables.TABLE_NAME,
+    ).toBeDefined();
+    template.hasResourceProperties('AWS::IAM::Role', {
+      Description: 'Execution role for incomplete-picks push reminders',
+    });
+    template.hasResourceProperties('AWS::IAM::Policy', {
+      PolicyDocument: {
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Action: [
+              'dynamodb:GetItem',
+              'dynamodb:Query',
+              'dynamodb:UpdateItem',
+            ],
+            Effect: 'Allow',
+          }),
+        ]),
+      },
+    });
+    template.hasResourceProperties('AWS::Scheduler::Schedule', {
+      Name: 'remind-incomplete-sunday',
+      State: 'ENABLED',
+      ScheduleExpression: 'cron(0 12 ? * SUN *)',
+      ScheduleExpressionTimezone: 'America/New_York',
+    });
+  });
+
   it('grants submit-pick transactional DynamoDB access within the runtime boundary', () => {
     template.hasResourceProperties('AWS::IAM::Role', {
       Description: 'Execution role for authenticated pick submission',
@@ -232,7 +272,7 @@ describe('LocksAppStack', () => {
     });
     template.resourceCountIs('AWS::Scheduler::ScheduleGroup', 1);
     template.resourceCountIs('AWS::SSM::Parameter', 0);
-    template.resourceCountIs('AWS::Scheduler::Schedule', 13);
+    template.resourceCountIs('AWS::Scheduler::Schedule', 14);
     // Description must stay unchanged (AppIamExecutionPolicy lacks UpdateRoleDescription).
     template.hasResourceProperties('AWS::IAM::Role', {
       Description: 'Allows EventBridge Scheduler to invoke sync-odds',
@@ -266,6 +306,7 @@ describe('LocksAppStack', () => {
       ['grade-games-sunday-late', 'cron(30 21 ? * SUN *)'],
       ['grade-games-monday', 'cron(0 1 ? * MON *)'],
       ['grade-games-tuesday', 'cron(0 1 ? * TUE *)'],
+      ['remind-incomplete-sunday', 'cron(0 12 ? * SUN *)'],
     ]) {
       template.hasResourceProperties('AWS::Scheduler::Schedule', {
         Name: name,

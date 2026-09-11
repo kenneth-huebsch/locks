@@ -495,6 +495,51 @@ function handler(event) {
       notifyPickFunction.functionName,
     );
 
+    const remindIncompleteFunctionRole = new Role(
+      this,
+      'RemindIncompleteFunctionRole',
+      {
+        assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
+        description: 'Execution role for incomplete-picks push reminders',
+        managedPolicies: [
+          ManagedPolicy.fromAwsManagedPolicyName(
+            'service-role/AWSLambdaBasicExecutionRole',
+          ),
+        ],
+      },
+    );
+    remindIncompleteFunctionRole.addToPolicy(
+      new PolicyStatement({
+        actions: [
+          'dynamodb:GetItem',
+          'dynamodb:Query',
+          'dynamodb:UpdateItem',
+        ],
+        resources: [table.tableArn],
+      }),
+    );
+
+    const remindIncompleteFunction = new NodejsFunction(
+      this,
+      'RemindIncompleteFunction',
+      {
+        entry: 'backend/functions/remind-incomplete.ts',
+        handler: 'handler',
+        runtime: Runtime.NODEJS_22_X,
+        architecture: Architecture.ARM_64,
+        timeout: Duration.seconds(30),
+        memorySize: 256,
+        role: remindIncompleteFunctionRole,
+        environment: {
+          TABLE_NAME: table.tableName,
+        },
+        bundling: {
+          minify: true,
+          sourceMap: true,
+        },
+      },
+    );
+
     httpApi.addRoutes({
       path: '/api/push/vapid',
       methods: [HttpMethod.GET],
@@ -616,6 +661,7 @@ function handler(event) {
     });
     syncOddsFunction.grantInvoke(schedulerInvokeRole);
     gradeGamesFunction.grantInvoke(schedulerInvokeRole);
+    remindIncompleteFunction.grantInvoke(schedulerInvokeRole);
 
     new CfnScheduleGroup(this, 'ScheduledFunctionsGroup', {
       name: 'locks',
@@ -749,6 +795,24 @@ function handler(event) {
       ...gradeGamesScheduleProps,
     });
 
+    new CfnSchedule(this, 'RemindIncompleteSundaySchedule', {
+      name: 'remind-incomplete-sunday',
+      groupName: 'locks',
+      flexibleTimeWindow: { mode: 'OFF' },
+      state: 'ENABLED',
+      scheduleExpression: 'cron(0 12 ? * SUN *)',
+      scheduleExpressionTimezone: 'America/New_York',
+      description:
+        'Nudge incomplete picks via web push (Sun 12pm America/New_York)',
+      target: {
+        arn: remindIncompleteFunction.functionArn,
+        roleArn: schedulerInvokeRole.roleArn,
+        retryPolicy: {
+          maximumRetryAttempts: 2,
+        },
+      },
+    });
+
     output(this, 'ApiEndpoint', httpApi.apiEndpoint);
     output(this, 'Authority', userPool.userPoolProviderUrl);
     output(this, 'CognitoDomain', userPoolDomain.baseUrl());
@@ -756,6 +820,11 @@ function handler(event) {
     output(this, 'DistributionDomainName', distribution.distributionDomainName);
     output(this, 'DistributionId', distribution.distributionId);
     output(this, 'GradeGamesFunctionName', gradeGamesFunction.functionName);
+    output(
+      this,
+      'RemindIncompleteFunctionName',
+      remindIncompleteFunction.functionName,
+    );
     output(
       this,
       'IncompletePicksFunctionName',

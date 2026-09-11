@@ -52,6 +52,7 @@ Each function is a Node.js Lambda bundled by CDK's `NodejsFunction`.
 | `push-subscription.ts` | `/api/push/vapid` | GET | Web Push VAPID public key |
 | `push-subscription.ts` | `/api/push/subscription` | PUT | Save this device’s push subscription |
 | `notify-pick.ts` | (async from submit-pick) | — | Sends one lock/swing banner to everybody else |
+| `remind-incomplete.ts` | (scheduled Sun 12pm ET) | — | Web-push nudge to players still short of 3 picks |
 | `standings.ts` | `/api/standings` | GET | Season standings through the active week |
 | `sync-odds.ts` | (scheduled) | — | Fetches Odds API spreads; Tuesday 2am may advance `SEASON#ACTIVE` |
 | `grade-games.ts` | (scheduled) | — | Fetches ESPN finals by kickoff date, matches by team name, grades picks |
@@ -67,6 +68,7 @@ Each handler:
 - `backend/lib/odds-api-types.ts` — Odds API response types
 - `backend/lib/game-mapper.ts` — Maps Odds API events to Game models
 - `backend/lib/espn-scoreboard-client.ts` — ESPN NFL scoreboard client (finals for `grade-games`; no API key)
+- `backend/lib/web-push-sender.ts` — Web Push send helper and subscription parsing
 
 ## Shared (shared/)
 

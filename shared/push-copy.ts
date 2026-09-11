@@ -31,6 +31,11 @@ export function formatPickNotification(input: {
   return `🔒 ${input.displayName} locked ${city} ${spread}`;
 }
 
+export function formatIncompleteReminder(remainingPicks: number): string {
+  const noun = remainingPicks === 1 ? 'lock' : 'locks';
+  return `You still have ${remainingPicks} ${noun} left. Open Locks and get them in.`;
+}
+
 export function isOppositeSidePick(
   pickedTeam: string,
   otherPickedTeam: string,
