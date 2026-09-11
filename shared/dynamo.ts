@@ -64,3 +64,11 @@ export function pickGsi1SortKey(cognitoSub: string, gameId: string): string {
 export function counterSortKey(season: number, week: number): string {
   return `COUNTER#${seasonWeekToken(season, week)}`;
 }
+
+export const PUSH_CONFIG_PARTITION_KEY = 'CONFIG#PUSH';
+export const PUSH_VAPID_SORT_KEY = 'VAPID';
+export const PUSH_SUBSCRIPTION_SORT_PREFIX = 'PUSH#';
+
+export function pushSubscriptionSortKey(endpointHash: string): string {
+  return `${PUSH_SUBSCRIPTION_SORT_PREFIX}${endpointHash}`;
+}

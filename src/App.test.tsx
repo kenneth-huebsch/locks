@@ -203,6 +203,8 @@ function renderApp(
       }}
       listWeeks={listWeeksFn}
       loadStandings={loadStandings}
+      loadPushVapidKey={vi.fn()}
+      savePushSubscription={vi.fn()}
       loadWeek={loadWeek}
     />,
   );
@@ -215,6 +217,8 @@ describe('App', () => {
         auth={unauthenticatedAuth}
         listWeeks={vi.fn()}
         loadStandings={vi.fn()}
+        loadPushVapidKey={vi.fn()}
+        savePushSubscription={vi.fn()}
         loadWeek={vi.fn()}
       />,
     );
@@ -392,6 +396,8 @@ describe('App', () => {
         }}
         listWeeks={vi.fn().mockResolvedValue(weekSummaries)}
         loadStandings={vi.fn().mockResolvedValue(standings)}
+        loadPushVapidKey={vi.fn()}
+        savePushSubscription={vi.fn()}
         loadWeek={vi.fn().mockResolvedValue({
           ...currentWeek,
           games: [],

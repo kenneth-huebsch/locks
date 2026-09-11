@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { TEAMS, getTeamByAbbr, getTeamByName } from './teams.js';
+import { TEAMS, findTeam, getTeamByAbbr, getTeamByName } from './teams.js';
 
 describe('NFL team mappings', () => {
   it('includes all 32 teams', () => {
@@ -50,5 +50,11 @@ describe('NFL team mappings', () => {
   it('returns undefined for unknown lookups', () => {
     expect(getTeamByAbbr('XYZ')).toBeUndefined();
     expect(getTeamByName('Fake Team')).toBeUndefined();
+  });
+
+  it('finds a team by full name or abbreviation', () => {
+    expect(findTeam('Dallas Cowboys')?.abbreviation).toBe('DAL');
+    expect(findTeam('DAL')?.city).toBe('Dallas');
+    expect(findTeam('Unknown')).toBeUndefined();
   });
 });

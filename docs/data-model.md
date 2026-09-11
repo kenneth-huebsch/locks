@@ -36,6 +36,8 @@ DynamoDB TTL uses a **Number** attribute (`ttl`) holding Unix epoch **seconds**.
 | Get all picks for the active week (all players) | `Query` on GSI1 where `GSI1PK = WEEK#<year>#W<week>` |
 | Get a specific player's picks for the active week | `Query` on `PK = PLAYER#<cognitoSub>`, `SK begins_with PICK#<year>#W<week>#` |
 | Get weekly pick count for a player | `GetItem` on `PK = PLAYER#<cognitoSub>`, `SK = COUNTER#<year>#W<week>` |
+| Get a player's push subscriptions | `Query` on `PK = PLAYER#<cognitoSub>`, `SK begins_with PUSH#` |
+| Get Web Push VAPID keys | `GetItem` on `PK = CONFIG#PUSH`, `SK = VAPID` |
 | Get quota/API usage records | `Query` on `PK = QUOTA#ODDS_API`, `SK` sorted by ISO timestamp |
 | Get the active season and week metadata | `GetItem` on `PK = SEASON#ACTIVE`, `SK = META`; then `GetItem` on the week partition |
 
@@ -131,6 +133,31 @@ Denormalized count for enforcing the three-pick weekly maximum.
 | updatedAt | String — ISO UTC |
 
 Created on first pick with `count = 1`. Incremented atomically on each subsequent pick.
+
+### Push subscriptions
+
+Web Push device registrations. Multiple devices per player are allowed.
+
+| Attribute | Value |
+|---|---|
+| PK | `PLAYER#<cognitoSub>` |
+| SK | `PUSH#<sha256(endpoint)>` |
+| endpoint | String — browser push endpoint |
+| p256dh | String — subscription public key |
+| auth | String — subscription auth secret |
+| expirationTime | Number or null |
+| invalid | Boolean — set when the endpoint returns 404/410 |
+
+### Push VAPID keys
+
+One app-wide Web Push identity, created on first subscribe.
+
+| Attribute | Value |
+|---|---|
+| PK | `CONFIG#PUSH` |
+| SK | `VAPID` |
+| publicKey | String — VAPID public key |
+| privateKey | String — VAPID private key |
 
 ### Quota records
 

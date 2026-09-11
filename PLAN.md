@@ -155,6 +155,7 @@ JWTs protect every API route.
 3. Submitted picks are visible immediately.
    - A player can always see their own picks.
    - Other players’ picks become visible as soon as they are submitted.
+   - One push notification goes to everybody else: `🔒 Kenny locked Dallas -3`, or `🚨 Kenny swung Dallas -3` when the pick is the other side of an existing pick on that game.
 4. Submitted picks are final.
    - A pick cannot be changed or deleted.
    - A player can submit additional picks later until reaching three.

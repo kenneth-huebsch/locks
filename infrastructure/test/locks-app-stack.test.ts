@@ -42,6 +42,10 @@ describe('LocksAppStack', () => {
             PathPattern: 'api/*',
             FunctionAssociations: Match.absent(),
           }),
+          Match.objectLike({
+            PathPattern: 'sw.js',
+            FunctionAssociations: Match.absent(),
+          }),
         ]),
         ViewerCertificate: Match.objectLike({
           AcmCertificateArn: Match.anyValue(),
@@ -110,6 +114,14 @@ describe('LocksAppStack', () => {
       RouteKey: 'GET /api/standings',
     });
     template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
+      AuthorizationType: 'JWT',
+      RouteKey: 'GET /api/push/vapid',
+    });
+    template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
+      AuthorizationType: 'JWT',
+      RouteKey: 'PUT /api/push/subscription',
+    });
+    template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
       AuthorizationType: 'NONE',
       RouteKey: 'GET /api/reminders/incomplete-picks',
     });
@@ -154,6 +166,27 @@ describe('LocksAppStack', () => {
         ]),
       },
     });
+  });
+
+  it('lets submit-pick invoke notify-pick after a successful lock', () => {
+    template.hasResourceProperties('AWS::IAM::Policy', {
+      PolicyDocument: {
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Action: 'lambda:InvokeFunction',
+            Effect: 'Allow',
+          }),
+        ]),
+      },
+    });
+    const lambdas = template.findResources('AWS::Lambda::Function');
+    const notifyLambdas = Object.entries(lambdas).filter(([id]) =>
+      id.includes('NotifyPickFunction'),
+    );
+    expect(notifyLambdas).toHaveLength(1);
+    expect(
+      notifyLambdas[0]?.[1].Properties.Environment.Variables.TABLE_NAME,
+    ).toBeDefined();
   });
 
   it('grants submit-pick transactional DynamoDB access within the runtime boundary', () => {

@@ -50,3 +50,7 @@ export function getTeamByAbbr(abbreviation: string): NflTeam | undefined {
 export function getTeamByName(fullName: string): NflTeam | undefined {
   return byFullName.get(fullName);
 }
+
+export function findTeam(nameOrAbbr: string): NflTeam | undefined {
+  return getTeamByName(nameOrAbbr) ?? getTeamByAbbr(nameOrAbbr);
+}

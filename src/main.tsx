@@ -3,7 +3,7 @@ import { StrictMode, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AuthProvider, useAuth } from 'react-oidc-context';
 import { App } from './App';
-import { listWeeks, loadStandings, loadWeek } from './api';
+import { listWeeks, loadPushVapidKey, loadStandings, loadWeek, savePushSubscription } from './api';
 import './index.css';
 import {
   loadRuntimeConfig,
@@ -24,6 +24,17 @@ function AuthenticatedApp({ config }: { config: RuntimeConfig }) {
   );
   const loadStandingsForConfig = useCallback(
     (accessToken: string) => loadStandings(accessToken, config.apiBaseUrl),
+    [config.apiBaseUrl],
+  );
+  const loadPushVapidKeyForConfig = useCallback(
+    (accessToken: string) => loadPushVapidKey(accessToken, config.apiBaseUrl),
+    [config.apiBaseUrl],
+  );
+  const savePushSubscriptionForConfig = useCallback(
+    (
+      accessToken: string,
+      subscription: Parameters<typeof savePushSubscription>[1],
+    ) => savePushSubscription(accessToken, subscription, config.apiBaseUrl),
     [config.apiBaseUrl],
   );
   const logout = useCallback(
@@ -54,6 +65,8 @@ function AuthenticatedApp({ config }: { config: RuntimeConfig }) {
         logout,
       }}
       loadStandings={loadStandingsForConfig}
+      loadPushVapidKey={loadPushVapidKeyForConfig}
+      savePushSubscription={savePushSubscriptionForConfig}
       loadWeek={loadWeekForConfig}
       listWeeks={listWeeksForConfig}
     />

@@ -64,6 +64,14 @@ function createEvent(body: unknown): ApiGatewayJwtEvent {
 function createHandler(
   send: ReturnType<typeof vi.fn>,
   clock: Clock = { now: () => NOW },
+  notifyPick: (event: {
+    pickerSub: string;
+    gameId: string;
+    pickedTeam: string;
+    spreadAtPick: number;
+    season: number;
+    week: number;
+  }) => Promise<void> = vi.fn().mockResolvedValue(undefined),
 ) {
   const client = { send } as DynamoSubmitPickClient;
   return createSubmitPickHandler({
@@ -72,6 +80,7 @@ function createHandler(
     tableName: TABLE_NAME,
     fallbackSeason: SEASON,
     fallbackWeek: WEEK,
+    notifyPick,
     logger: { error: vi.fn() },
   });
 }
@@ -122,6 +131,41 @@ describe('submit-pick handler', () => {
     expect(transactInput.TransactItems[2].Update?.UpdateExpression).toContain(
       'ADD pickCount :one',
     );
+  });
+
+  it('enqueues a pick notification after a successful lock', async () => {
+    const send = vi
+      .fn()
+      .mockResolvedValueOnce({ Item: { season: SEASON } })
+      .mockResolvedValueOnce({});
+    const notifyPick = vi.fn().mockResolvedValue(undefined);
+    const handler = createHandler(send, { now: () => NOW }, notifyPick);
+
+    const response = await handler(createEvent(validRequest));
+
+    expect(response.statusCode).toBe(201);
+    expect(notifyPick).toHaveBeenCalledWith({
+      pickerSub: PLAYER_SUB,
+      gameId: GAME_ID,
+      pickedTeam: 'Dallas Cowboys',
+      spreadAtPick: 3.5,
+      season: SEASON,
+      week: WEEK,
+    });
+  });
+
+  it('still returns the pick when notification enqueue fails', async () => {
+    const send = vi
+      .fn()
+      .mockResolvedValueOnce({ Item: { season: SEASON } })
+      .mockResolvedValueOnce({});
+    const notifyPick = vi.fn().mockRejectedValue(new Error('invoke failed'));
+    const handler = createHandler(send, { now: () => NOW }, notifyPick);
+
+    const response = await handler(createEvent(validRequest));
+
+    expect(response.statusCode).toBe(201);
+    expect(notifyPick).toHaveBeenCalledOnce();
   });
 
   it('uses SEASON#ACTIVE week as the pick source of truth', async () => {

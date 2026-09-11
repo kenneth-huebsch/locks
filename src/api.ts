@@ -2,6 +2,8 @@ import type {
   ApiErrorResponse,
   CurrentWeekResponse,
   ErrorCode,
+  PushSubscriptionRequest,
+  PushVapidResponse,
   StandingsResponse,
   SubmitPickRequest,
   SubmitPickResponse,
@@ -162,4 +164,33 @@ export async function submitPick(
   });
 
   return parseResponse<SubmitPickResponse>(response);
+}
+
+export async function loadPushVapidKey(
+  accessToken: string,
+  apiBaseUrl = '/api',
+): Promise<string> {
+  const response = await fetch(`${apiBaseUrl}/push/vapid`, {
+    headers: authHeaders(accessToken),
+  });
+  const body = await parseResponse<PushVapidResponse>(response);
+  return body.publicKey;
+}
+
+export async function savePushSubscription(
+  accessToken: string,
+  subscription: PushSubscriptionRequest,
+  apiBaseUrl = '/api',
+): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/push/subscription`, {
+    method: 'PUT',
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(subscription),
+  });
+
+  if (response.status === 204) {
+    return;
+  }
+
+  await parseResponse<unknown>(response);
 }

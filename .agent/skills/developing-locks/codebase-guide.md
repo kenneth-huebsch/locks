@@ -28,6 +28,7 @@ client ID, and authority URL.
 | `App.tsx` | Auth gate, week dropdown, current WeekView or past PicksBoard |
 | `WeekView.tsx` | Current week: game cards + remaining picks |
 | `GameCard.tsx` | Single game display with pick selection, scores, and submitted picks |
+| `NotificationPrompt.tsx` | Enable Web Push / iOS Home Screen instructions |
 | `ConfirmPickModal.tsx` | Confirmation dialog before locking picks |
 | `PicksBoard.tsx` | Past-week board of all players' submitted picks |
 | `PickResultChip.tsx` | Shared win/loss/push pick chip |
@@ -48,6 +49,9 @@ Each function is a Node.js Lambda bundled by CDK's `NodejsFunction`.
 | `current-week.ts` | `/api/weeks` | GET | Week summaries (`1…active`) for the dropdown |
 | `current-week.ts` | `/api/week/{seasonWeek}` | GET | Selected week games + picks (`YYYY#Wnn`, URL-encoded) |
 | `submit-pick.ts` | `/api/picks` | POST | Atomic pick submission with validation |
+| `push-subscription.ts` | `/api/push/vapid` | GET | Web Push VAPID public key |
+| `push-subscription.ts` | `/api/push/subscription` | PUT | Save this device’s push subscription |
+| `notify-pick.ts` | (async from submit-pick) | — | Sends one lock/swing banner to everybody else |
 | `standings.ts` | `/api/standings` | GET | Season standings through the active week |
 | `sync-odds.ts` | (scheduled) | — | Fetches Odds API spreads; Tuesday 2am may advance `SEASON#ACTIVE` |
 | `grade-games.ts` | (scheduled) | — | Fetches ESPN finals by kickoff date, matches by team name, grades picks |
@@ -71,6 +75,7 @@ Each handler:
 | `types.ts` | All domain types: Game, Pick, Player, Week, API request/response shapes |
 | `teams.ts` | NFL team name ↔ abbreviation mapping |
 | `dynamo.ts` | DynamoDB partition/sort key patterns and helpers |
+| `push-copy.ts` | Lock vs swing notification copy |
 | `foundation.ts` | Foundation fixture constants (seeded Week 1 game) |
 | `runtime-config.ts` | Runtime config type shared by build scripts and SPA |
 

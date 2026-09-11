@@ -5,6 +5,7 @@ import type {
   WeekSummary,
 } from '../shared/types';
 import { OverallRecord } from './components/OverallRecord';
+import { NotificationPrompt } from './components/NotificationPrompt';
 import { PicksBoard } from './components/PicksBoard';
 import { WeekView } from './components/WeekView';
 import { recordsForWeek } from './lib/records';
@@ -29,6 +30,15 @@ interface AppProps {
     userSub?: string,
   ) => Promise<CurrentWeekResponse>;
   loadStandings: (accessToken: string) => Promise<StandingsResponse>;
+  loadPushVapidKey: (accessToken: string) => Promise<string>;
+  savePushSubscription: (
+    accessToken: string,
+    subscription: {
+      endpoint: string;
+      expirationTime?: number | null;
+      keys: { p256dh: string; auth: string };
+    },
+  ) => Promise<void>;
 }
 
 const REFRESH_INTERVAL_MS = 30_000;
@@ -63,6 +73,8 @@ export function App({
   listWeeks,
   loadWeek,
   loadStandings,
+  loadPushVapidKey,
+  savePushSubscription,
 }: AppProps) {
   const [weekSummaries, setWeekSummaries] = useState<WeekSummary[]>([]);
   const [selectedWeek, setSelectedWeek] = useState<WeekSummary>();
@@ -356,6 +368,16 @@ export function App({
           <p className="mb-8 border-l-4 border-red-700 bg-red-50 p-4 text-red-900">
             {loadError}
           </p>
+        ) : null}
+
+        {auth.accessToken ? (
+          <div className="mb-6">
+            <NotificationPrompt
+              accessToken={auth.accessToken}
+              loadVapidKey={loadPushVapidKey}
+              saveSubscription={savePushSubscription}
+            />
+          </div>
         ) : null}
 
         {view === 'overall' ? (

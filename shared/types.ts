@@ -108,6 +108,30 @@ export interface SubmitPickResponse {
   pick: Pick;
 }
 
+export interface PushVapidResponse {
+  publicKey: string;
+}
+
+export interface PushSubscriptionKeys {
+  p256dh: string;
+  auth: string;
+}
+
+export interface PushSubscriptionRequest {
+  endpoint: string;
+  expirationTime?: number | null;
+  keys: PushSubscriptionKeys;
+}
+
+export interface NotifyPickEvent {
+  pickerSub: string;
+  gameId: string;
+  pickedTeam: string;
+  spreadAtPick: number;
+  season: number;
+  week: number;
+}
+
 export interface ApiErrorResponse {
   error: {
     code: ErrorCode;

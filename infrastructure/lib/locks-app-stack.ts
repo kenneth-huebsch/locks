@@ -283,12 +283,13 @@ function handler(event) {
 }`),
     });
 
+    const siteOrigin = S3BucketOrigin.withOriginAccessControl(siteBucket);
     const distribution = new Distribution(this, 'Distribution', {
       certificate,
       domainNames: [CUSTOM_DOMAIN_NAME],
       defaultRootObject: 'index.html',
       defaultBehavior: {
-        origin: S3BucketOrigin.withOriginAccessControl(siteBucket),
+        origin: siteOrigin,
         viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         responseHeadersPolicy: ResponseHeadersPolicy.SECURITY_HEADERS,
         functionAssociations: [
@@ -308,6 +309,11 @@ function handler(event) {
           originRequestPolicy:
             OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
           viewerProtocolPolicy: ViewerProtocolPolicy.HTTPS_ONLY,
+        },
+        'sw.js': {
+          origin: siteOrigin,
+          viewerProtocolPolicy: ViewerProtocolPolicy.HTTPS_ONLY,
+          cachePolicy: CachePolicy.CACHING_DISABLED,
         },
       },
     });
@@ -442,6 +448,68 @@ function handler(event) {
       integration: new HttpLambdaIntegration(
         'SubmitPickIntegration',
         submitPickFunction,
+      ),
+      authorizer,
+    });
+
+    const pushSubscriptionFunction = new NodejsFunction(
+      this,
+      'PushSubscriptionFunction',
+      {
+        entry: 'backend/functions/push-subscription.ts',
+        handler: 'handler',
+        runtime: Runtime.NODEJS_22_X,
+        architecture: Architecture.ARM_64,
+        timeout: Duration.seconds(10),
+        memorySize: 256,
+        environment: {
+          TABLE_NAME: table.tableName,
+        },
+        bundling: {
+          minify: true,
+          sourceMap: true,
+        },
+      },
+    );
+    table.grantReadWriteData(pushSubscriptionFunction);
+
+    const notifyPickFunction = new NodejsFunction(this, 'NotifyPickFunction', {
+      entry: 'backend/functions/notify-pick.ts',
+      handler: 'handler',
+      runtime: Runtime.NODEJS_22_X,
+      architecture: Architecture.ARM_64,
+      timeout: Duration.seconds(30),
+      memorySize: 256,
+      environment: {
+        TABLE_NAME: table.tableName,
+      },
+      bundling: {
+        minify: true,
+        sourceMap: true,
+      },
+    });
+    table.grantReadWriteData(notifyPickFunction);
+    notifyPickFunction.grantInvoke(submitPickFunction);
+    submitPickFunction.addEnvironment(
+      'NOTIFY_PICK_FUNCTION_NAME',
+      notifyPickFunction.functionName,
+    );
+
+    httpApi.addRoutes({
+      path: '/api/push/vapid',
+      methods: [HttpMethod.GET],
+      integration: new HttpLambdaIntegration(
+        'PushVapidIntegration',
+        pushSubscriptionFunction,
+      ),
+      authorizer,
+    });
+    httpApi.addRoutes({
+      path: '/api/push/subscription',
+      methods: [HttpMethod.PUT],
+      integration: new HttpLambdaIntegration(
+        'PushSubscriptionIntegration',
+        pushSubscriptionFunction,
       ),
       authorizer,
     });

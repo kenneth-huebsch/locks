@@ -23,6 +23,7 @@ import {
   type Pick as PickRecord,
   type SubmitPickRequest,
   type SubmitPickResponse,
+  type NotifyPickEvent,
 } from '../../shared/types.js';
 
 export interface Clock {
@@ -70,6 +71,7 @@ interface SubmitPickDependencies {
   tableName: string;
   fallbackSeason?: number;
   fallbackWeek?: number;
+  notifyPick?: (event: NotifyPickEvent) => Promise<void>;
   logger?: Pick<Console, 'error'>;
 }
 
@@ -415,6 +417,19 @@ export function createSubmitPickHandler(
         }),
       );
 
+      try {
+        await dependencies.notifyPick?.({
+          pickerSub: playerSub,
+          gameId: request.gameId,
+          pickedTeam: request.pickedTeam,
+          spreadAtPick: request.spreadAtPick,
+          season,
+          week,
+        });
+      } catch (notifyError) {
+        logger.error('Failed to enqueue pick notification', notifyError);
+      }
+
       return successResponse(pick);
     } catch (error) {
       if (
@@ -473,10 +488,29 @@ async function getRuntimeHandler(): Promise<
   const { DynamoDBClient } = await import('@aws-sdk/client-dynamodb');
   const { DynamoDBDocumentClient } = await import('@aws-sdk/lib-dynamodb');
 
+  const notifyFunctionName = process.env.NOTIFY_PICK_FUNCTION_NAME;
+  let notifyPick: ((event: NotifyPickEvent) => Promise<void>) | undefined;
+  if (notifyFunctionName) {
+    const { InvokeCommand, LambdaClient } = await import(
+      '@aws-sdk/client-lambda'
+    );
+    const lambda = new LambdaClient({});
+    notifyPick = async (event: NotifyPickEvent): Promise<void> => {
+      await lambda.send(
+        new InvokeCommand({
+          FunctionName: notifyFunctionName,
+          InvocationType: 'Event',
+          Payload: Buffer.from(JSON.stringify(event)),
+        }),
+      );
+    };
+  }
+
   runtimeHandler = createSubmitPickHandler({
     dynamoClient: DynamoDBDocumentClient.from(new DynamoDBClient({})),
     clock: { now: () => new Date() },
     tableName,
+    notifyPick,
   });
 
   return runtimeHandler;
