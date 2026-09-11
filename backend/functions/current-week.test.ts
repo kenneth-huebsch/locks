@@ -19,7 +19,6 @@ import {
 import {
   createCurrentWeekHandler,
   type ApiGatewayJwtEvent,
-  type Clock,
   type DynamoCurrentWeekClient,
 } from './current-week.js';
 
@@ -30,10 +29,6 @@ const SEASON = 2026;
 const WEEK = 1;
 const WEEK_PK = weekPartitionKey(SEASON, WEEK);
 const ODDS_UPDATED_AT = '2026-09-09T10:00:00.000Z';
-const BEFORE_KICKOFF = new Date('2026-09-09T12:00:00.000Z');
-const AT_KICKOFF = new Date('2026-09-10T00:20:00.000Z');
-const AFTER_KICKOFF = new Date('2026-09-10T00:20:01.000Z');
-
 const baseGame = {
   PK: WEEK_PK,
   SK: `GAME#seed-game-1`,
@@ -97,15 +92,11 @@ function createEvent(sub: string = PLAYER_SUB): ApiGatewayJwtEvent {
   };
 }
 
-function createHandler(
-  send: ReturnType<typeof vi.fn>,
-  clock: Clock = { now: () => BEFORE_KICKOFF },
-) {
+function createHandler(send: ReturnType<typeof vi.fn>) {
   const client = { send } as DynamoCurrentWeekClient;
   return createCurrentWeekHandler({
     dynamoClient: client,
     tableName: TABLE_NAME,
-    clock,
     logger: { error: vi.fn() },
   });
 }
@@ -227,7 +218,7 @@ describe('current-week handler', () => {
       .mockResolvedValueOnce({ Items: [finalGame] })
       .mockResolvedValueOnce({ Items: [basePick] })
       .mockResolvedValueOnce(counterGet(1));
-    const handler = createHandler(send, { now: () => AFTER_KICKOFF });
+    const handler = createHandler(send);
 
     const response = await handler(createEvent());
 
@@ -240,7 +231,7 @@ describe('current-week handler', () => {
     });
   });
 
-  it('always returns the caller pick before kickoff and hides other players', async () => {
+  it("returns every player's picks before kickoff", async () => {
     const send = vi
       .fn()
       .mockResolvedValueOnce(activeSeasonGet())
@@ -248,38 +239,16 @@ describe('current-week handler', () => {
       .mockResolvedValueOnce({ Items: [baseGame] })
       .mockResolvedValueOnce({ Items: [basePick, otherPlayerPick] })
       .mockResolvedValueOnce(counterGet(1));
-    const handler = createHandler(send, { now: () => BEFORE_KICKOFF });
+    const handler = createHandler(send);
 
     const response = await handler(createEvent());
 
     expect(response.statusCode).toBe(200);
-    expect(JSON.parse(response.body).picks).toEqual([expectedPick(basePick)]);
+    expect(JSON.parse(response.body).picks).toEqual([
+      expectedPick(basePick),
+      expectedPick(otherPlayerPick),
+    ]);
   });
-
-  it.each([
-    ['at kickoff', AT_KICKOFF],
-    ['after kickoff', AFTER_KICKOFF],
-  ])(
-    'reveals other players picks %s',
-    async (_label, now) => {
-      const send = vi
-        .fn()
-        .mockResolvedValueOnce(activeSeasonGet())
-        .mockResolvedValueOnce(weekMetaGet())
-        .mockResolvedValueOnce({ Items: [baseGame] })
-        .mockResolvedValueOnce({ Items: [basePick, otherPlayerPick] })
-        .mockResolvedValueOnce(counterGet(1));
-      const handler = createHandler(send, { now: () => now });
-
-      const response = await handler(createEvent());
-
-      expect(response.statusCode).toBe(200);
-      expect(JSON.parse(response.body).picks).toEqual([
-        expectedPick(basePick),
-        expectedPick(otherPlayerPick),
-      ]);
-    },
-  );
 
   it('lists current and past weeks in descending order', async () => {
     const send = vi.fn().mockResolvedValueOnce({
@@ -325,7 +294,7 @@ describe('current-week handler', () => {
       .mockResolvedValueOnce({ Items: [completedPastGame] })
       .mockResolvedValueOnce({ Items: [basePick, otherPlayerPick] })
       .mockResolvedValueOnce(counterGet(1));
-    const handler = createHandler(send, { now: () => AFTER_KICKOFF });
+    const handler = createHandler(send);
 
     const response = await handler({
       ...createEvent(),

@@ -48,10 +48,6 @@ interface LambdaResponse {
   body: string;
 }
 
-export interface Clock {
-  now(): Date;
-}
-
 export interface DynamoCurrentWeekClient {
   send(command: GetCommand): Promise<GetCommandOutput>;
   send(command: QueryCommand): Promise<QueryCommandOutput>;
@@ -60,7 +56,6 @@ export interface DynamoCurrentWeekClient {
 interface CurrentWeekDependencies {
   dynamoClient: DynamoCurrentWeekClient;
   tableName: string;
-  clock?: Clock;
   logger?: Pick<Console, 'error'>;
 }
 
@@ -89,31 +84,6 @@ function toGame(item: Record<string, unknown>): Game {
     bookmaker: (item.bookmaker as string) ?? '',
     oddsUpdatedAt: (item.oddsUpdatedAt as string) ?? '',
   };
-}
-
-export function filterPicksForViewer(
-  picks: PickRecord[],
-  games: Game[],
-  viewerSub: string,
-  now: Date,
-): PickRecord[] {
-  const commenceTimeByGameId = new Map(
-    games.map((game) => [game.id, game.commenceTime]),
-  );
-  const nowMs = now.getTime();
-
-  return picks.filter((pick) => {
-    if (pick.playerId === viewerSub) {
-      return true;
-    }
-
-    const commenceTime = commenceTimeByGameId.get(pick.gameId);
-    if (!commenceTime) {
-      return false;
-    }
-
-    return new Date(commenceTime).getTime() <= nowMs;
-  });
 }
 
 function toPick(item: Record<string, unknown>): PickRecord {
@@ -232,7 +202,6 @@ async function loadWeekResponse(
   playerSub: string,
   season: number,
   week: number,
-  now: Date,
   requireMetadata: boolean,
 ): Promise<CurrentWeekResponse | null> {
   const weekPk = weekPartitionKey(season, week);
@@ -292,7 +261,7 @@ async function loadWeekResponse(
   return {
     week: weekResponse,
     games,
-    picks: filterPicksForViewer(picks, games, playerSub, now),
+    picks,
     remainingPicks: remainingPicksFromCounter(counterResult.Item),
     oddsUpdatedAt,
   };
@@ -313,7 +282,6 @@ export function createCurrentWeekHandler(
   dependencies: CurrentWeekDependencies,
 ): (event: ApiGatewayJwtEvent) => Promise<LambdaResponse> {
   const logger = dependencies.logger ?? console;
-  const clock = dependencies.clock ?? { now: () => new Date() };
 
   return async (event) => {
     const playerSub = getPlayerSub(event);
@@ -409,7 +377,6 @@ export function createCurrentWeekHandler(
         playerSub,
         season,
         requestedWeek,
-        clock.now(),
         requireMetadata,
       );
       if (!response) {

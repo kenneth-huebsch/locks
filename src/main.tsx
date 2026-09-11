@@ -1,3 +1,4 @@
+import { WebStorageStateStore } from 'oidc-client-ts';
 import { StrictMode, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AuthProvider, useAuth } from 'react-oidc-context';
@@ -77,6 +78,7 @@ async function render() {
         redirect_uri={window.location.origin}
         response_type="code"
         scope="openid email"
+        userStore={new WebStorageStateStore({ store: window.localStorage })}
       >
         <AuthenticatedApp config={config} />
       </AuthProvider>

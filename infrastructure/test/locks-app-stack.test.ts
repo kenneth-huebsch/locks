@@ -1,4 +1,4 @@
-import { App } from 'aws-cdk-lib';
+import { App, Duration } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import { TARGET_ENV } from '../lib/github-oidc-stack.js';
 import { LocksAppStack } from '../lib/locks-app-stack.js';
@@ -74,6 +74,10 @@ describe('LocksAppStack', () => {
     template.hasResourceProperties('AWS::Cognito::UserPoolClient', {
       CallbackURLs: Match.arrayWith(['https://locks.inov8.cc']),
       LogoutURLs: Match.arrayWith(['https://locks.inov8.cc']),
+      RefreshTokenValidity: Duration.days(365).toMinutes(),
+      TokenValidityUnits: Match.objectLike({
+        RefreshToken: 'minutes',
+      }),
     });
     template.hasOutput('CustomDomainName', {
       Value: 'locks.inov8.cc',

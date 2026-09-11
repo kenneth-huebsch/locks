@@ -27,7 +27,7 @@ client ID, and authority URL.
 |---|---|
 | `App.tsx` | Auth gate, week dropdown, current WeekView or past PicksBoard |
 | `WeekView.tsx` | Current week: game cards + remaining picks |
-| `GameCard.tsx` | Single game display with pick selection, scores, and revealed picks |
+| `GameCard.tsx` | Single game display with pick selection, scores, and submitted picks |
 | `ConfirmPickModal.tsx` | Confirmation dialog before locking picks |
 | `PicksBoard.tsx` | Past-week board of all players' submitted picks |
 | `PickResultChip.tsx` | Shared win/loss/push pick chip |

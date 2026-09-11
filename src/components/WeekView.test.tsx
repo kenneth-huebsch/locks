@@ -257,17 +257,9 @@ describe('WeekView', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('shows revealed picks returned by the API for a started game', () => {
-    const startedWeek: CurrentWeekResponse = {
+  it('shows peer picks returned by the API for an unstarted game', () => {
+    const openWeek: CurrentWeekResponse = {
       ...mockWeek,
-      games: [
-        {
-          ...mockWeek.games[0],
-          commenceTime: '2020-09-10T17:00:00.000Z',
-          status: 'in_progress',
-        },
-        mockWeek.games[1],
-      ],
       picks: [
         {
           playerId: 'user-sub',
@@ -291,7 +283,7 @@ describe('WeekView', () => {
       remainingPicks: 2,
     };
 
-    renderWeekView(startedWeek);
+    renderWeekView(openWeek);
 
     const revealed = screen.getByLabelText(/revealed picks/i);
     expect(within(revealed).getByText('Jack')).toBeInTheDocument();

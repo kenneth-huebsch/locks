@@ -155,17 +155,13 @@ describe('GameCard', () => {
     expect(screen.getByText(/Now DAL -1\.5/i)).toBeInTheDocument();
   });
 
-  it('shows revealed peer picks for a started game', () => {
+  it('shows peer picks on an unstarted game', () => {
     render(
       <GameCard
-        existingPick={{ ...existingPick, gameId: 'game-2' }}
-        game={startedGame}
-        now={new Date('2025-01-01T00:00:00.000Z')}
+        existingPick={existingPick}
+        game={futureGame}
         onPick={vi.fn()}
-        revealedPicks={[
-          { ...existingPick, gameId: 'game-2' },
-          peerPick,
-        ]}
+        revealedPicks={[existingPick, { ...peerPick, gameId: 'game-1' }]}
       />,
     );
 

@@ -325,6 +325,8 @@ function handler(event) {
         userSrp: true,
       },
       generateSecret: false,
+      // Default is 30 days. A year covers a season without monthly re-logins.
+      refreshTokenValidity: Duration.days(365),
       supportedIdentityProviders: [
         UserPoolClientIdentityProvider.COGNITO,
       ],

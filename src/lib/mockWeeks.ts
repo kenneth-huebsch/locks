@@ -376,31 +376,6 @@ export function listMockPicksThroughWeek(
   return picks;
 }
 
-function filterPicksForViewer(
-  picks: Pick[],
-  games: Game[],
-  viewerSub?: string,
-  now: Date = new Date(),
-): Pick[] {
-  const commenceTimeByGameId = new Map(
-    games.map((game) => [game.id, game.commenceTime]),
-  );
-  const nowMs = now.getTime();
-
-  return picks.filter((pick) => {
-    if (!viewerSub || pick.playerId === viewerSub) {
-      return true;
-    }
-
-    const commenceTime = commenceTimeByGameId.get(pick.gameId);
-    if (!commenceTime) {
-      return false;
-    }
-
-    return new Date(commenceTime).getTime() <= nowMs;
-  });
-}
-
 export function loadMockWeek(
   season: number,
   week: number,
@@ -411,11 +386,7 @@ export function loadMockWeek(
   }
 
   if (week === 3) {
-    const scoped = withUserScopedRemainingPicks(currentWeekState, userSub);
-    return {
-      ...scoped,
-      picks: filterPicksForViewer(scoped.picks, scoped.games, userSub),
-    };
+    return withUserScopedRemainingPicks(currentWeekState, userSub);
   }
 
   const payload = staticMockWeeksByNumber[week];
