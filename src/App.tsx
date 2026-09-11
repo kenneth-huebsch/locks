@@ -328,7 +328,7 @@ export function App({
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <header className="bg-blue-950 text-white">
+      <header className="bg-blue-950 pt-safe text-white">
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-2 px-4 py-3 md:gap-4 md:px-6 md:py-5">
           <button
             className="shrink-0 text-xl font-black tracking-tight md:text-2xl"
