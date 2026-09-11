@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   canUseWebPush,
   isIosDevice,
@@ -8,11 +8,14 @@ import {
   vapidKeyToBytes,
 } from '../lib/push';
 
+type PromptStatus = 'idle' | 'saving' | 'hidden' | 'error';
+
 interface NotificationPromptProps {
   accessToken: string;
   apiBaseUrl?: string;
   isIos?: boolean;
   isStandalone?: boolean;
+  notificationPermission?: NotificationPermission;
   loadVapidKey: (accessToken: string, apiBaseUrl?: string) => Promise<string>;
   saveSubscription: (
     accessToken: string,
@@ -26,18 +29,63 @@ interface NotificationPromptProps {
   onEnable?: () => Promise<void>;
 }
 
+function readNotificationPermission(): NotificationPermission {
+  if (typeof Notification === 'undefined') {
+    return 'default';
+  }
+
+  return Notification.permission;
+}
+
 export function NotificationPrompt({
   accessToken,
   apiBaseUrl,
   isIos = isIosDevice(),
   isStandalone = isStandaloneDisplay(),
+  notificationPermission = readNotificationPermission(),
   loadVapidKey,
   saveSubscription,
   onEnable,
 }: NotificationPromptProps) {
-  const [status, setStatus] = useState<'idle' | 'saving' | 'done' | 'error'>(
-    'idle',
+  const alreadyDecided =
+    notificationPermission === 'granted' ||
+    notificationPermission === 'denied';
+  const [status, setStatus] = useState<PromptStatus>(
+    alreadyDecided ? 'hidden' : 'idle',
   );
+
+  const ensureSubscription = useCallback(async (): Promise<void> => {
+    if (onEnable) {
+      await onEnable();
+      return;
+    }
+
+    const registration = await registerLocksServiceWorker();
+    if (!registration) {
+      throw new Error('Push is not available');
+    }
+    const publicKey = await loadVapidKey(accessToken, apiBaseUrl);
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: vapidKeyToBytes(publicKey),
+    });
+    const payload = toPushSubscriptionRequest(subscription);
+    if (!payload) {
+      throw new Error('Subscription was missing keys');
+    }
+    await saveSubscription(accessToken, payload, apiBaseUrl);
+  }, [accessToken, apiBaseUrl, loadVapidKey, onEnable, saveSubscription]);
+
+  useEffect(() => {
+    if (isIos && !isStandalone) {
+      return;
+    }
+    if (notificationPermission !== 'granted') {
+      return;
+    }
+
+    void ensureSubscription().catch(() => undefined);
+  }, [ensureSubscription, isIos, isStandalone, notificationPermission]);
 
   if (isIos && !isStandalone) {
     return (
@@ -55,34 +103,15 @@ export function NotificationPrompt({
     return null;
   }
 
-  if (status === 'done') {
-    return (
-      <p className="text-sm text-slate-600">Pick alerts are on for this device.</p>
-    );
+  if (status === 'hidden' || notificationPermission === 'denied') {
+    return null;
   }
 
   async function enableAlerts(): Promise<void> {
     setStatus('saving');
     try {
-      if (onEnable) {
-        await onEnable();
-      } else {
-        const registration = await registerLocksServiceWorker();
-        if (!registration) {
-          throw new Error('Push is not available');
-        }
-        const publicKey = await loadVapidKey(accessToken, apiBaseUrl);
-        const subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: vapidKeyToBytes(publicKey),
-        });
-        const payload = toPushSubscriptionRequest(subscription);
-        if (!payload) {
-          throw new Error('Subscription was missing keys');
-        }
-        await saveSubscription(accessToken, payload, apiBaseUrl);
-      }
-      setStatus('done');
+      await ensureSubscription();
+      setStatus('hidden');
     } catch {
       setStatus('error');
     }
