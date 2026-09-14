@@ -179,12 +179,27 @@ async function queryWeekPicks(
     }));
 }
 
+/** ESPN scoreboard `dates` uses the US Eastern calendar day of kickoff. */
 function kickoffDate(commenceTime: string): string | null {
   const kickoff = new Date(commenceTime);
   if (!Number.isFinite(kickoff.getTime())) {
     return null;
   }
-  return kickoff.toISOString().slice(0, 10).replaceAll('-', '');
+
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(kickoff);
+  const year = parts.find((part) => part.type === 'year')?.value;
+  const month = parts.find((part) => part.type === 'month')?.value;
+  const day = parts.find((part) => part.type === 'day')?.value;
+  if (!year || !month || !day) {
+    return null;
+  }
+
+  return `${year}${month}${day}`;
 }
 
 async function fetchFinalScores(

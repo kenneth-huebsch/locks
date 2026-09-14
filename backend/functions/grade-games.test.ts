@@ -178,7 +178,8 @@ describe('grade-games handler', () => {
       picksGraded: 1,
       picksSkipped: 1,
     });
-    expect(espnClient.fetchFinalScores).toHaveBeenCalledWith('20260810');
+    // 2026-08-10T00:20Z is still Aug 9 evening ET — ESPN uses that local day.
+    expect(espnClient.fetchFinalScores).toHaveBeenCalledWith('20260809');
 
     const updates = send.mock.calls
       .map(([command]) => command)
@@ -250,9 +251,43 @@ describe('grade-games handler', () => {
     await handler();
     restore();
 
+    // Late ET kickoffs land on the prior UTC calendar day; afternoon stays same ET day.
     expect(espnClient.fetchFinalScores).toHaveBeenCalledTimes(2);
+    expect(espnClient.fetchFinalScores).toHaveBeenCalledWith('20260809');
     expect(espnClient.fetchFinalScores).toHaveBeenCalledWith('20260810');
-    expect(espnClient.fetchFinalScores).toHaveBeenCalledWith('20260811');
+  });
+
+  it('maps a Sep 10 00:20Z TNF kickoff to ESPN date 20260909', async () => {
+    const send = vi.fn().mockImplementation((command) => {
+      if (command instanceof GetCommand) {
+        return Promise.resolve({ Item: { season: 2026, week: 1 } });
+      }
+      if (command instanceof QueryCommand) {
+        if (command.input.IndexName === 'GSI1') {
+          return Promise.resolve({ Items: [] });
+        }
+        return Promise.resolve({
+          Items: [
+            {
+              id: 'ne-sea',
+              awayTeam: 'New England Patriots',
+              homeTeam: 'Seattle Seahawks',
+              commenceTime: '2026-09-10T00:20:00.000Z',
+            },
+          ],
+        });
+      }
+      return Promise.resolve({});
+    });
+    const espnClient = {
+      fetchFinalScores: vi.fn().mockResolvedValue([]),
+    } satisfies EspnScoreboardClient;
+    const { handler, restore } = createHandler({ send, espnClient });
+
+    await handler();
+    restore();
+
+    expect(espnClient.fetchFinalScores).toHaveBeenCalledWith('20260909');
   });
 
   it('does not finalize an ESPN game whose team names do not match', async () => {
