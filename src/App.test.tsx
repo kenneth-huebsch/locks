@@ -185,6 +185,7 @@ const unauthenticatedAuth: AppAuth = {
   isAuthenticated: false,
   isLoading: false,
   signinRedirect: vi.fn(),
+  signinSilent: vi.fn(),
   logout: vi.fn(),
 };
 
@@ -211,7 +212,7 @@ function renderApp(
 }
 
 describe('App', () => {
-  it('redirects to Cognito login when unauthenticated', () => {
+  it('redirects to Cognito login when unauthenticated with no refresh token', () => {
     render(
       <App
         auth={unauthenticatedAuth}
@@ -224,7 +225,58 @@ describe('App', () => {
     );
 
     expect(unauthenticatedAuth.signinRedirect).toHaveBeenCalledOnce();
+    expect(unauthenticatedAuth.signinSilent).not.toHaveBeenCalled();
     expect(screen.getByText(/redirecting to sign in/i)).toBeInTheDocument();
+  });
+
+  it('tries silent renew before Cognito when a refresh token is stored', async () => {
+    const signinSilent = vi.fn().mockResolvedValue(undefined);
+    const signinRedirect = vi.fn();
+
+    render(
+      <App
+        auth={{
+          ...unauthenticatedAuth,
+          hasRefreshToken: true,
+          signinSilent,
+          signinRedirect,
+        }}
+        listWeeks={vi.fn()}
+        loadStandings={vi.fn()}
+        loadPushVapidKey={vi.fn()}
+        savePushSubscription={vi.fn()}
+        loadWeek={vi.fn()}
+      />,
+    );
+
+    expect(signinSilent).toHaveBeenCalledOnce();
+    expect(signinRedirect).not.toHaveBeenCalled();
+  });
+
+  it('falls back to Cognito when silent renew fails', async () => {
+    const signinSilent = vi.fn().mockRejectedValue(new Error('renew failed'));
+    const signinRedirect = vi.fn();
+
+    render(
+      <App
+        auth={{
+          ...unauthenticatedAuth,
+          hasRefreshToken: true,
+          signinSilent,
+          signinRedirect,
+        }}
+        listWeeks={vi.fn()}
+        loadStandings={vi.fn()}
+        loadPushVapidKey={vi.fn()}
+        savePushSubscription={vi.fn()}
+        loadWeek={vi.fn()}
+      />,
+    );
+
+    expect(signinSilent).toHaveBeenCalledOnce();
+    await vi.waitFor(() => {
+      expect(signinRedirect).toHaveBeenCalledOnce();
+    });
   });
 
   it('shows Weeks/Standings nav and current-week pick entry by default', async () => {

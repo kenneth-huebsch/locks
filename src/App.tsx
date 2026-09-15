@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   CurrentWeekResponse,
   StandingsResponse,
@@ -16,7 +16,10 @@ export interface AppAuth {
   error?: Error;
   accessToken?: string;
   userSub?: string;
+  /** True when localStorage still has a Cognito refresh token. */
+  hasRefreshToken?: boolean;
   signinRedirect: () => void | Promise<void>;
+  signinSilent?: () => void | Promise<unknown>;
   logout: () => void | Promise<void>;
 }
 
@@ -82,6 +85,7 @@ export function App({
   const [standings, setStandings] = useState<StandingsResponse>();
   const [view, setView] = useState<AppView>('week');
   const [loadError, setLoadError] = useState<string>();
+  const refreshRenewAttempted = useRef(false);
 
   const refreshSelectedWeek = useCallback(async (): Promise<void> => {
     if (!auth.accessToken || !selectedWeek || view !== 'week') {
@@ -106,10 +110,30 @@ export function App({
   }, [auth.accessToken, auth.userSub, loadWeek, selectedWeek, view]);
 
   useEffect(() => {
-    if (!auth.isLoading && !auth.isAuthenticated) {
-      void auth.signinRedirect();
+    if (auth.isLoading || auth.isAuthenticated) {
+      return;
     }
-  }, [auth.isAuthenticated, auth.isLoading, auth.signinRedirect]);
+
+    if (
+      auth.hasRefreshToken &&
+      auth.signinSilent &&
+      !refreshRenewAttempted.current
+    ) {
+      refreshRenewAttempted.current = true;
+      void Promise.resolve(auth.signinSilent()).catch(() => {
+        void auth.signinRedirect();
+      });
+      return;
+    }
+
+    void auth.signinRedirect();
+  }, [
+    auth.hasRefreshToken,
+    auth.isAuthenticated,
+    auth.isLoading,
+    auth.signinRedirect,
+    auth.signinSilent,
+  ]);
 
   useEffect(() => {
     if (!auth.isAuthenticated || !auth.accessToken) {

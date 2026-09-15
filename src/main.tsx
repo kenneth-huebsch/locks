@@ -61,7 +61,9 @@ function AuthenticatedApp({ config }: { config: RuntimeConfig }) {
         error: auth.error,
         accessToken: auth.user?.access_token,
         userSub: auth.user?.profile.sub,
+        hasRefreshToken: Boolean(auth.user?.refresh_token),
         signinRedirect: auth.signinRedirect,
+        signinSilent: auth.signinSilent,
         logout,
       }}
       loadStandings={loadStandingsForConfig}
