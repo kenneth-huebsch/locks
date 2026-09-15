@@ -622,6 +622,7 @@ describe('LocksGitHubOidcStack', () => {
         'arn:aws:lambda:us-east-1:580956784928:function:LocksAppStack-SyncOddsFunction*',
         'arn:aws:lambda:us-east-1:580956784928:function:LocksAppStack-SubmitPickFunction*',
         'arn:aws:lambda:us-east-1:580956784928:function:LocksAppStack-GradeGamesFunction*',
+        'arn:aws:lambda:us-east-1:580956784928:function:LocksAppStack-RemindIncompleteFunction*',
         'arn:aws:cognito-idp:us-east-1:580956784928:userpool/*',
 ]),
     );
@@ -642,6 +643,7 @@ describe('LocksGitHubOidcStack', () => {
         'arn:aws:lambda:us-east-1:580956784928:function:LocksAppStack-SyncOddsFunction*',
         'arn:aws:lambda:us-east-1:580956784928:function:LocksAppStack-SubmitPickFunction*',
         'arn:aws:lambda:us-east-1:580956784928:function:LocksAppStack-GradeGamesFunction*',
+        'arn:aws:lambda:us-east-1:580956784928:function:LocksAppStack-RemindIncompleteFunction*',
       ]),
     });
   });

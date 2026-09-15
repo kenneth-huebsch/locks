@@ -898,6 +898,7 @@ export class LocksGitHubOidcStack extends Stack {
           `arn:aws:lambda:${TARGET_REGION}:${TARGET_ACCOUNT}:function:LocksAppStack-SyncOddsFunction*`,
           `arn:aws:lambda:${TARGET_REGION}:${TARGET_ACCOUNT}:function:LocksAppStack-SubmitPickFunction*`,
           `arn:aws:lambda:${TARGET_REGION}:${TARGET_ACCOUNT}:function:LocksAppStack-GradeGamesFunction*`,
+          `arn:aws:lambda:${TARGET_REGION}:${TARGET_ACCOUNT}:function:LocksAppStack-RemindIncompleteFunction*`,
         ],
       }),
     );
