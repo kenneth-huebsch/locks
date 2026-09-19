@@ -40,8 +40,9 @@ export function formatSurvivorPickNotification(input: {
   displayName: string;
   pickedTeam: string;
 }): string {
-  const city = findTeam(input.pickedTeam)?.city ?? input.pickedTeam;
-  return `🛡️ ${input.displayName} survived with ${city}`;
+  const teamName =
+    findTeam(input.pickedTeam)?.fullName ?? input.pickedTeam;
+  return `🔥 ${input.displayName} picked ${teamName} for survival`;
 }
 
 export function formatSurvivorIncompleteReminder(): string {
