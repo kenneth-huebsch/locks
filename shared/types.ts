@@ -57,6 +57,10 @@ export interface WinLossTie {
   pushes: number;
 }
 
+export type SurvivorPlayerStatus = 'alive' | 'eliminated' | 'winner';
+export type SurvivorChallengeStatus = 'active' | 'complete';
+export type SurvivorPickResult = 'pending' | 'win' | 'loss';
+
 export interface PlayerWeekStandings {
   season: number;
   week: number;
@@ -69,6 +73,8 @@ export interface PlayerStandings {
   playerId: string;
   season: WinLossTie;
   weeks: PlayerWeekStandings[];
+  /** Survivor challenge status for this season; null if not configured. */
+  survivorStatus: SurvivorPlayerStatus | null;
 }
 
 export interface StandingsResponse {
@@ -89,10 +95,6 @@ export interface IncompletePicksResponse {
   maxPicks: number;
   incomplete: IncompletePicksPlayer[];
 }
-
-export type SurvivorPlayerStatus = 'alive' | 'eliminated' | 'winner';
-export type SurvivorChallengeStatus = 'active' | 'complete';
-export type SurvivorPickResult = 'pending' | 'win' | 'loss';
 
 export interface SurvivorPick {
   playerId: string;

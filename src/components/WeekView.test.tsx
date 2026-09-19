@@ -105,14 +105,14 @@ describe('WeekView', () => {
     const user = userEvent.setup();
     renderWeekView();
 
-    expect(screen.queryByRole('button', { name: /^lock$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /🔒 Lock/i })).not.toBeInTheDocument();
 
     await user.click(
       screen.getByRole('button', { name: /Dallas Cowboys \(DAL\) -3\.5/i }),
     );
 
-    expect(screen.getByRole('button', { name: /^lock$/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^survive$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /🔒 Lock/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /🔥 Survive/i })).toBeInTheDocument();
   });
 
   it('unselects when tapping the already-selected team again', async () => {
@@ -124,10 +124,10 @@ describe('WeekView', () => {
     });
 
     await user.click(dallasButton);
-    expect(screen.getByRole('button', { name: /^lock$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /🔒 Lock/i })).toBeInTheDocument();
 
     await user.click(dallasButton);
-    expect(screen.queryByRole('button', { name: /^lock$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /🔒 Lock/i })).not.toBeInTheDocument();
   });
 
   it('submits a lock through Lock then Confirm', async () => {
@@ -137,7 +137,7 @@ describe('WeekView', () => {
     await user.click(
       screen.getByRole('button', { name: /New York Giants \(NYG\) \+2\.5/i }),
     );
-    await user.click(screen.getByRole('button', { name: /^lock$/i }));
+    await user.click(screen.getByRole('button', { name: /🔒 Lock/i }));
     await user.click(screen.getByRole('button', { name: /^confirm$/i }));
 
     await waitFor(() => {
@@ -164,8 +164,8 @@ describe('WeekView', () => {
       screen.getByRole('button', { name: /Dallas Cowboys \(DAL\) -3\.5/i }),
     );
 
-    expect(screen.queryByRole('button', { name: /^lock$/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^survive$/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /🔒 Lock/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /🔥 Survive/i })).toBeInTheDocument();
   });
 
   it('hides Survive when the player cannot pick survivor', async () => {
@@ -179,8 +179,8 @@ describe('WeekView', () => {
       screen.getByRole('button', { name: /Dallas Cowboys \(DAL\) -3\.5/i }),
     );
 
-    expect(screen.getByRole('button', { name: /^lock$/i })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^survive$/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /🔒 Lock/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /🔥 Survive/i })).not.toBeInTheDocument();
   });
 
   it('keeps pending selection and shows error when lock submit fails', async () => {
@@ -196,13 +196,13 @@ describe('WeekView', () => {
     await user.click(
       screen.getByRole('button', { name: /Dallas Cowboys \(DAL\) -3\.5/i }),
     );
-    await user.click(screen.getByRole('button', { name: /^lock$/i }));
+    await user.click(screen.getByRole('button', { name: /🔒 Lock/i }));
     await user.click(screen.getByRole('button', { name: /^confirm$/i }));
 
     expect(
       await screen.findByText(/odds have changed — please refresh/i),
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^lock$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /🔒 Lock/i })).toBeInTheDocument();
     expect(onRefresh).not.toHaveBeenCalled();
   });
 
@@ -227,14 +227,14 @@ describe('WeekView', () => {
     await user.click(
       screen.getByRole('button', { name: /Dallas Cowboys \(DAL\) -3\.5/i }),
     );
-    await user.click(screen.getByRole('button', { name: /^lock$/i }));
+    await user.click(screen.getByRole('button', { name: /🔒 Lock/i }));
     await user.click(screen.getByRole('button', { name: /^confirm$/i }));
 
     await waitFor(() => {
       expect(onRefresh).toHaveBeenCalled();
     });
 
-    expect(screen.queryByRole('button', { name: /^lock$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /🔒 Lock/i })).not.toBeInTheDocument();
   });
 
   it('shows peer picks returned by the API for an unstarted game', () => {

@@ -139,6 +139,7 @@ export function computeStandingsFromPicks(
       playerId,
       season: seasonRecord,
       weeks,
+      survivorStatus: null,
     };
   });
 

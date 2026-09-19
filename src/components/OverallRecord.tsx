@@ -1,9 +1,24 @@
-import type { StandingsResponse } from '../../shared/types';
+import type {
+  StandingsResponse,
+  SurvivorPlayerStatus,
+} from '../../shared/types';
 import { formatPlayerRecord } from '../lib/records';
 import { LEAGUE_ROSTER } from '../lib/players';
 
 export interface OverallRecordProps {
   standings: StandingsResponse;
+}
+
+function survivorLabel(
+  status: SurvivorPlayerStatus | null | undefined,
+): string | null {
+  if (status === 'alive' || status === 'winner') {
+    return '🔥 Alive';
+  }
+  if (status === 'eliminated') {
+    return '☠️ Dead';
+  }
+  return null;
 }
 
 export function OverallRecord({ standings }: OverallRecordProps) {
@@ -22,11 +37,13 @@ export function OverallRecord({ standings }: OverallRecordProps) {
 
       <ul className="mt-8 grid gap-4 sm:grid-cols-3">
         {LEAGUE_ROSTER.map((player) => {
-          const record = standingsByPlayer.get(player.sub)?.season ?? {
+          const entry = standingsByPlayer.get(player.sub);
+          const record = entry?.season ?? {
             wins: 0,
             losses: 0,
             pushes: 0,
           };
+          const survivor = survivorLabel(entry?.survivorStatus);
 
           return (
             <li
@@ -40,6 +57,18 @@ export function OverallRecord({ standings }: OverallRecordProps) {
               />
               <div className="px-4 py-3 text-center">
                 <h3 className="font-bold text-blue-950">{player.displayName}</h3>
+                {survivor ? (
+                  <p
+                    className={`mt-1 text-sm font-semibold ${
+                      survivor.includes('Alive')
+                        ? 'text-red-700'
+                        : 'text-slate-600'
+                    }`}
+                    aria-label={`${player.displayName} survivor status`}
+                  >
+                    {survivor}
+                  </p>
+                ) : null}
                 <p
                   className="mt-1 text-2xl font-black tabular-nums text-slate-800"
                   aria-label={`${player.displayName} overall record`}

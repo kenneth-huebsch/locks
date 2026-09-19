@@ -7,6 +7,9 @@ import {
 import {
   ACTIVE_SEASON_PARTITION_KEY,
   ACTIVE_SEASON_SORT_KEY,
+  SURVIVOR_META_SORT_KEY,
+  survivorChallengePartitionKey,
+  survivorPlayerSortKey,
   weekPartitionKey,
 } from '../../shared/dynamo.js';
 import { FOUNDATION_WEEK } from '../../shared/foundation.js';
@@ -16,6 +19,7 @@ import {
   type ApiErrorResponse,
   type Pick as PickRecord,
   type StandingsResponse,
+  type SurvivorPlayerStatus,
 } from '../../shared/types.js';
 
 export interface ApiGatewayJwtEvent {
@@ -110,6 +114,58 @@ async function loadSeasonPicks(
   return picksByWeek.flat();
 }
 
+async function loadSurvivorStatuses(
+  dynamoClient: DynamoStandingsClient,
+  tableName: string,
+  season: number,
+  playerIds: readonly string[],
+): Promise<Map<string, SurvivorPlayerStatus | null>> {
+  const challengePk = survivorChallengePartitionKey(season);
+  const meta = await dynamoClient.send(
+    new GetCommand({
+      TableName: tableName,
+      Key: { PK: challengePk, SK: SURVIVOR_META_SORT_KEY },
+    }),
+  );
+
+  const statuses = new Map<string, SurvivorPlayerStatus | null>();
+  if (!meta.Item) {
+    for (const playerId of playerIds) {
+      statuses.set(playerId, null);
+    }
+    return statuses;
+  }
+
+  const playerResults = await Promise.all(
+    playerIds.map((playerId) =>
+      dynamoClient.send(
+        new GetCommand({
+          TableName: tableName,
+          Key: {
+            PK: challengePk,
+            SK: survivorPlayerSortKey(playerId),
+          },
+        }),
+      ),
+    ),
+  );
+
+  for (const [index, playerId] of playerIds.entries()) {
+    const status = playerResults[index]?.Item?.status;
+    if (
+      status === 'alive' ||
+      status === 'eliminated' ||
+      status === 'winner'
+    ) {
+      statuses.set(playerId, status);
+    } else {
+      statuses.set(playerId, null);
+    }
+  }
+
+  return statuses;
+}
+
 export function createStandingsHandler(
   dependencies: StandingsDependencies,
 ): (event: ApiGatewayJwtEvent) => Promise<LambdaResponse> {
@@ -167,12 +223,24 @@ export function createStandingsHandler(
         season,
         currentWeek,
       );
+      const playerIds =
+        dependencies.playerIds ?? LEAGUE_ROSTER.map((player) => player.sub);
       const response = computeStandingsFromPicks(
         picks,
         season,
         currentWeek,
-        dependencies.playerIds ?? LEAGUE_ROSTER.map((player) => player.sub),
+        playerIds,
       );
+      const survivorStatuses = await loadSurvivorStatuses(
+        dependencies.dynamoClient,
+        dependencies.tableName,
+        season,
+        playerIds,
+      );
+      response.players = response.players.map((player) => ({
+        ...player,
+        survivorStatus: survivorStatuses.get(player.playerId) ?? null,
+      }));
 
       return {
         statusCode: 200,

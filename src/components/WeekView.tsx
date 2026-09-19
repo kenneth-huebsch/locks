@@ -269,16 +269,16 @@ export function WeekView({
                 onClick={() => setConfirmMode('lock')}
                 type="button"
               >
-                Lock
+                🔒 Lock
               </button>
             ) : null}
             {showSurviveForSelection ? (
               <button
-                className="flex-1 border-2 border-blue-950 bg-white px-5 py-3 font-bold text-blue-950 hover:bg-blue-50"
+                className="flex-1 border-2 border-red-700 bg-white px-5 py-3 font-bold text-red-700 hover:bg-red-50"
                 onClick={() => setConfirmMode('survive')}
                 type="button"
               >
-                Survive
+                🔥 Survive
               </button>
             ) : null}
           </div>

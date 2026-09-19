@@ -162,6 +162,7 @@ describe('computeStandingsFromPicks', () => {
       players: [
         {
           playerId: 'jack',
+          survivorStatus: null,
           season: { wins: 0, losses: 1, pushes: 1 },
           weeks: [
             {
@@ -182,6 +183,7 @@ describe('computeStandingsFromPicks', () => {
         },
         {
           playerId: 'kenny',
+          survivorStatus: null,
           season: { wins: 2, losses: 1, pushes: 0 },
           weeks: [
             {
@@ -215,6 +217,7 @@ describe('computeStandingsFromPicks', () => {
     expect(standings.players).toEqual([
       {
         playerId: 'kenny',
+        survivorStatus: null,
         season: { wins: 1, losses: 0, pushes: 0 },
         weeks: [
           {
@@ -235,6 +238,7 @@ describe('computeStandingsFromPicks', () => {
       },
       {
         playerId: 'eric',
+        survivorStatus: null,
         season: { wins: 0, losses: 3, pushes: 0 },
         weeks: [
           {

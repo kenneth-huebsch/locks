@@ -95,6 +95,13 @@ describe('standings handler', () => {
   it('returns the full roster when there are no current-week picks', async () => {
     const send = vi.fn(async (command) => {
       if (command instanceof GetCommand) {
+        const key = command.input.Key ?? {};
+        if (
+          typeof key.PK === 'string' &&
+          key.PK.startsWith('SURVIVOR#')
+        ) {
+          return {};
+        }
         return activeSeasonGet(1);
       }
       if (command instanceof QueryCommand) {
@@ -113,6 +120,7 @@ describe('standings handler', () => {
       players: [
         {
           playerId: PLAYER_A,
+          survivorStatus: null,
           season: { wins: 0, losses: 0, pushes: 0 },
           weeks: [
             {
@@ -126,6 +134,7 @@ describe('standings handler', () => {
         },
         {
           playerId: PLAYER_B,
+          survivorStatus: null,
           season: { wins: 0, losses: 0, pushes: 0 },
           weeks: [
             {
@@ -139,7 +148,8 @@ describe('standings handler', () => {
         },
       ],
     });
-    expect(send).toHaveBeenCalledTimes(2);
+    // active season + week picks + survivor meta
+    expect(send).toHaveBeenCalledTimes(3);
   });
 
   it('returns foundation empty standings when active season metadata is missing', async () => {
@@ -164,6 +174,13 @@ describe('standings handler', () => {
   it('computes mixed season and weekly records from GSI week queries', async () => {
     const send = vi.fn(async (command) => {
       if (command instanceof GetCommand) {
+        const key = command.input.Key ?? {};
+        if (
+          typeof key.PK === 'string' &&
+          key.PK.startsWith('SURVIVOR#')
+        ) {
+          return {};
+        }
         return activeSeasonGet();
       }
       if (command instanceof QueryCommand) {
@@ -200,6 +217,7 @@ describe('standings handler', () => {
     expect(body.players).toEqual([
       {
         playerId: PLAYER_A,
+        survivorStatus: null,
         season: { wins: 2, losses: 1, pushes: 0 },
         weeks: [
           {
@@ -220,6 +238,7 @@ describe('standings handler', () => {
       },
       {
         playerId: PLAYER_B,
+        survivorStatus: null,
         season: { wins: 0, losses: 1, pushes: 1 },
         weeks: [
           {
@@ -239,6 +258,7 @@ describe('standings handler', () => {
         ],
       },
     ]);
-    expect(send).toHaveBeenCalledTimes(3);
+    // active season + 2 week queries + survivor meta
+    expect(send).toHaveBeenCalledTimes(4);
   });
 });

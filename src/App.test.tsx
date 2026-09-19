@@ -102,6 +102,7 @@ const standings: StandingsResponse = {
   players: [
     {
       playerId: KENNY_SUB,
+      survivorStatus: 'alive',
       season: { wins: 1, losses: 3, pushes: 0 },
       weeks: [
         {
@@ -129,6 +130,7 @@ const standings: StandingsResponse = {
     },
     {
       playerId: JACK_SUB,
+      survivorStatus: 'alive',
       season: { wins: 0, losses: 4, pushes: 0 },
       weeks: [
         {
@@ -156,6 +158,7 @@ const standings: StandingsResponse = {
     },
     {
       playerId: ERIC_SUB,
+      survivorStatus: 'alive',
       season: { wins: 0, losses: 6, pushes: 0 },
       weeks: [
         {
