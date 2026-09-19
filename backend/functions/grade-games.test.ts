@@ -36,10 +36,21 @@ function createHandler(
     overrides.send ??
     vi.fn().mockImplementation((command) => {
       if (command instanceof GetCommand) {
+        const key = command.input.Key ?? {};
+        if (typeof key.PK === 'string' && key.PK.startsWith('SURVIVOR#')) {
+          return Promise.resolve({});
+        }
         return Promise.resolve({ Item: { season: 2026, week: 2 } });
       }
       if (command instanceof QueryCommand) {
         if (command.input.IndexName === 'GSI1') {
+          const values = command.input.ExpressionAttributeValues ?? {};
+          if (
+            typeof values[':prefix'] === 'string' &&
+            String(values[':prefix']).startsWith('SURVIVOR#')
+          ) {
+            return Promise.resolve({ Items: [] });
+          }
           return Promise.resolve({
             Items: [
               {
@@ -177,6 +188,8 @@ describe('grade-games handler', () => {
       gamesFinalized: 1,
       picksGraded: 1,
       picksSkipped: 1,
+      survivorPicksGraded: 0,
+      survivorEliminated: 0,
     });
     // 2026-08-10T00:20Z is still Aug 9 evening ET — ESPN uses that local day.
     expect(espnClient.fetchFinalScores).toHaveBeenCalledWith('20260809');

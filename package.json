@@ -13,6 +13,7 @@
     "destroy:oidc": "cdk --app \"npx tsx infrastructure/bin/locks.ts\" destroy LocksGitHubOidcStack --force",
     "lint": "eslint .",
     "seed": "tsx scripts/seed-foundation.ts",
+    "seed:survivor": "tsx scripts/seed-survivor.ts",
     "synth": "npm run cdk -- synth",
     "test": "vitest run",
     "test:watch": "vitest",

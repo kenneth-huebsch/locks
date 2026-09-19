@@ -36,6 +36,18 @@ export function formatIncompleteReminder(remainingPicks: number): string {
   return `You still have ${remainingPicks} ${noun} left. Open Locks and get them in.`;
 }
 
+export function formatSurvivorPickNotification(input: {
+  displayName: string;
+  pickedTeam: string;
+}): string {
+  const city = findTeam(input.pickedTeam)?.city ?? input.pickedTeam;
+  return `🛡️ ${input.displayName} survived with ${city}`;
+}
+
+export function formatSurvivorIncompleteReminder(): string {
+  return 'You still need a survivor pick this week. Open Locks and Survive before kickoff.';
+}
+
 export function isOppositeSidePick(
   pickedTeam: string,
   otherPickedTeam: string,

@@ -72,3 +72,22 @@ export const PUSH_SUBSCRIPTION_SORT_PREFIX = 'PUSH#';
 export function pushSubscriptionSortKey(endpointHash: string): string {
   return `${PUSH_SUBSCRIPTION_SORT_PREFIX}${endpointHash}`;
 }
+
+export const SURVIVOR_META_SORT_KEY = 'META';
+export const SURVIVOR_PICK_SK_PREFIX = 'SURVIVOR#';
+
+export function survivorChallengePartitionKey(season: number): string {
+  return `SURVIVOR#${season}`;
+}
+
+export function survivorPlayerSortKey(cognitoSub: string): string {
+  return `PLAYER#${cognitoSub}`;
+}
+
+export function survivorPickSortKey(season: number, week: number): string {
+  return `${SURVIVOR_PICK_SK_PREFIX}${seasonWeekToken(season, week)}`;
+}
+
+export function survivorPickGsi1SortKey(cognitoSub: string): string {
+  return `${SURVIVOR_PICK_SK_PREFIX}${cognitoSub}`;
+}

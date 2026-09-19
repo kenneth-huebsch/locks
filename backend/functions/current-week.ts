@@ -12,18 +12,26 @@ import {
   parseSeasonWeekToken,
   playerPartitionKey,
   seasonWeekToken,
+  survivorChallengePartitionKey,
+  survivorPlayerSortKey,
+  SURVIVOR_META_SORT_KEY,
+  SURVIVOR_PICK_SK_PREFIX,
   weekPartitionKey,
 } from '../../shared/dynamo.js';
 import {
   FOUNDATION_WEEK,
   FOUNDATION_WEEK_KEY,
 } from '../../shared/foundation.js';
+import { survivorCanPick } from '../../shared/survivor.js';
 import {
   type ApiErrorResponse,
   type CurrentWeekResponse,
   ErrorCodes,
   type Game,
   type Pick as PickRecord,
+  type SurvivorPick,
+  type SurvivorPlayerStatus,
+  type SurvivorWeekState,
   type Week,
   type WeekSummary,
 } from '../../shared/types.js';
@@ -98,6 +106,39 @@ function toPick(item: Record<string, unknown>): PickRecord {
   };
 }
 
+function toSurvivorPick(item: Record<string, unknown>): SurvivorPick | null {
+  if (
+    typeof item.playerId !== 'string' ||
+    typeof item.gameId !== 'string' ||
+    typeof item.pickedTeam !== 'string' ||
+    typeof item.result !== 'string'
+  ) {
+    return null;
+  }
+
+  return {
+    playerId: item.playerId,
+    gameId: item.gameId,
+    seasonWeek:
+      typeof item.seasonWeek === 'string' ? item.seasonWeek : '',
+    pickedTeam: item.pickedTeam,
+    submittedAt:
+      typeof item.submittedAt === 'string' ? item.submittedAt : '',
+    result: item.result as SurvivorPick['result'],
+  };
+}
+
+function emptySurvivorState(): SurvivorWeekState {
+  return {
+    challengeStatus: 'active',
+    winners: [],
+    myStatus: null,
+    usedTeams: [],
+    canPick: false,
+    picks: [],
+  };
+}
+
 function getPlayerSub(event: ApiGatewayJwtEvent): string | null {
   const sub = event.requestContext.authorizer?.jwt?.claims.sub;
   return typeof sub === 'string' && sub.length > 0 ? sub : null;
@@ -146,6 +187,7 @@ async function loadFoundationWeek(
     picks: [],
     remainingPicks: MAX_WEEKLY_PICKS,
     oddsUpdatedAt: null,
+    survivor: emptySurvivorState(),
   };
 }
 
@@ -169,6 +211,86 @@ async function queryWeekPicks(
   );
 
   return (result.Items ?? []).map((item) => toPick(item));
+}
+
+async function queryWeekSurvivorPicks(
+  dynamoClient: DynamoCurrentWeekClient,
+  tableName: string,
+  season: number,
+  week: number,
+): Promise<SurvivorPick[]> {
+  const result = await dynamoClient.send(
+    new QueryCommand({
+      TableName: tableName,
+      IndexName: GSI1_INDEX_NAME,
+      KeyConditionExpression:
+        'GSI1PK = :weekPk AND begins_with(GSI1SK, :prefix)',
+      ExpressionAttributeValues: {
+        ':weekPk': weekPartitionKey(season, week),
+        ':prefix': SURVIVOR_PICK_SK_PREFIX,
+      },
+    }),
+  );
+
+  return (result.Items ?? [])
+    .map((item) => toSurvivorPick(item))
+    .filter((item): item is SurvivorPick => item !== null);
+}
+
+async function loadSurvivorState(
+  dynamoClient: DynamoCurrentWeekClient,
+  tableName: string,
+  season: number,
+  week: number,
+  playerSub: string,
+): Promise<SurvivorWeekState> {
+  const challengePk = survivorChallengePartitionKey(season);
+  const [metaResult, playerResult, picks] = await Promise.all([
+    dynamoClient.send(
+      new GetCommand({
+        TableName: tableName,
+        Key: { PK: challengePk, SK: SURVIVOR_META_SORT_KEY },
+      }),
+    ),
+    dynamoClient.send(
+      new GetCommand({
+        TableName: tableName,
+        Key: { PK: challengePk, SK: survivorPlayerSortKey(playerSub) },
+      }),
+    ),
+    queryWeekSurvivorPicks(dynamoClient, tableName, season, week),
+  ]);
+
+  if (!metaResult.Item) {
+    return emptySurvivorState();
+  }
+
+  const challengeStatus =
+    metaResult.Item.status === 'complete' ? 'complete' : 'active';
+  const winners = Array.isArray(metaResult.Item.winners)
+    ? (metaResult.Item.winners as string[])
+    : [];
+  const myStatus =
+    typeof playerResult.Item?.status === 'string'
+      ? (playerResult.Item.status as SurvivorPlayerStatus)
+      : null;
+  const usedTeams = Array.isArray(playerResult.Item?.usedTeams)
+    ? (playerResult.Item.usedTeams as string[])
+    : [];
+  const hasPickThisWeek = picks.some((pick) => pick.playerId === playerSub);
+
+  return {
+    challengeStatus,
+    winners,
+    myStatus,
+    usedTeams,
+    canPick: survivorCanPick({
+      challengeStatus,
+      myStatus,
+      hasPickThisWeek,
+    }),
+    picks,
+  };
 }
 
 function remainingPicksFromCounter(
@@ -205,33 +327,41 @@ async function loadWeekResponse(
   requireMetadata: boolean,
 ): Promise<CurrentWeekResponse | null> {
   const weekPk = weekPartitionKey(season, week);
-  const [weekMetaResult, games, picks, counterResult] = await Promise.all([
-    dependencies.dynamoClient.send(
-      new GetCommand({
-        TableName: dependencies.tableName,
-        Key: {
-          PK: weekPk,
-          SK: WEEK_META_SORT_KEY,
-        },
-      }),
-    ),
-    queryGames(dependencies.dynamoClient, dependencies.tableName, weekPk),
-    queryWeekPicks(
-      dependencies.dynamoClient,
-      dependencies.tableName,
-      season,
-      week,
-    ),
-    dependencies.dynamoClient.send(
-      new GetCommand({
-        TableName: dependencies.tableName,
-        Key: {
-          PK: playerPartitionKey(playerSub),
-          SK: counterSortKey(season, week),
-        },
-      }),
-    ),
-  ]);
+  const [weekMetaResult, games, picks, counterResult, survivor] =
+    await Promise.all([
+      dependencies.dynamoClient.send(
+        new GetCommand({
+          TableName: dependencies.tableName,
+          Key: {
+            PK: weekPk,
+            SK: WEEK_META_SORT_KEY,
+          },
+        }),
+      ),
+      queryGames(dependencies.dynamoClient, dependencies.tableName, weekPk),
+      queryWeekPicks(
+        dependencies.dynamoClient,
+        dependencies.tableName,
+        season,
+        week,
+      ),
+      dependencies.dynamoClient.send(
+        new GetCommand({
+          TableName: dependencies.tableName,
+          Key: {
+            PK: playerPartitionKey(playerSub),
+            SK: counterSortKey(season, week),
+          },
+        }),
+      ),
+      loadSurvivorState(
+        dependencies.dynamoClient,
+        dependencies.tableName,
+        season,
+        week,
+        playerSub,
+      ),
+    ]);
 
   const weekMeta = weekMetaResult.Item;
   if (requireMetadata && !weekMeta) {
@@ -264,6 +394,7 @@ async function loadWeekResponse(
     picks,
     remainingPicks: remainingPicksFromCounter(counterResult.Item),
     oddsUpdatedAt,
+    survivor,
   };
 }
 

@@ -14,8 +14,15 @@ import {
   PUSH_VAPID_SORT_KEY,
   counterSortKey,
   playerPartitionKey,
+  survivorChallengePartitionKey,
+  survivorPickSortKey,
+  survivorPlayerSortKey,
+  SURVIVOR_META_SORT_KEY,
 } from '../../shared/dynamo.js';
-import { formatIncompleteReminder } from '../../shared/push-copy.js';
+import {
+  formatIncompleteReminder,
+  formatSurvivorIncompleteReminder,
+} from '../../shared/push-copy.js';
 import { LEAGUE_ROSTER } from '../../shared/roster.js';
 import {
   createWebPushSender,
@@ -169,6 +176,112 @@ export function createRemindIncompleteHandler(
           }
         } catch (error) {
           logger.error('Failed to send incomplete-picks push notification', error);
+        }
+      }
+    }
+
+    const challengePk = survivorChallengePartitionKey(season);
+    const [survivorMeta, survivorPlayers, survivorPicks] = await Promise.all([
+      dependencies.dynamoClient.send(
+        new GetCommand({
+          TableName: dependencies.tableName,
+          Key: { PK: challengePk, SK: SURVIVOR_META_SORT_KEY },
+        }),
+      ),
+      Promise.all(
+        roster.map((player) =>
+          dependencies.dynamoClient.send(
+            new GetCommand({
+              TableName: dependencies.tableName,
+              Key: {
+                PK: challengePk,
+                SK: survivorPlayerSortKey(player.sub),
+              },
+            }),
+          ),
+        ),
+      ),
+      Promise.all(
+        roster.map((player) =>
+          dependencies.dynamoClient.send(
+            new GetCommand({
+              TableName: dependencies.tableName,
+              Key: {
+                PK: playerPartitionKey(player.sub),
+                SK: survivorPickSortKey(season, week),
+              },
+            }),
+          ),
+        ),
+      ),
+    ]);
+
+    if (survivorMeta?.Item?.status === 'active') {
+      const survivorIncomplete = roster.flatMap((player, index) => {
+        const state = survivorPlayers[index]?.Item;
+        if (state?.status !== 'alive') {
+          return [];
+        }
+        if (survivorPicks[index]?.Item) {
+          return [];
+        }
+        return [player];
+      });
+
+      const survivorBatches = await Promise.all(
+        survivorIncomplete.map(async (player) => {
+          const result = await dependencies.dynamoClient.send(
+            new QueryCommand({
+              TableName: dependencies.tableName,
+              KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
+              FilterExpression:
+                'attribute_not_exists(invalid) OR invalid = :false',
+              ExpressionAttributeValues: {
+                ':pk': playerPartitionKey(player.sub),
+                ':prefix': PUSH_SUBSCRIPTION_SORT_PREFIX,
+                ':false': false,
+              },
+            }),
+          );
+          return (result.Items ?? [])
+            .map((item) => parseStoredPushSubscription(item, player.sub))
+            .filter(
+              (
+                item,
+              ): item is StoredPushSubscription & { sortKey: string } =>
+                item !== null,
+            );
+        }),
+      );
+
+      const survivorPayload = formatSurvivorIncompleteReminder();
+      for (const subscriptions of survivorBatches) {
+        for (const subscription of subscriptions) {
+          try {
+            const result = await dependencies.pushSender.send(
+              subscription,
+              survivorPayload,
+              { publicKey, privateKey },
+            );
+            if (result === 'gone') {
+              await dependencies.dynamoClient.send(
+                new UpdateCommand({
+                  TableName: dependencies.tableName,
+                  Key: {
+                    PK: playerPartitionKey(subscription.playerId),
+                    SK: subscription.sortKey,
+                  },
+                  UpdateExpression: 'SET invalid = :true',
+                  ExpressionAttributeValues: { ':true': true },
+                }),
+              );
+            }
+          } catch (error) {
+            logger.error(
+              'Failed to send survivor incomplete push notification',
+              error,
+            );
+          }
         }
       }
     }

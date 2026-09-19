@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { emptySurvivorWeekState } from '../lib/survivorState';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { CurrentWeekResponse } from '../../shared/types';
@@ -18,9 +19,10 @@ vi.mock('../api', () => ({
     }
   },
   submitPick: vi.fn(),
+  submitSurvivorPick: vi.fn(),
 }));
 
-import { submitPick } from '../api';
+import { submitPick, submitSurvivorPick } from '../api';
 
 const mockWeek: CurrentWeekResponse = {
   week: {
@@ -63,6 +65,7 @@ const mockWeek: CurrentWeekResponse = {
   ],
   picks: [],
   remainingPicks: 2,
+  survivor: emptySurvivorWeekState(),
   oddsUpdatedAt: '2099-09-09T12:00:00.000Z',
 };
 
@@ -83,12 +86,13 @@ function renderWeekView(
 describe('WeekView', () => {
   beforeEach(() => {
     vi.mocked(submitPick).mockReset();
+    vi.mocked(submitSurvivorPick).mockReset();
   });
 
-  it('shows remaining picks and lines updated without banner or season record', () => {
+  it('shows remaining locks and lines updated without banner or season record', () => {
     renderWeekView();
 
-    expect(screen.getByText(/2 picks remaining/i)).toBeInTheDocument();
+    expect(screen.getByText(/2 locks remaining/i)).toBeInTheDocument();
     expect(screen.getByText(/lines last updated/i)).toBeInTheDocument();
     expect(
       screen.queryByText(/picks are final once submitted/i),
@@ -97,21 +101,18 @@ describe('WeekView', () => {
     expect(screen.queryByText('0-0-0')).not.toBeInTheDocument();
   });
 
-  it('selects a team and shows the singular submit button', async () => {
+  it('selects a team and shows Lock and Survive actions', async () => {
     const user = userEvent.setup();
     renderWeekView();
 
-    expect(
-      screen.queryByRole('button', { name: /submit pick/i }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^lock$/i })).not.toBeInTheDocument();
 
     await user.click(
       screen.getByRole('button', { name: /Dallas Cowboys \(DAL\) -3\.5/i }),
     );
 
-    expect(
-      screen.getByRole('button', { name: /submit pick/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^lock$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^survive$/i })).toBeInTheDocument();
   });
 
   it('unselects when tapping the already-selected team again', async () => {
@@ -123,51 +124,20 @@ describe('WeekView', () => {
     });
 
     await user.click(dallasButton);
-    expect(
-      screen.getByRole('button', { name: /submit pick/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^lock$/i })).toBeInTheDocument();
 
     await user.click(dallasButton);
-    expect(
-      screen.queryByRole('button', { name: /submit pick/i }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^lock$/i })).not.toBeInTheDocument();
   });
 
-  it('moves selection to a different team in the same game', async () => {
+  it('submits a lock through Lock then Confirm', async () => {
     const user = userEvent.setup();
     renderWeekView();
 
-    await user.click(
-      screen.getByRole('button', { name: /Dallas Cowboys \(DAL\) -3\.5/i }),
-    );
-    await user.click(
-      screen.getByRole('button', { name: /Philadelphia Eagles \(PHI\) \+3\.5/i }),
-    );
-
-    expect(
-      screen.getByRole('button', { name: /submit pick/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: /Dallas Cowboys \(DAL\) -3\.5/i }),
-    ).not.toHaveClass('border-blue-700');
-  });
-
-  it('replaces pending selection when picking a different game', async () => {
-    const user = userEvent.setup();
-    renderWeekView();
-
-    await user.click(
-      screen.getByRole('button', { name: /Dallas Cowboys \(DAL\) -3\.5/i }),
-    );
     await user.click(
       screen.getByRole('button', { name: /New York Giants \(NYG\) \+2\.5/i }),
     );
-
-    expect(
-      screen.getByRole('button', { name: /submit pick/i }),
-    ).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /submit pick/i }));
+    await user.click(screen.getByRole('button', { name: /^lock$/i }));
     await user.click(screen.getByRole('button', { name: /^confirm$/i }));
 
     await waitFor(() => {
@@ -186,7 +156,7 @@ describe('WeekView', () => {
     );
   });
 
-  it('blocks new selections when remainingPicks is 0', async () => {
+  it('hides Lock when remainingPicks is 0 but still offers Survive', async () => {
     const user = userEvent.setup();
     renderWeekView({ ...mockWeek, remainingPicks: 0 });
 
@@ -194,12 +164,26 @@ describe('WeekView', () => {
       screen.getByRole('button', { name: /Dallas Cowboys \(DAL\) -3\.5/i }),
     );
 
-    expect(
-      screen.queryByRole('button', { name: /submit pick/i }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^lock$/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^survive$/i })).toBeInTheDocument();
   });
 
-  it('keeps pending selection and shows error when submit fails', async () => {
+  it('hides Survive when the player cannot pick survivor', async () => {
+    const user = userEvent.setup();
+    renderWeekView({
+      ...mockWeek,
+      survivor: emptySurvivorWeekState({ canPick: false, myStatus: 'eliminated' }),
+    });
+
+    await user.click(
+      screen.getByRole('button', { name: /Dallas Cowboys \(DAL\) -3\.5/i }),
+    );
+
+    expect(screen.getByRole('button', { name: /^lock$/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^survive$/i })).not.toBeInTheDocument();
+  });
+
+  it('keeps pending selection and shows error when lock submit fails', async () => {
     const user = userEvent.setup();
     const onRefresh = vi.fn().mockResolvedValue(undefined);
 
@@ -212,19 +196,17 @@ describe('WeekView', () => {
     await user.click(
       screen.getByRole('button', { name: /Dallas Cowboys \(DAL\) -3\.5/i }),
     );
-    await user.click(screen.getByRole('button', { name: /submit pick/i }));
+    await user.click(screen.getByRole('button', { name: /^lock$/i }));
     await user.click(screen.getByRole('button', { name: /^confirm$/i }));
 
     expect(
       await screen.findByText(/odds have changed — please refresh/i),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /submit pick/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^lock$/i })).toBeInTheDocument();
     expect(onRefresh).not.toHaveBeenCalled();
   });
 
-  it('clears pending selection and refreshes after a successful submit', async () => {
+  it('clears pending selection and refreshes after a successful lock', async () => {
     const user = userEvent.setup();
     const onRefresh = vi.fn().mockResolvedValue(undefined);
 
@@ -245,16 +227,14 @@ describe('WeekView', () => {
     await user.click(
       screen.getByRole('button', { name: /Dallas Cowboys \(DAL\) -3\.5/i }),
     );
-    await user.click(screen.getByRole('button', { name: /submit pick/i }));
+    await user.click(screen.getByRole('button', { name: /^lock$/i }));
     await user.click(screen.getByRole('button', { name: /^confirm$/i }));
 
     await waitFor(() => {
       expect(onRefresh).toHaveBeenCalled();
     });
 
-    expect(
-      screen.queryByRole('button', { name: /submit pick/i }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^lock$/i })).not.toBeInTheDocument();
   });
 
   it('shows peer picks returned by the API for an unstarted game', () => {
@@ -281,6 +261,7 @@ describe('WeekView', () => {
         },
       ],
       remainingPicks: 2,
+      survivor: emptySurvivorWeekState(),
     };
 
     renderWeekView(openWeek);

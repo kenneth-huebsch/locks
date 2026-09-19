@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { emptySurvivorWeekState } from './lib/survivorState';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { App, type AppAuth } from './App';
@@ -42,6 +43,7 @@ const currentWeek: CurrentWeekResponse = {
   ],
   picks: [],
   remainingPicks: 2,
+  survivor: emptySurvivorWeekState(),
   oddsUpdatedAt: '2099-09-23T12:00:00.000Z',
 };
 
@@ -90,6 +92,7 @@ const pastWeek: CurrentWeekResponse = {
     },
   ],
   remainingPicks: 0,
+  survivor: emptySurvivorWeekState(),
   oddsUpdatedAt: '2026-09-09T12:00:00.000Z',
 };
 
@@ -290,7 +293,7 @@ describe('App', () => {
     expect(
       screen.getByRole('heading', { level: 2, name: /^week 3$/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/2 picks remaining/i)).toBeInTheDocument();
+    expect(screen.getByText(/2 locks remaining/i)).toBeInTheDocument();
     expect(screen.getByText(/lines last updated/i)).toBeInTheDocument();
     expect(
       screen.queryByRole('heading', { name: /picks board/i }),
@@ -355,7 +358,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: /^locks$/i }));
 
     expect(await screen.findByRole('heading', { level: 2, name: /^week 3$/i })).toBeInTheDocument();
-    expect(screen.getByText(/2 picks remaining/i)).toBeInTheDocument();
+    expect(screen.getByText(/2 locks remaining/i)).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: /^select week$/i })).toHaveValue('2026-3');
   });
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { gradeAgainstTheSpread } from './grading.js';
+import { gradeAgainstTheSpread, gradeStraightUp } from './grading.js';
 
 describe('gradeAgainstTheSpread', () => {
   const matchup = {
@@ -122,5 +122,45 @@ describe('gradeAgainstTheSpread', () => {
         homeScore: 17,
       }),
     ).toThrow(/neither away/);
+  });
+});
+
+describe('gradeStraightUp', () => {
+  const matchup = {
+    awayTeam: 'Dallas Cowboys',
+    homeTeam: 'Philadelphia Eagles',
+  };
+
+  it('grades a win when the picked team scores more', () => {
+    expect(
+      gradeStraightUp({
+        ...matchup,
+        pickedTeam: 'Dallas Cowboys',
+        awayScore: 28,
+        homeScore: 24,
+      }),
+    ).toBe('win');
+  });
+
+  it('grades a loss when the picked team scores less', () => {
+    expect(
+      gradeStraightUp({
+        ...matchup,
+        pickedTeam: 'Dallas Cowboys',
+        awayScore: 17,
+        homeScore: 24,
+      }),
+    ).toBe('loss');
+  });
+
+  it('grades a tie as a loss', () => {
+    expect(
+      gradeStraightUp({
+        ...matchup,
+        pickedTeam: 'Philadelphia Eagles',
+        awayScore: 20,
+        homeScore: 20,
+      }),
+    ).toBe('loss');
   });
 });

@@ -13,6 +13,7 @@ describe('ConfirmPickModal', () => {
   it('renders a summary of selected picks', () => {
     render(
       <ConfirmPickModal
+        mode="lock"
         isOpen
         onCancel={vi.fn()}
         onSubmit={vi.fn().mockResolvedValue(undefined)}
@@ -21,7 +22,7 @@ describe('ConfirmPickModal', () => {
     );
 
     expect(
-      screen.getByText(/this cannot be undone\. lock in this pick\?/i),
+      screen.getByText(/this cannot be undone\. Lock in this pick against the spread\?/i),
     ).toBeInTheDocument();
     expect(screen.getByText('Dallas Cowboys')).toBeInTheDocument();
     expect(screen.getByText('-3.5')).toBeInTheDocument();
@@ -35,6 +36,7 @@ describe('ConfirmPickModal', () => {
 
     render(
       <ConfirmPickModal
+        mode="lock"
         isOpen
         onCancel={onCancel}
         onSubmit={vi.fn().mockResolvedValue(undefined)}
@@ -52,6 +54,7 @@ describe('ConfirmPickModal', () => {
 
     render(
       <ConfirmPickModal
+        mode="lock"
         isOpen
         onCancel={vi.fn()}
         onSubmit={onSubmit}

@@ -111,6 +111,10 @@ describe('LocksAppStack', () => {
     });
     template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
       AuthorizationType: 'JWT',
+      RouteKey: 'POST /api/survivor/picks',
+    });
+    template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
+      AuthorizationType: 'JWT',
       RouteKey: 'GET /api/standings',
     });
     template.hasResourceProperties('AWS::ApiGatewayV2::Route', {

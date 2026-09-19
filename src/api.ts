@@ -7,6 +7,8 @@ import type {
   StandingsResponse,
   SubmitPickRequest,
   SubmitPickResponse,
+  SubmitSurvivorPickRequest,
+  SubmitSurvivorPickResponse,
   WeekSummary,
 } from '../shared/types';
 import {
@@ -164,6 +166,20 @@ export async function submitPick(
   });
 
   return parseResponse<SubmitPickResponse>(response);
+}
+
+export async function submitSurvivorPick(
+  accessToken: string,
+  request: SubmitSurvivorPickRequest,
+  apiBaseUrl = '/api',
+): Promise<SubmitSurvivorPickResponse> {
+  const response = await fetch(`${apiBaseUrl}/survivor/picks`, {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(request),
+  });
+
+  return parseResponse<SubmitSurvivorPickResponse>(response);
 }
 
 export async function loadPushVapidKey(

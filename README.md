@@ -1,9 +1,9 @@
 # Locks
 
-Phase 1 is a serverless foundation for the NFL Locks app. It provides an
-invite-only Cognito login, a JWT-protected current-week API, and one
-idempotently seeded game. Picks, odds, grading, and standings are intentionally
-out of scope.
+Invite-only NFL pick pool: **ATS locks** (up to three against-the-spread picks
+per week) plus a parallel **survivor** challenge (one straight-up team per week,
+no reuse, eliminate on loss/tie/miss). Same week UI — tap a team, then **Lock**
+and/or **Survive**.
 
 ## Current deployment
 
@@ -15,11 +15,11 @@ out of scope.
 | AWS region | `us-east-1` |
 | Production branch | `main` |
 | Login | Invite-only Cognito managed login |
-| Current user | `kenneth.huebsch@gmail.com` |
-| Data | One manually seeded 2026 Week 1 game |
+| Current users | Kenny, Jack, Eric |
+| Data | DynamoDB table `locks` (games slate, ATS picks, survivor) |
 
-The production flow has been validated through Cognito login, required password
-change, authenticated API access, and game display.
+One-time survivor seed (after deploy): `npm run seed:survivor` (account guard +
+`LocksAppPublishRole`).
 
 ## Architecture
 

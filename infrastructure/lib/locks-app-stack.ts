@@ -452,6 +452,63 @@ function handler(event) {
       authorizer,
     });
 
+    const submitSurvivorPickFunctionRole = new Role(
+      this,
+      'SubmitSurvivorPickFunctionRole',
+      {
+        assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
+        description: 'Execution role for authenticated survivor pick submission',
+        managedPolicies: [
+          ManagedPolicy.fromAwsManagedPolicyName(
+            'service-role/AWSLambdaBasicExecutionRole',
+          ),
+        ],
+      },
+    );
+    submitSurvivorPickFunctionRole.addToPolicy(
+      new PolicyStatement({
+        actions: [
+          'dynamodb:ConditionCheckItem',
+          'dynamodb:GetItem',
+          'dynamodb:PutItem',
+          'dynamodb:UpdateItem',
+          'dynamodb:TransactWriteItems',
+        ],
+        resources: [table.tableArn, `${table.tableArn}/index/*`],
+      }),
+    );
+
+    const submitSurvivorPickFunction = new NodejsFunction(
+      this,
+      'SubmitSurvivorPickFunction',
+      {
+        entry: 'backend/functions/submit-survivor-pick.ts',
+        handler: 'handler',
+        runtime: Runtime.NODEJS_22_X,
+        architecture: Architecture.ARM_64,
+        timeout: Duration.seconds(10),
+        memorySize: 256,
+        role: submitSurvivorPickFunctionRole,
+        environment: {
+          TABLE_NAME: table.tableName,
+        },
+        bundling: {
+          minify: true,
+          sourceMap: true,
+        },
+      },
+    );
+
+    httpApi.addRoutes({
+      path: '/api/survivor/picks',
+      methods: [HttpMethod.POST],
+      integration: new HttpLambdaIntegration(
+        'SubmitSurvivorPickIntegration',
+        submitSurvivorPickFunction,
+      ),
+      authorizer,
+    });
+
     const pushSubscriptionFunction = new NodejsFunction(
       this,
       'PushSubscriptionFunction',
@@ -493,6 +550,32 @@ function handler(event) {
     submitPickFunction.addEnvironment(
       'NOTIFY_PICK_FUNCTION_NAME',
       notifyPickFunction.functionName,
+    );
+
+    const notifySurvivorPickFunction = new NodejsFunction(
+      this,
+      'NotifySurvivorPickFunction',
+      {
+        entry: 'backend/functions/notify-survivor-pick.ts',
+        handler: 'handler',
+        runtime: Runtime.NODEJS_22_X,
+        architecture: Architecture.ARM_64,
+        timeout: Duration.seconds(30),
+        memorySize: 256,
+        environment: {
+          TABLE_NAME: table.tableName,
+        },
+        bundling: {
+          minify: true,
+          sourceMap: true,
+        },
+      },
+    );
+    table.grantReadWriteData(notifySurvivorPickFunction);
+    notifySurvivorPickFunction.grantInvoke(submitSurvivorPickFunction);
+    submitSurvivorPickFunction.addEnvironment(
+      'NOTIFY_SURVIVOR_PICK_FUNCTION_NAME',
+      notifySurvivorPickFunction.functionName,
     );
 
     const remindIncompleteFunctionRole = new Role(

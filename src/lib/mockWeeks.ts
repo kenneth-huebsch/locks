@@ -10,6 +10,7 @@ import {
   type SubmitPickResponse,
   type WeekSummary,
 } from '../../shared/types';
+import { emptySurvivorWeekState } from './survivorState';
 
 export class MockPickError extends Error {
   readonly code: ErrorCode;
@@ -211,6 +212,7 @@ const week1: CurrentWeekResponse = {
     },
   ],
   remainingPicks: 0,
+  survivor: emptySurvivorWeekState({ canPick: false, myStatus: null }),
   oddsUpdatedAt: week1OddsUpdatedAt,
 };
 
@@ -279,6 +281,7 @@ const week2: CurrentWeekResponse = {
     },
   ],
   remainingPicks: 0,
+  survivor: emptySurvivorWeekState({ canPick: false, myStatus: null }),
   oddsUpdatedAt: week2OddsUpdatedAt,
 };
 
@@ -311,6 +314,7 @@ const week3: CurrentWeekResponse = {
     },
   ],
   remainingPicks: 2,
+  survivor: emptySurvivorWeekState(),
   oddsUpdatedAt: week3OddsUpdatedAt,
 };
 

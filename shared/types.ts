@@ -90,12 +90,42 @@ export interface IncompletePicksResponse {
   incomplete: IncompletePicksPlayer[];
 }
 
+export type SurvivorPlayerStatus = 'alive' | 'eliminated' | 'winner';
+export type SurvivorChallengeStatus = 'active' | 'complete';
+export type SurvivorPickResult = 'pending' | 'win' | 'loss';
+
+export interface SurvivorPick {
+  playerId: string;
+  gameId: string;
+  seasonWeek: string;
+  pickedTeam: string;
+  submittedAt: string;
+  result: SurvivorPickResult;
+}
+
+export interface SurvivorPlayerState {
+  playerId: string;
+  status: SurvivorPlayerStatus;
+  usedTeams: string[];
+  eliminatedWeek?: string;
+}
+
+export interface SurvivorWeekState {
+  challengeStatus: SurvivorChallengeStatus;
+  winners: string[];
+  myStatus: SurvivorPlayerStatus | null;
+  usedTeams: string[];
+  canPick: boolean;
+  picks: SurvivorPick[];
+}
+
 export interface CurrentWeekResponse {
   week: Week;
   games: Game[];
   picks: Pick[];
   remainingPicks: number;
   oddsUpdatedAt: string | null;
+  survivor: SurvivorWeekState;
 }
 
 export interface SubmitPickRequest {
@@ -106,6 +136,15 @@ export interface SubmitPickRequest {
 
 export interface SubmitPickResponse {
   pick: Pick;
+}
+
+export interface SubmitSurvivorPickRequest {
+  gameId: string;
+  pickedTeam: string;
+}
+
+export interface SubmitSurvivorPickResponse {
+  pick: SurvivorPick;
 }
 
 export interface PushVapidResponse {
@@ -132,6 +171,14 @@ export interface NotifyPickEvent {
   week: number;
 }
 
+export interface NotifySurvivorPickEvent {
+  pickerSub: string;
+  gameId: string;
+  pickedTeam: string;
+  season: number;
+  week: number;
+}
+
 export interface ApiErrorResponse {
   error: {
     code: ErrorCode;
@@ -147,6 +194,12 @@ export const ErrorCodes = {
   GAME_NOT_FOUND: 'GAME_NOT_FOUND',
   INVALID_WEEK: 'INVALID_WEEK',
   WEEK_NOT_FOUND: 'WEEK_NOT_FOUND',
+  SURVIVOR_ELIMINATED: 'SURVIVOR_ELIMINATED',
+  TEAM_ALREADY_USED: 'TEAM_ALREADY_USED',
+  SURVIVOR_ALREADY_PICKED: 'SURVIVOR_ALREADY_PICKED',
+  TEAM_ON_BYE: 'TEAM_ON_BYE',
+  CHALLENGE_COMPLETE: 'CHALLENGE_COMPLETE',
+  SURVIVOR_NOT_CONFIGURED: 'SURVIVOR_NOT_CONFIGURED',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
 } as const;
 

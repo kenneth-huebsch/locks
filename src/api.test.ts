@@ -1,3 +1,4 @@
+import { emptySurvivorWeekState } from './lib/survivorState';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ErrorCodes } from '../shared/types';
 import { KENNY_SUB } from './lib/players';
@@ -168,6 +169,7 @@ describe('api live weeks', () => {
       games: [],
       picks: [],
       remainingPicks: 0,
+  survivor: emptySurvivorWeekState(),
       oddsUpdatedAt: null,
     };
     const fetchMock = vi.fn().mockResolvedValue(

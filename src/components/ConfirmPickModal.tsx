@@ -3,6 +3,8 @@ import { ApiError } from '../api';
 import { ErrorCodes } from '../../shared/types';
 import { formatSpread } from '../lib/time';
 
+export type ConfirmMode = 'lock' | 'survive';
+
 export interface PickSummary {
   gameId: string;
   team: string;
@@ -11,6 +13,7 @@ export interface PickSummary {
 
 export interface ConfirmPickModalProps {
   picks: PickSummary[];
+  mode: ConfirmMode;
   isOpen: boolean;
   onCancel: () => void;
   onSubmit: (picks: PickSummary[]) => Promise<void>;
@@ -21,10 +24,19 @@ const ERROR_MESSAGES: Record<string, string> = {
   [ErrorCodes.GAME_STARTED]: 'This game has already started',
   [ErrorCodes.DUPLICATE_PICK]: 'You already picked this game',
   [ErrorCodes.WEEKLY_LIMIT]: 'You have reached the three-pick weekly limit',
+  [ErrorCodes.SURVIVOR_ELIMINATED]: 'You have been eliminated from survivor',
+  [ErrorCodes.TEAM_ALREADY_USED]: 'You already used this team in survivor',
+  [ErrorCodes.SURVIVOR_ALREADY_PICKED]:
+    'You already submitted a survivor pick this week',
+  [ErrorCodes.TEAM_ON_BYE]: 'That team is not playing this week',
+  [ErrorCodes.CHALLENGE_COMPLETE]: 'The survivor challenge is already complete',
+  [ErrorCodes.SURVIVOR_NOT_CONFIGURED]:
+    'Survivor challenge is not configured yet',
 };
 
 export function ConfirmPickModal({
   picks,
+  mode,
   isOpen,
   onCancel,
   onSubmit,
@@ -55,6 +67,8 @@ export function ConfirmPickModal({
     }
   }
 
+  const isSurvive = mode === 'survive';
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 md:items-center md:px-6">
       <div
@@ -67,10 +81,12 @@ export function ConfirmPickModal({
           className="text-xl font-black text-blue-950 md:text-2xl"
           id="confirm-picks-title"
         >
-          Confirm pick
+          {isSurvive ? 'Confirm survivor pick' : 'Confirm lock'}
         </h2>
         <p className="mt-2 text-sm text-slate-600 md:mt-3 md:text-base">
-          This cannot be undone. Lock in this pick?
+          {isSurvive
+            ? 'This cannot be undone. If this team loses or ties, you are eliminated.'
+            : 'This cannot be undone. Lock in this pick against the spread?'}
         </p>
 
         <ul className="mt-4 space-y-2 md:mt-6 md:space-y-3">
@@ -80,9 +96,13 @@ export function ConfirmPickModal({
               key={pick.gameId}
             >
               <span className="font-semibold text-blue-950">{pick.team}</span>
-              <span className="ml-2 text-slate-600">
-                {formatSpread(pick.spread)}
-              </span>
+              {!isSurvive ? (
+                <span className="ml-2 text-slate-600">
+                  {formatSpread(pick.spread)}
+                </span>
+              ) : (
+                <span className="ml-2 text-slate-600">straight up</span>
+              )}
             </li>
           ))}
         </ul>
@@ -108,7 +128,11 @@ export function ConfirmPickModal({
             onClick={() => void handleConfirm()}
             type="button"
           >
-            {isSubmitting ? 'Submitting…' : 'Confirm'}
+            {isSubmitting
+              ? 'Submitting…'
+              : isSurvive
+                ? 'Survive'
+                : 'Confirm'}
           </button>
         </div>
       </div>

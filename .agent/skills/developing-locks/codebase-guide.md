@@ -26,7 +26,7 @@ client ID, and authority URL.
 | Component | Purpose |
 |---|---|
 | `App.tsx` | Auth gate, week dropdown, current WeekView or past PicksBoard |
-| `WeekView.tsx` | Current week: game cards + remaining picks |
+| `WeekView.tsx` | Current week: game cards; Lock/Survive actions after team tap |
 | `GameCard.tsx` | Single game display with pick selection, scores, and submitted picks |
 | `NotificationPrompt.tsx` | Enable Web Push / iOS Home Screen instructions |
 | `ConfirmPickModal.tsx` | Confirmation dialog before locking picks |
@@ -48,11 +48,13 @@ Each function is a Node.js Lambda bundled by CDK's `NodejsFunction`.
 | `current-week.ts` | `/api/week/current` | GET | Returns current week's games and picks |
 | `current-week.ts` | `/api/weeks` | GET | Week summaries (`1…active`) for the dropdown |
 | `current-week.ts` | `/api/week/{seasonWeek}` | GET | Selected week games + picks (`YYYY#Wnn`, URL-encoded) |
-| `submit-pick.ts` | `/api/picks` | POST | Atomic pick submission with validation |
+| `submit-pick.ts` | `/api/picks` | POST | Atomic ATS pick submission with validation |
+| `submit-survivor-pick.ts` | `/api/survivor/picks` | POST | Atomic survivor pick (straight-up, unused team) |
+| `notify-survivor-pick.ts` | (async from submit-survivor-pick) | — | Push when someone survives with a team |
 | `push-subscription.ts` | `/api/push/vapid` | GET | Web Push VAPID public key |
 | `push-subscription.ts` | `/api/push/subscription` | PUT | Save this device’s push subscription |
 | `notify-pick.ts` | (async from submit-pick) | — | Sends one lock/swing banner to everybody else |
-| `remind-incomplete.ts` | (scheduled Sun 12pm ET) | — | Web-push nudge to players still short of 3 picks |
+| `remind-incomplete.ts` | (scheduled Sun 12pm ET) | — | Web-push nudge for incomplete locks and missing survivor picks |
 | `standings.ts` | `/api/standings` | GET | Season standings through the active week |
 | `sync-odds.ts` | (scheduled) | — | Fetches Odds API spreads; Tuesday 2am may advance `SEASON#ACTIVE` |
 | `grade-games.ts` | (scheduled) | — | Fetches ESPN finals by kickoff date, matches by team name, grades picks |

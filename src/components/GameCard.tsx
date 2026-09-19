@@ -1,4 +1,4 @@
-import type { Game, Pick } from '../../shared/types';
+import type { Game, Pick, SurvivorPick } from '../../shared/types';
 import { LEAGUE_ROSTER } from '../lib/players';
 import { finalScoreLabel } from '../lib/game';
 import {
@@ -17,8 +17,11 @@ export interface GameCardProps {
   game: Game;
   existingPick?: Pick;
   revealedPicks?: Pick[];
+  revealedSurvivorPicks?: SurvivorPick[];
   selectedSide?: PendingSelection;
-  onPick: (gameId: string, team: string, spread: number) => void;
+  usedTeams?: string[];
+  mySurvivorTeam?: string;
+  onTeamSelect: (gameId: string, team: string, spread: number) => void;
   now?: Date;
 }
 
@@ -58,13 +61,15 @@ export function GameCard({
   game,
   existingPick,
   revealedPicks = [],
+  revealedSurvivorPicks = [],
   selectedSide,
-  onPick,
+  usedTeams = [],
+  mySurvivorTeam,
+  onTeamSelect,
   now = new Date(),
 }: GameCardProps) {
   const started = hasGameStarted(game.commenceTime, now);
-  const locked = Boolean(existingPick);
-  const selectable = !started && !locked && game.status === 'scheduled';
+  const selectable = !started && game.status === 'scheduled';
   const scoreLabel = finalScoreLabel(game);
 
   const statusLabel = scoreLabel
@@ -89,13 +94,29 @@ export function GameCard({
     existingPick &&
     matchesTeam(game.homeTeam, game.homeAbbr, existingPick.pickedTeam);
 
+  const survivorAway =
+    mySurvivorTeam &&
+    matchesTeam(game.awayTeam, game.awayAbbr, mySurvivorTeam);
+  const survivorHome =
+    mySurvivorTeam &&
+    matchesTeam(game.homeTeam, game.homeAbbr, mySurvivorTeam);
+
   const rosterPicks = LEAGUE_ROSTER.flatMap((player) => {
     const pick = revealedPicks.find((entry) => entry.playerId === player.sub);
     if (!pick) {
       return [];
     }
+    return [{ player, pick, kind: 'lock' as const }];
+  });
 
-    return [{ player, pick }];
+  const rosterSurvivor = LEAGUE_ROSTER.flatMap((player) => {
+    const pick = revealedSurvivorPicks.find(
+      (entry) => entry.playerId === player.sub,
+    );
+    if (!pick) {
+      return [];
+    }
+    return [{ player, pick, kind: 'survive' as const }];
   });
 
   return (
@@ -122,8 +143,10 @@ export function GameCard({
           disabled={!selectable}
           isLocked={Boolean(lockedAway)}
           isSelected={awaySelected}
+          isSurvivor={Boolean(survivorAway)}
+          isUsed={usedTeams.includes(game.awayTeam)}
           lockedSpread={lockedAway ? existingPick?.spreadAtPick : undefined}
-          onSelect={() => onPick(game.id, game.awayTeam, game.awaySpread)}
+          onSelect={() => onTeamSelect(game.id, game.awayTeam, game.awaySpread)}
           result={lockedAway ? existingPick?.result : undefined}
           teamName={game.awayTeam}
         />
@@ -136,22 +159,36 @@ export function GameCard({
           disabled={!selectable}
           isLocked={Boolean(lockedHome)}
           isSelected={homeSelected}
+          isSurvivor={Boolean(survivorHome)}
+          isUsed={usedTeams.includes(game.homeTeam)}
           lockedSpread={lockedHome ? existingPick?.spreadAtPick : undefined}
-          onSelect={() => onPick(game.id, game.homeTeam, game.homeSpread)}
+          onSelect={() => onTeamSelect(game.id, game.homeTeam, game.homeSpread)}
           result={lockedHome ? existingPick?.result : undefined}
           teamName={game.homeTeam}
         />
       </div>
 
-      {rosterPicks.length > 0 ? (
+      {rosterPicks.length > 0 || rosterSurvivor.length > 0 ? (
         <ul className="mt-4 space-y-1 border-t border-slate-100 pt-3" aria-label="Revealed picks">
           {rosterPicks.map(({ player, pick }) => (
             <li
               className="flex items-center justify-between gap-2 text-sm"
-              key={player.sub}
+              key={`lock-${player.sub}`}
             >
               <span className="text-slate-600">{player.displayName}</span>
               <PickResultChip pick={pick} />
+            </li>
+          ))}
+          {rosterSurvivor.map(({ player, pick }) => (
+            <li
+              className="flex items-center justify-between gap-2 text-sm"
+              key={`survive-${player.sub}`}
+            >
+              <span className="text-slate-600">{player.displayName} · survive</span>
+              <span className="font-semibold text-blue-950">
+                {pick.pickedTeam}
+                {pick.result !== 'pending' ? ` · ${pick.result}` : ''}
+              </span>
             </li>
           ))}
         </ul>
@@ -167,6 +204,8 @@ interface SideButtonProps {
   disabled: boolean;
   isSelected: boolean;
   isLocked: boolean;
+  isSurvivor: boolean;
+  isUsed: boolean;
   lockedSpread?: number;
   result?: Pick['result'];
   onSelect: () => void;
@@ -179,6 +218,8 @@ function SideButton({
   disabled,
   isSelected,
   isLocked,
+  isSurvivor,
+  isUsed,
   lockedSpread,
   result,
   onSelect,
@@ -191,7 +232,7 @@ function SideButton({
   const spreadText = `${abbr} ${formatSpread(displaySpread)}`;
   const currentSpreadText = `${abbr} ${formatSpread(currentSpread)}`;
 
-  const stateClass = isLocked
+  const stateClass = isLocked || isSurvivor
     ? lockedSideResultClass(result)
     : isSelected
       ? 'border-blue-700 bg-blue-100'
@@ -203,9 +244,9 @@ function SideButton({
     <button
       aria-label={accessiblePickLabel(teamName, abbr, displaySpread)}
       className={`w-full border px-3 py-2.5 text-left transition-colors md:px-4 md:py-3 ${stateClass} ${
-        disabled && !isLocked ? 'cursor-not-allowed' : ''
+        disabled && !isLocked && !isSurvivor ? 'cursor-not-allowed' : ''
       }`}
-      disabled={disabled}
+      disabled={disabled && !isLocked && !isSurvivor}
       onClick={onSelect}
       type="button"
     >
@@ -232,15 +273,27 @@ function SideButton({
             </p>
           ) : null}
         </div>
-        {isLocked ? (
-          <span
-            aria-label="Locked pick"
-            className="shrink-0 text-blue-950"
-            title="Locked"
-          >
-            🔒
-          </span>
-        ) : null}
+        <div className="flex shrink-0 items-center gap-1">
+          {isUsed ? (
+            <span
+              aria-label="Already used in survivor"
+              className="text-slate-500"
+              title="Used in survivor"
+            >
+              ✕
+            </span>
+          ) : null}
+          {isSurvivor ? (
+            <span aria-label="Survivor pick" title="Survive">
+              🛡️
+            </span>
+          ) : null}
+          {isLocked ? (
+            <span aria-label="Locked pick" className="text-blue-950" title="Locked">
+              🔒
+            </span>
+          ) : null}
+        </div>
       </div>
     </button>
   );

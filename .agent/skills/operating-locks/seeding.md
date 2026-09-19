@@ -5,6 +5,7 @@
 | Script | Command | What It Does |
 |---|---|---|
 | `seed-foundation.ts` | `npm run seed` | **Offseason recovery only.** Writes the dummy foundation Week 1 game. Not run on publish. |
+| `seed-survivor.ts` | `npm run seed:survivor` | Seeds `SURVIVOR#<year>` meta + alive player rows for the league roster |
 | `seed-active-week.ts` | `npx tsx scripts/seed-active-week.ts` | Seeds active week metadata + a fake game slate (idempotent) |
 | `seed-week.ts` | `npx tsx scripts/seed-week.ts` | Seeds a fake game slate for a specific week (idempotent) |
 

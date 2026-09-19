@@ -159,7 +159,10 @@ describe('current-week handler', () => {
       .mockResolvedValueOnce(weekMetaGet())
       .mockResolvedValueOnce({ Items: [baseGame] })
       .mockResolvedValueOnce({ Items: [basePick] })
-      .mockResolvedValueOnce(counterGet(1));
+      .mockResolvedValueOnce(counterGet(1))
+        .mockResolvedValueOnce({})
+        .mockResolvedValueOnce({})
+        .mockResolvedValueOnce({ Items: [] });
     const handler = createHandler(send);
 
     const response = await handler(createEvent());
@@ -191,13 +194,22 @@ describe('current-week handler', () => {
       ],
       picks: [expectedPick(basePick)],
       remainingPicks: 2,
+      survivor: {
+        challengeStatus: 'active',
+        winners: [],
+        myStatus: null,
+        usedTeams: [],
+        canPick: false,
+        picks: [],
+      },
       oddsUpdatedAt: ODDS_UPDATED_AT,
     });
 
     const gsiQuery = send.mock.calls.find(
       ([command]) =>
         command instanceof QueryCommand &&
-        command.input.IndexName === 'GSI1',
+        command.input.IndexName === 'GSI1' &&
+        command.input.FilterExpression === 'begins_with(SK, :pickPrefix)',
     );
     expect(gsiQuery).toBeDefined();
     expect(gsiQuery![0].input).toMatchObject({
@@ -217,7 +229,10 @@ describe('current-week handler', () => {
       .mockResolvedValueOnce(weekMetaGet())
       .mockResolvedValueOnce({ Items: [finalGame] })
       .mockResolvedValueOnce({ Items: [basePick] })
-      .mockResolvedValueOnce(counterGet(1));
+      .mockResolvedValueOnce(counterGet(1))
+        .mockResolvedValueOnce({})
+        .mockResolvedValueOnce({})
+        .mockResolvedValueOnce({ Items: [] });
     const handler = createHandler(send);
 
     const response = await handler(createEvent());
@@ -238,7 +253,10 @@ describe('current-week handler', () => {
       .mockResolvedValueOnce(weekMetaGet())
       .mockResolvedValueOnce({ Items: [baseGame] })
       .mockResolvedValueOnce({ Items: [basePick, otherPlayerPick] })
-      .mockResolvedValueOnce(counterGet(1));
+      .mockResolvedValueOnce(counterGet(1))
+        .mockResolvedValueOnce({})
+        .mockResolvedValueOnce({})
+        .mockResolvedValueOnce({ Items: [] });
     const handler = createHandler(send);
 
     const response = await handler(createEvent());
@@ -293,7 +311,10 @@ describe('current-week handler', () => {
       .mockResolvedValueOnce(weekMetaGet())
       .mockResolvedValueOnce({ Items: [completedPastGame] })
       .mockResolvedValueOnce({ Items: [basePick, otherPlayerPick] })
-      .mockResolvedValueOnce(counterGet(1));
+      .mockResolvedValueOnce(counterGet(1))
+        .mockResolvedValueOnce({})
+        .mockResolvedValueOnce({})
+        .mockResolvedValueOnce({ Items: [] });
     const handler = createHandler(send);
 
     const response = await handler({
@@ -337,7 +358,10 @@ describe('current-week handler', () => {
       .mockResolvedValueOnce({})
       .mockResolvedValueOnce({ Items: [] })
       .mockResolvedValueOnce({ Items: [] })
-      .mockResolvedValueOnce({});
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ Items: [] });
     const handler = createHandler(send);
 
     const response = await handler({
@@ -385,6 +409,14 @@ describe('current-week handler', () => {
       ],
       picks: [],
       remainingPicks: 3,
+      survivor: {
+        challengeStatus: 'active',
+        winners: [],
+        myStatus: null,
+        usedTeams: [],
+        canPick: false,
+        picks: [],
+      },
       oddsUpdatedAt: null,
     });
     expect(send).toHaveBeenCalledTimes(2);
@@ -403,9 +435,10 @@ describe('current-week handler', () => {
         .mockResolvedValueOnce(weekMetaGet(null))
         .mockResolvedValueOnce({ Items: [] })
         .mockResolvedValueOnce({ Items: [] })
-        .mockResolvedValueOnce(
-          pickCount === 0 ? {} : counterGet(pickCount),
-        );
+        .mockResolvedValueOnce(pickCount === 0 ? {} : counterGet(pickCount))
+        .mockResolvedValueOnce({})
+        .mockResolvedValueOnce({})
+        .mockResolvedValueOnce({ Items: [] });
       const handler = createHandler(send);
 
       const response = await handler(createEvent());

@@ -77,9 +77,9 @@ const gradedPeerPick: Pick = {
 describe('GameCard', () => {
   it('shows selectable sides for an unstarted game without a pick', async () => {
     const user = userEvent.setup();
-    const onPick = vi.fn();
+    const onTeamSelect = vi.fn();
 
-    render(<GameCard game={futureGame} onPick={onPick} />);
+    render(<GameCard game={futureGame} onTeamSelect={onTeamSelect} />);
 
     const awayButton = screen.getByRole('button', {
       name: /Dallas Cowboys \(DAL\) -3\.5/i,
@@ -87,7 +87,7 @@ describe('GameCard', () => {
     expect(awayButton).toBeEnabled();
 
     await user.click(awayButton);
-    expect(onPick).toHaveBeenCalledWith(
+    expect(onTeamSelect).toHaveBeenCalledWith(
       'game-1',
       'Dallas Cowboys',
       -3.5,
@@ -99,7 +99,7 @@ describe('GameCard', () => {
       <GameCard
         game={startedGame}
         now={new Date('2025-01-01T00:00:00.000Z')}
-        onPick={vi.fn()}
+        onTeamSelect={vi.fn()}
       />,
     );
 
@@ -117,7 +117,7 @@ describe('GameCard', () => {
       <GameCard
         game={finalGame}
         now={new Date('2025-01-01T00:00:00.000Z')}
-        onPick={vi.fn()}
+        onTeamSelect={vi.fn()}
       />,
     );
 
@@ -130,7 +130,7 @@ describe('GameCard', () => {
       <GameCard
         existingPick={existingPick}
         game={futureGame}
-        onPick={vi.fn()}
+        onTeamSelect={vi.fn()}
       />,
     );
 
@@ -138,7 +138,7 @@ describe('GameCard', () => {
     const lockedButton = screen.getByRole('button', {
       name: /Dallas Cowboys \(DAL\) -3\.5/i,
     });
-    expect(lockedButton).toBeDisabled();
+    expect(lockedButton).toBeEnabled();
     expect(within(lockedButton).getAllByText(/DAL -3.5/i).length).toBeGreaterThan(0);
   });
 
@@ -147,7 +147,7 @@ describe('GameCard', () => {
       <GameCard
         existingPick={driftedPick}
         game={{ ...futureGame, awaySpread: -1.5, homeSpread: 1.5 }}
-        onPick={vi.fn()}
+        onTeamSelect={vi.fn()}
       />,
     );
 
@@ -160,7 +160,7 @@ describe('GameCard', () => {
       <GameCard
         existingPick={existingPick}
         game={futureGame}
-        onPick={vi.fn()}
+        onTeamSelect={vi.fn()}
         revealedPicks={[existingPick, { ...peerPick, gameId: 'game-1' }]}
       />,
     );
@@ -178,7 +178,7 @@ describe('GameCard', () => {
         existingPick={gradedPick}
         game={finalGame}
         now={new Date('2025-01-01T00:00:00.000Z')}
-        onPick={vi.fn()}
+        onTeamSelect={vi.fn()}
         revealedPicks={[gradedPick, gradedPeerPick]}
       />,
     );

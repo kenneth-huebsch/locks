@@ -1,15 +1,19 @@
 import { useMemo, useState } from 'react';
 import type { CurrentWeekResponse } from '../../shared/types';
-import type { SubmitPickRequest } from '../../shared/types';
-import { submitPick as submitPickRequest } from '../api';
+import {
+  submitPick as submitPickRequest,
+  submitSurvivorPick as submitSurvivorPickRequest,
+} from '../api';
 import { groupGamesByDay, formatOddsUpdatedAt } from '../lib/time';
 import {
   ConfirmPickModal,
+  type ConfirmMode,
   type PickSummary,
 } from './ConfirmPickModal';
 import { GameCard } from './GameCard';
+import { LEAGUE_ROSTER } from '../lib/players';
 
-interface PendingPick {
+interface PendingSelection {
   gameId: string;
   team: string;
   spread: number;
@@ -30,14 +34,23 @@ export function WeekView({
   apiBaseUrl = '/api',
   onRefresh,
 }: WeekViewProps) {
-  const [pendingSelection, setPendingSelection] = useState<PendingPick | null>(
+  const [pendingSelection, setPendingSelection] = useState<PendingSelection | null>(
     null,
   );
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [confirmMode, setConfirmMode] = useState<ConfirmMode | null>(null);
+
+  const survivor = currentWeek.survivor ?? {
+    challengeStatus: 'active' as const,
+    winners: [],
+    myStatus: null,
+    usedTeams: [],
+    canPick: false,
+    picks: [],
+  };
 
   const playerPicks = useMemo(
     () => (currentWeek.picks ?? []).filter((pick) => pick.playerId === userSub),
-    [currentWeek.picks ?? [], userSub],
+    [currentWeek.picks, userSub],
   );
 
   const picksByGameId = useMemo(() => {
@@ -59,15 +72,41 @@ export function WeekView({
       map.set(pick.gameId, existing);
     }
     return map;
-  }, [currentWeek.picks ?? [], userSub]);
+  }, [currentWeek.picks, userSub]);
 
-  const groupedGames = useMemo(
-    () => groupGamesByDay((currentWeek.games ?? [])),
-    [(currentWeek.games ?? [])],
+  const survivorPicksByGameId = useMemo(() => {
+    const map = new Map<string, typeof survivor.picks>();
+    for (const pick of survivor.picks) {
+      const existing = map.get(pick.gameId) ?? [];
+      existing.push(pick);
+      map.set(pick.gameId, existing);
+    }
+    return map;
+  }, [survivor.picks]);
+
+  const mySurvivorPick = useMemo(
+    () => survivor.picks.find((pick) => pick.playerId === userSub),
+    [survivor.picks, userSub],
   );
 
-  const pendingSelections = useMemo<PickSummary[]>(() => {
-    if (!pendingSelection) {
+  const groupedGames = useMemo(
+    () => groupGamesByDay(currentWeek.games ?? []),
+    [currentWeek.games],
+  );
+
+  const canLock = currentWeek.remainingPicks > 0;
+  const canSurvive = survivor.canPick;
+  const showLockForSelection =
+    canLock &&
+    pendingSelection !== null &&
+    !picksByGameId.has(pendingSelection.gameId);
+  const showSurviveForSelection =
+    canSurvive &&
+    pendingSelection !== null &&
+    !survivor.usedTeams.includes(pendingSelection.team);
+
+  const pendingSummaries = useMemo<PickSummary[]>(() => {
+    if (!pendingSelection || !confirmMode) {
       return [];
     }
     return [
@@ -77,62 +116,74 @@ export function WeekView({
         spread: pendingSelection.spread,
       },
     ];
-  }, [pendingSelection]);
+  }, [pendingSelection, confirmMode]);
 
-  function handlePick(gameId: string, team: string, spread: number) {
+  function handleTeamSelect(gameId: string, team: string, spread: number) {
     setPendingSelection((current) => {
       if (current?.gameId === gameId && current.team === team) {
         return null;
       }
-
-      if (current === null && currentWeek.remainingPicks === 0) {
-        return null;
-      }
-
       return { gameId, team, spread };
     });
+    setConfirmMode(null);
   }
 
-  async function handleSubmitPicks(picks: PickSummary[]) {
-    const succeededGameIds: string[] = [];
-    let firstError: unknown = null;
-
-    for (const pick of picks) {
-      const request: SubmitPickRequest = {
-        gameId: pick.gameId,
-        pickedTeam: pick.team,
-        spreadAtPick: pick.spread,
-      };
-
-      try {
-        await submitPickRequest(accessToken, request, apiBaseUrl, userSub);
-        succeededGameIds.push(pick.gameId);
-      } catch (error) {
-        if (firstError === null) {
-          firstError = error;
-        }
-      }
+  async function handleConfirm(picks: PickSummary[]) {
+    const pick = picks[0];
+    if (!pick || !confirmMode) {
+      return;
     }
 
-    // Always remove successful picks from the selection state and refresh.
-    if (succeededGameIds.length > 0) {
-      setPendingSelection((current) => {
-        if (current && succeededGameIds.includes(current.gameId)) {
-          return null;
-        }
-        return current;
-      });
-      await onRefresh();
+    if (confirmMode === 'lock') {
+      await submitPickRequest(
+        accessToken,
+        {
+          gameId: pick.gameId,
+          pickedTeam: pick.team,
+          spreadAtPick: pick.spread,
+        },
+        apiBaseUrl,
+        userSub,
+      );
+    } else {
+      await submitSurvivorPickRequest(
+        accessToken,
+        { gameId: pick.gameId, pickedTeam: pick.team },
+        apiBaseUrl,
+      );
     }
 
-    // Close modal only if everything succeeded. Otherwise keep it open
-    // and rethrow the first error so the modal shows the right message.
-    if (succeededGameIds.length === picks.length) {
-      setIsModalOpen(false);
-    } else if (firstError !== null) {
-      throw firstError;
-    }
+    setPendingSelection(null);
+    setConfirmMode(null);
+    await onRefresh();
   }
+
+  const survivorStatusLabel = (() => {
+    if (survivor.challengeStatus === 'complete') {
+      const names = survivor.winners
+        .map(
+          (sub) =>
+            LEAGUE_ROSTER.find((player) => player.sub === sub)?.displayName ??
+            'Winner',
+        )
+        .join(', ');
+      return names ? `Survivor winners: ${names}` : 'Survivor complete';
+    }
+    if (survivor.myStatus === 'eliminated') {
+      return `Eliminated from survivor${
+        survivor.picks.length ? '' : ''
+      }`;
+    }
+    if (survivor.myStatus === 'winner') {
+      return 'You won survivor';
+    }
+    if (survivor.myStatus === 'alive') {
+      return mySurvivorPick
+        ? `Survivor pick: ${mySurvivorPick.pickedTeam}`
+        : 'Survivor: pick required';
+    }
+    return null;
+  })();
 
   return (
     <section>
@@ -145,10 +196,16 @@ export function WeekView({
             Week {currentWeek.week.week}
           </h2>
           <p className="text-sm text-slate-600 sm:text-base">
-            {currentWeek.remainingPicks} pick
+            {currentWeek.remainingPicks} lock
             {currentWeek.remainingPicks === 1 ? '' : 's'} remaining
+            {canSurvive ? ' · survivor open' : ''}
           </p>
         </div>
+        {survivorStatusLabel ? (
+          <p className="mt-2 text-sm font-medium text-slate-700">
+            {survivorStatusLabel}
+          </p>
+        ) : null}
       </div>
 
       <p className="mt-4 text-sm text-slate-600">
@@ -172,8 +229,16 @@ export function WeekView({
                     <GameCard
                       existingPick={picksByGameId.get(game.id)}
                       game={game}
-                      onPick={handlePick}
+                      mySurvivorTeam={
+                        mySurvivorPick?.gameId === game.id
+                          ? mySurvivorPick.pickedTeam
+                          : undefined
+                      }
+                      onTeamSelect={handleTeamSelect}
                       revealedPicks={revealedPicksByGameId.get(game.id) ?? []}
+                      revealedSurvivorPicks={
+                        survivorPicksByGameId.get(game.id) ?? []
+                      }
                       selectedSide={
                         pendingSelection?.gameId === game.id
                           ? {
@@ -182,6 +247,7 @@ export function WeekView({
                             }
                           : undefined
                       }
+                      usedTeams={survivor.usedTeams}
                     />
                   </li>
                 ))}
@@ -191,23 +257,40 @@ export function WeekView({
         </div>
       )}
 
-      {pendingSelections.length > 0 ? (
+      {pendingSelection && (showLockForSelection || showSurviveForSelection) ? (
         <div className="sticky bottom-0 mt-8 border-t border-slate-200 bg-slate-50 px-4 pb-safe pt-4 md:px-0">
-          <button
-            className="w-full bg-blue-950 px-5 py-3 font-bold text-white hover:bg-blue-800"
-            onClick={() => setIsModalOpen(true)}
-            type="button"
-          >
-            Submit pick
-          </button>
+          <p className="mb-3 text-sm text-slate-600">
+            {pendingSelection.team}
+          </p>
+          <div className="flex gap-3">
+            {showLockForSelection ? (
+              <button
+                className="flex-1 bg-blue-950 px-5 py-3 font-bold text-white hover:bg-blue-800"
+                onClick={() => setConfirmMode('lock')}
+                type="button"
+              >
+                Lock
+              </button>
+            ) : null}
+            {showSurviveForSelection ? (
+              <button
+                className="flex-1 border-2 border-blue-950 bg-white px-5 py-3 font-bold text-blue-950 hover:bg-blue-50"
+                onClick={() => setConfirmMode('survive')}
+                type="button"
+              >
+                Survive
+              </button>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
       <ConfirmPickModal
-        isOpen={isModalOpen}
-        onCancel={() => setIsModalOpen(false)}
-        onSubmit={handleSubmitPicks}
-        picks={pendingSelections}
+        isOpen={confirmMode !== null && pendingSummaries.length > 0}
+        mode={confirmMode ?? 'lock'}
+        onCancel={() => setConfirmMode(null)}
+        onSubmit={handleConfirm}
+        picks={pendingSummaries}
       />
     </section>
   );

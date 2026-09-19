@@ -166,6 +166,16 @@ JWTs protect every API route.
 7. Standings use W-L-T only.
    - K/D badges are removed.
 
+## Survivor challenge (parallel)
+
+Runs alongside ATS locks for the same three players. One straight-up team pick
+per week; a team may be used only once per season. Loss or tie eliminates.
+Missed pick eliminates when the week slate is fully final. Picks lock at that
+game’s kickoff and are visible immediately. Sole survivor wins immediately;
+Week 18 (or mass-elim) co-winners. Same week UI: tap a team → **Lock** and/or
+**Survive**. Used survivor teams show an icon. Push on survivor submit;
+Sunday noon ET reminder if alive without a survivor pick.
+
 ## DynamoDB data model
 
 Use one DynamoDB table with explicit partition and sort keys plus focused
@@ -552,9 +562,9 @@ Remaining asks are only the small ops items under **Current open items** above.
 
 - Importing historical 2025 picks
 - K/D crown badges
-- Survivor pool
 - Office Football Pool
 - Anonymous public access
 - Player pick editing or deletion
 - In-app admin grading override UI (operator DynamoDB updates instead)
 - Extra immutable-pick banner copy beyond the existing confirm modal
+- Survivor prize tracking or playoff continuation

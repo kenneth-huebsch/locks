@@ -22,6 +22,7 @@ the Odds API, troubleshooting issues, and monitoring system health.
 | Task | Guide |
 |---|---|
 | Seed game data | `seeding.md` |
+| Seed survivor challenge | `npm run seed:survivor` (see `docs/handoffs/survivor.md`) |
 | Manage Odds API key, spreads schedules, grading | `odds-management.md` |
 | Manual grade / week advance | `odds-management.md` (`invoke-grade-games.ts`, `invoke-advance-week.ts`) |
 | Create/manage Cognito users | `cognito-users.md` |

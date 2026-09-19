@@ -182,15 +182,42 @@ Diagnostic log of metered Odds API responses. Short-lived via TTL.
 | Sort key | `GSI1SK` (String) |
 | Projection | All attributes |
 
-Applied to **Pick items only**:
+Applied to **Pick and Survivor pick items**:
 
-- `GSI1PK = WEEK#<year>#W<week>`
-- `GSI1SK = PICK#<cognitoSub>#GAME#<eventId>`
+- Locks: `GSI1PK = WEEK#<year>#W<week>`, `GSI1SK = PICK#<cognitoSub>#GAME#<eventId>`
+- Survivor: `GSI1PK = WEEK#<year>#W<week>`, `GSI1SK = SURVIVOR#<cognitoSub>`
 
 Serves the “all picks for a week” access pattern for the picks board and
 `GET /api/week/current`, `GET /api/weeks`, and `GET /api/week/{seasonWeek}`.
 Clients must URL-encode season-week tokens so `#` becomes `%23`
 (for example `/api/week/2026%23W01`).
+
+### Survivor challenge
+
+Parallel competition keyed by season year. Seed once with
+`npm run seed:survivor`.
+
+| Entity | PK | SK | Notes |
+|---|---|---|---|
+| Challenge meta | `SURVIVOR#<year>` | `META` | `status`: `active` \| `complete`; `winners: string[]` |
+| Player state | `SURVIVOR#<year>` | `PLAYER#<cognitoSub>` | `status`: `alive` \| `eliminated` \| `winner`; `usedTeams: string[]`; `eliminatedWeek?` |
+| Weekly pick | `PLAYER#<cognitoSub>` | `SURVIVOR#<year>#W<week>` | Straight-up pick; `result`: `pending` \| `win` \| `loss` (tie grades as loss) |
+
+### Survivor pick submission (`POST /api/survivor/picks`)
+
+Transaction:
+
+1. Condition-check game exists, not started, and team is away or home.
+2. Condition-check player is `alive` and team not in `usedTeams`.
+3. Put weekly survivor pick (`attribute_not_exists`).
+4. Append team to `usedTeams`.
+
+### Survivor grading
+
+`grade-games` grades pending survivor picks straight-up after scores land.
+When every game on the slate is final, alive players without a pick are
+eliminated. Lifecycle then resolves sole winner, mass-elim co-winners, or
+Week 18 co-winners.
 
 ## Transaction boundaries
 

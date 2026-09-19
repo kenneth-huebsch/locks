@@ -12,7 +12,7 @@ import {
   type EspnScoreboardClient,
   type HttpClient,
 } from '../lib/espn-scoreboard-client.js';
-import { gradeAgainstTheSpread } from '../../shared/grading.js';
+import { gradeAgainstTheSpread, gradeStraightUp } from '../../shared/grading.js';
 import {
   ACTIVE_SEASON_PARTITION_KEY,
   ACTIVE_SEASON_SORT_KEY,
@@ -21,9 +21,20 @@ import {
   pickSortKey,
   playerPartitionKey,
   seasonWeekToken,
+  survivorChallengePartitionKey,
+  survivorPickSortKey,
+  survivorPlayerSortKey,
+  SURVIVOR_META_SORT_KEY,
+  SURVIVOR_PICK_SK_PREFIX,
   weekPartitionKey,
 } from '../../shared/dynamo.js';
-import type { Pick as PickRecord } from '../../shared/types.js';
+import { resolveSurvivorWeek } from '../../shared/survivor.js';
+import type {
+  Pick as PickRecord,
+  SurvivorPick,
+  SurvivorPlayerState,
+} from '../../shared/types.js';
+import { LEAGUE_ROSTER } from '../../shared/roster.js';
 
 const GSI1_INDEX_NAME = 'GSI1';
 const DEFAULT_SEASON = 2026;
@@ -54,6 +65,8 @@ export interface GradeGamesResult {
   gamesFinalized?: number;
   picksGraded?: number;
   picksSkipped?: number;
+  survivorPicksGraded?: number;
+  survivorEliminated?: number;
 }
 
 interface WeekGame {
@@ -61,6 +74,9 @@ interface WeekGame {
   awayTeam: string;
   homeTeam: string;
   commenceTime: string;
+  awayScore: number | null;
+  homeScore: number | null;
+  status: string;
 }
 
 interface GameFinalScore extends EspnFinalScore {
@@ -135,6 +151,11 @@ async function queryWeekGames(
       awayTeam: item.awayTeam as string,
       homeTeam: item.homeTeam as string,
       commenceTime: item.commenceTime as string,
+      awayScore:
+        typeof item.awayScore === 'number' ? item.awayScore : null,
+      homeScore:
+        typeof item.homeScore === 'number' ? item.homeScore : null,
+      status: typeof item.status === 'string' ? item.status : 'scheduled',
     }));
 }
 
@@ -177,6 +198,113 @@ async function queryWeekPicks(
         typeof item.submittedAt === 'string' ? item.submittedAt : '',
       result: item.result as PickRecord['result'],
     }));
+}
+
+async function queryWeekSurvivorPicks(
+  dynamoClient: DynamoDocumentClient,
+  tableName: string,
+  season: number,
+  week: number,
+): Promise<SurvivorPick[]> {
+  const result = await dynamoClient.send(
+    new QueryCommand({
+      TableName: tableName,
+      IndexName: GSI1_INDEX_NAME,
+      KeyConditionExpression:
+        'GSI1PK = :weekPk AND begins_with(GSI1SK, :prefix)',
+      ExpressionAttributeValues: {
+        ':weekPk': weekPartitionKey(season, week),
+        ':prefix': SURVIVOR_PICK_SK_PREFIX,
+      },
+    }),
+  );
+
+  return (result.Items ?? [])
+    .filter(
+      (item) =>
+        typeof item.playerId === 'string' &&
+        typeof item.gameId === 'string' &&
+        typeof item.pickedTeam === 'string' &&
+        typeof item.result === 'string',
+    )
+    .map((item) => ({
+      playerId: item.playerId as string,
+      gameId: item.gameId as string,
+      seasonWeek:
+        typeof item.seasonWeek === 'string'
+          ? item.seasonWeek
+          : seasonWeekToken(season, week),
+      pickedTeam: item.pickedTeam as string,
+      submittedAt:
+        typeof item.submittedAt === 'string' ? item.submittedAt : '',
+      result: item.result as SurvivorPick['result'],
+    }));
+}
+
+async function loadSurvivorPlayers(
+  dynamoClient: DynamoDocumentClient,
+  tableName: string,
+  season: number,
+): Promise<{
+  challengeStatus: 'active' | 'complete';
+  winners: string[];
+  players: SurvivorPlayerState[];
+} | null> {
+  const challengePk = survivorChallengePartitionKey(season);
+  const metaResult = await dynamoClient.send(
+    new GetCommand({
+      TableName: tableName,
+      Key: { PK: challengePk, SK: SURVIVOR_META_SORT_KEY },
+    }),
+  );
+  if (!metaResult.Item) {
+    return null;
+  }
+
+  const playerResults = await Promise.all(
+    LEAGUE_ROSTER.map((player) =>
+      dynamoClient.send(
+        new GetCommand({
+          TableName: tableName,
+          Key: {
+            PK: challengePk,
+            SK: survivorPlayerSortKey(player.sub),
+          },
+        }),
+      ),
+    ),
+  );
+
+  const players: SurvivorPlayerState[] = LEAGUE_ROSTER.flatMap(
+    (player, index) => {
+      const item = playerResults[index]?.Item;
+      if (!item || typeof item.status !== 'string') {
+        return [];
+      }
+      return [
+        {
+          playerId: player.sub,
+          status: item.status as SurvivorPlayerState['status'],
+          usedTeams: Array.isArray(item.usedTeams)
+            ? (item.usedTeams as string[])
+            : [],
+          eliminatedWeek:
+            typeof item.eliminatedWeek === 'string'
+              ? item.eliminatedWeek
+              : undefined,
+        },
+      ];
+    },
+  );
+
+  return {
+    challengeStatus:
+      metaResult.Item.status === 'complete' ? 'complete' : 'active',
+    winners: Array.isArray(metaResult.Item.winners)
+      ? (metaResult.Item.winners as string[])
+      : [],
+    players,
+  };
 }
 
 /** ESPN scoreboard `dates` uses the US Eastern calendar day of kickoff. */
@@ -311,6 +439,112 @@ async function gradePendingPick(
   }
 }
 
+async function gradePendingSurvivorPick(
+  dynamoClient: DynamoDocumentClient,
+  tableName: string,
+  season: number,
+  week: number,
+  pick: SurvivorPick,
+  score: GameFinalScore,
+): Promise<'graded' | 'skipped'> {
+  if (pick.result !== 'pending') {
+    return 'skipped';
+  }
+
+  const gradedResult = gradeStraightUp({
+    pickedTeam: pick.pickedTeam,
+    awayTeam: score.awayTeam,
+    homeTeam: score.homeTeam,
+    awayScore: score.awayScore,
+    homeScore: score.homeScore,
+  });
+
+  try {
+    await dynamoClient.send(
+      new UpdateCommand({
+        TableName: tableName,
+        Key: {
+          PK: playerPartitionKey(pick.playerId),
+          SK: survivorPickSortKey(season, week),
+        },
+        UpdateExpression: 'SET #result = :result',
+        ConditionExpression: '#result = :pending',
+        ExpressionAttributeNames: {
+          '#result': 'result',
+        },
+        ExpressionAttributeValues: {
+          ':result': gradedResult,
+          ':pending': 'pending',
+        },
+      }),
+    );
+    return 'graded';
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.name === 'ConditionalCheckFailedException'
+    ) {
+      return 'skipped';
+    }
+    throw error;
+  }
+}
+
+async function persistSurvivorLifecycle(
+  dynamoClient: DynamoDocumentClient,
+  tableName: string,
+  season: number,
+  week: number,
+  nowIso: string,
+  challengeStatus: 'active' | 'complete',
+  winners: string[],
+  players: SurvivorPlayerState[],
+): Promise<void> {
+  const challengePk = survivorChallengePartitionKey(season);
+  await dynamoClient.send(
+    new UpdateCommand({
+      TableName: tableName,
+      Key: { PK: challengePk, SK: SURVIVOR_META_SORT_KEY },
+      UpdateExpression:
+        'SET #status = :status, winners = :winners, updatedAt = :now',
+      ExpressionAttributeNames: { '#status': 'status' },
+      ExpressionAttributeValues: {
+        ':status': challengeStatus,
+        ':winners': winners,
+        ':now': nowIso,
+      },
+    }),
+  );
+
+  await Promise.all(
+    players.map((player) =>
+      dynamoClient.send(
+        new UpdateCommand({
+          TableName: tableName,
+          Key: {
+            PK: challengePk,
+            SK: survivorPlayerSortKey(player.playerId),
+          },
+          UpdateExpression: player.eliminatedWeek
+            ? 'SET #status = :status, eliminatedWeek = :eliminatedWeek, updatedAt = :now'
+            : 'SET #status = :status, updatedAt = :now',
+          ExpressionAttributeNames: { '#status': 'status' },
+          ExpressionAttributeValues: player.eliminatedWeek
+            ? {
+                ':status': player.status,
+                ':eliminatedWeek': player.eliminatedWeek,
+                ':now': nowIso,
+              }
+            : {
+                ':status': player.status,
+                ':now': nowIso,
+              },
+        }),
+      ),
+    ),
+  );
+}
+
 export function createGradeGamesHandler(
   dependencies: GradeGamesDependencies,
 ): (event?: GradeGamesEvent) => Promise<GradeGamesResult> {
@@ -349,8 +583,24 @@ export function createGradeGamesHandler(
       let gamesFinalized = 0;
       let picksGraded = 0;
       let picksSkipped = 0;
+      let survivorPicksGraded = 0;
+      const finalScoresByGameId = new Map<string, GameFinalScore>();
 
       for (const game of weekGames) {
+        if (
+          game.status === 'final' &&
+          game.awayScore !== null &&
+          game.homeScore !== null
+        ) {
+          finalScoresByGameId.set(game.id, {
+            gameId: game.id,
+            awayTeam: game.awayTeam,
+            homeTeam: game.homeTeam,
+            awayScore: game.awayScore,
+            homeScore: game.homeScore,
+          });
+        }
+
         const finalScore = matchFinalScore(game, scores);
         if (!finalScore) {
           continue;
@@ -364,6 +614,7 @@ export function createGradeGamesHandler(
           finalScore,
         );
         gamesFinalized += 1;
+        finalScoresByGameId.set(game.id, finalScore);
 
         for (const pick of weekPicks.filter(
           (candidate) => candidate.gameId === game.id,
@@ -384,9 +635,78 @@ export function createGradeGamesHandler(
         }
       }
 
+      const survivorPicks = await queryWeekSurvivorPicks(
+        dependencies.dynamoClient,
+        dependencies.tableName,
+        season,
+        week,
+      );
+      for (const pick of survivorPicks) {
+        const score = finalScoresByGameId.get(pick.gameId);
+        if (!score) {
+          continue;
+        }
+        const outcome = await gradePendingSurvivorPick(
+          dependencies.dynamoClient,
+          dependencies.tableName,
+          season,
+          week,
+          pick,
+          score,
+        );
+        if (outcome === 'graded') {
+          survivorPicksGraded += 1;
+        }
+      }
+
+      const refreshedSurvivorPicks = await queryWeekSurvivorPicks(
+        dependencies.dynamoClient,
+        dependencies.tableName,
+        season,
+        week,
+      );
+      const survivorChallenge = await loadSurvivorPlayers(
+        dependencies.dynamoClient,
+        dependencies.tableName,
+        season,
+      );
+
+      let survivorEliminated = 0;
+      if (survivorChallenge && survivorChallenge.challengeStatus === 'active') {
+        const allGamesFinal =
+          weekGames.length > 0 &&
+          weekGames.every((game) => finalScoresByGameId.has(game.id));
+        const lifecycle = resolveSurvivorWeek({
+          season,
+          week,
+          challengeStatus: survivorChallenge.challengeStatus,
+          players: survivorChallenge.players,
+          picks: refreshedSurvivorPicks,
+          allGamesFinal,
+        });
+        survivorEliminated = lifecycle.eliminatedThisWeek.length;
+        if (
+          lifecycle.eliminatedThisWeek.length > 0 ||
+          lifecycle.challengeStatus !== survivorChallenge.challengeStatus ||
+          lifecycle.winners.length > 0
+        ) {
+          await persistSurvivorLifecycle(
+            dependencies.dynamoClient,
+            dependencies.tableName,
+            season,
+            week,
+            new Date().toISOString(),
+            lifecycle.challengeStatus,
+            lifecycle.winners,
+            lifecycle.players,
+          );
+        }
+      }
+
       logger.info(
         `Grading complete for ${seasonWeek}: finalized ${gamesFinalized} games, ` +
-          `graded ${picksGraded} picks, skipped ${picksSkipped}`,
+          `graded ${picksGraded} picks, skipped ${picksSkipped}, ` +
+          `survivor graded ${survivorPicksGraded}, eliminated ${survivorEliminated}`,
       );
 
       return {
@@ -395,6 +715,8 @@ export function createGradeGamesHandler(
         gamesFinalized,
         picksGraded,
         picksSkipped,
+        survivorPicksGraded,
+        survivorEliminated,
       };
     } catch (error) {
       logger.error('Grading failed', error);
