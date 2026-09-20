@@ -56,5 +56,10 @@ describe('OverallRecord', () => {
     expect(screen.getByLabelText(/eric survivor status/i)).toHaveTextContent(
       '☠️ Dead',
     );
+    expect(screen.getByText('Locks:')).toBeInTheDocument();
+    expect(screen.getByText('Survivor:')).toBeInTheDocument();
+    expect(screen.getByText('Playoff Confidence Picks:')).toBeInTheDocument();
+    expect(screen.getByText(/\$250/)).toBeInTheDocument();
+    expect(screen.getAllByText(/\$75/)).toHaveLength(2);
   });
 });

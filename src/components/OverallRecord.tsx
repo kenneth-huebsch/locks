@@ -83,6 +83,18 @@ export function OverallRecord({ standings }: OverallRecordProps) {
           );
         })}
       </ul>
+
+      <div className="mt-6 text-left text-sm text-slate-700">
+        <p>
+          <span className="font-bold">Locks:</span> $250
+        </p>
+        <p>
+          <span className="font-bold">Survivor:</span> $75
+        </p>
+        <p>
+          <span className="font-bold">Playoff Confidence Picks:</span> $75
+        </p>
+      </div>
     </section>
   );
 }
