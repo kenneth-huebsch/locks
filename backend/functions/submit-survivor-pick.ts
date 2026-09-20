@@ -354,19 +354,6 @@ export function createSubmitSurvivorPickHandler(
                 },
               },
               {
-                ConditionCheck: {
-                  TableName: dependencies.tableName,
-                  Key: { PK: challengePk, SK: playerStateSk },
-                  ConditionExpression:
-                    '#status = :alive AND (attribute_not_exists(usedTeams) OR NOT contains(usedTeams, :team))',
-                  ExpressionAttributeNames: { '#status': 'status' },
-                  ExpressionAttributeValues: {
-                    ':alive': 'alive',
-                    ':team': request.pickedTeam,
-                  },
-                },
-              },
-              {
                 Put: {
                   TableName: dependencies.tableName,
                   Item: {
@@ -385,13 +372,17 @@ export function createSubmitSurvivorPickHandler(
                   Key: { PK: challengePk, SK: playerStateSk },
                   UpdateExpression:
                     'SET usedTeams = list_append(if_not_exists(usedTeams, :empty), :teamList), updatedAt = :now',
-                  ConditionExpression: '#status = :alive',
+                  // Merge alive/unused checks into this Update — DynamoDB
+                  // forbids ConditionCheck + Update on the same item.
+                  ConditionExpression:
+                    '#status = :alive AND (attribute_not_exists(usedTeams) OR NOT contains(usedTeams, :team))',
                   ExpressionAttributeNames: { '#status': 'status' },
                   ExpressionAttributeValues: {
                     ':empty': [],
                     ':teamList': [request.pickedTeam],
                     ':now': nowIso,
                     ':alive': 'alive',
+                    ':team': request.pickedTeam,
                   },
                 },
               },
@@ -422,18 +413,19 @@ export function createSubmitSurvivorPickHandler(
           if (cancellationReasonCode(reasons[1]) === 'ConditionalCheckFailed') {
             return errorResponse(
               409,
-              ErrorCodes.TEAM_ALREADY_USED,
-              conflictMessage(ErrorCodes.TEAM_ALREADY_USED),
-            );
-          }
-          if (cancellationReasonCode(reasons[2]) === 'ConditionalCheckFailed') {
-            return errorResponse(
-              409,
               ErrorCodes.SURVIVOR_ALREADY_PICKED,
               conflictMessage(ErrorCodes.SURVIVOR_ALREADY_PICKED),
             );
           }
-          if (cancellationReasonCode(reasons[3]) === 'ConditionalCheckFailed') {
+          if (cancellationReasonCode(reasons[2]) === 'ConditionalCheckFailed') {
+            // Could be eliminated or team already used; prefer used-team if known.
+            if (usedTeams.includes(request.pickedTeam)) {
+              return errorResponse(
+                409,
+                ErrorCodes.TEAM_ALREADY_USED,
+                conflictMessage(ErrorCodes.TEAM_ALREADY_USED),
+              );
+            }
             return errorResponse(
               409,
               ErrorCodes.SURVIVOR_ELIMINATED,

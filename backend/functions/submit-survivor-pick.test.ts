@@ -141,5 +141,24 @@ describe('submit-survivor-pick handler', () => {
     expect(response.statusCode).toBe(201);
     expect(JSON.parse(response.body).pick.pickedTeam).toBe('Dallas Cowboys');
     expect(notifySurvivorPick).toHaveBeenCalledOnce();
+
+    const transact = send.mock.calls.find(
+      ([command]) => command instanceof TransactWriteCommand,
+    )?.[0] as TransactWriteCommand;
+    const items = transact.input.TransactItems ?? [];
+    expect(items).toHaveLength(3);
+    const keys = items.map((item) => {
+      if (item.ConditionCheck?.Key) {
+        return `${item.ConditionCheck.Key.PK}#${item.ConditionCheck.Key.SK}`;
+      }
+      if (item.Update?.Key) {
+        return `${item.Update.Key.PK}#${item.Update.Key.SK}`;
+      }
+      if (item.Put?.Item) {
+        return `${item.Put.Item.PK}#${item.Put.Item.SK}`;
+      }
+      return 'unknown';
+    });
+    expect(new Set(keys).size).toBe(keys.length);
   });
 });
