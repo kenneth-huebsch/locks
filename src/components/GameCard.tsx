@@ -274,7 +274,7 @@ function SideButton({
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          {isUsed ? (
+          {isUsed && !isSurvivor ? (
             <span
               aria-label="Already used in survivor"
               className="text-slate-500"
@@ -285,7 +285,7 @@ function SideButton({
           ) : null}
           {isSurvivor ? (
             <span aria-label="Survivor pick" title="Survive">
-              🛡️
+              🔥
             </span>
           ) : null}
           {isLocked ? (
