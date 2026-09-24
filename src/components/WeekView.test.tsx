@@ -95,6 +95,9 @@ describe('WeekView', () => {
     expect(screen.getByText(/2 locks remaining/i)).toBeInTheDocument();
     expect(screen.getByText(/lines last updated/i)).toBeInTheDocument();
     expect(
+      screen.getByText(/lines update tue 2:00 am, thu 5:00 pm/i),
+    ).toBeInTheDocument();
+    expect(
       screen.queryByText(/picks are final once submitted/i),
     ).not.toBeInTheDocument();
     expect(screen.queryByText(/season record/i)).not.toBeInTheDocument();

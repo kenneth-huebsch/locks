@@ -257,6 +257,11 @@ export function WeekView({
         </div>
       )}
 
+      <p className="mt-10 text-sm text-slate-500">
+        Lines update Tue 2:00 AM, Thu 5:00 PM, Sun 8:00 AM / 12:30 PM / 3:30 PM
+        / 7:30 PM, and Mon 5:00 PM ET.
+      </p>
+
       {pendingSelection && (showLockForSelection || showSurviveForSelection) ? (
         <div className="sticky bottom-0 mt-8 border-t border-slate-200 bg-slate-50 px-4 pb-safe pt-4 md:px-0">
           <p className="mb-3 text-sm text-slate-600">
